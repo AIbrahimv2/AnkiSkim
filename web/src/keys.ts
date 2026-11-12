@@ -143,6 +143,7 @@ export class Keys {
       case "/":
         return { kind: "search" };
       case "e":
+      case "b":
         return { kind: "edit" };
       case "r":
         return { kind: "replay" };

@@ -55,7 +55,7 @@ through topics.
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
-| `e` | Edit the card in Anki's browser |
+| `e` or `b` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
 | `q` or `Esc` | Close Skim (Esc first cancels a number you've typed) |

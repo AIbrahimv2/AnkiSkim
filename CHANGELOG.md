@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format is based on
   cards, and `p` in Skim goes back.
 - A list of the cards beside the card, with each one's type, state
   (new, learning, review, suspended, buried) and flag.
-- `e` opens the card in Anki's browser to edit it; `r` plays its audio.
+- `e` or `b` opens the card in Anki's browser to edit it (`b`, as in
+  Stepwise); `r` plays its audio.
 - Settings for the side shown first, playing audio by itself, the first
   search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in the window.
