@@ -50,7 +50,9 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
     if mw.col is None:
         return
     window = _get()
-    opener = QApplication.activeWindow()
+    # p goes back to the add-on window that asked (Stepwise), not to Anki's
+    # main window when you open Skim from the Tools menu.
+    opener = QApplication.activeWindow() if source else None
     window.show_cards(search=search, card_ids=card_ids, title=title, source=source,
                       opener=opener if opener is not window else None)
     window.present(focus)
