@@ -6,7 +6,7 @@ it does when you review it, and the next ones are drawn before you get there,
 so moving is instant.
 
 It pairs with [Stepwise](https://github.com/AIbrahimv2/AnkiStepwise): press
-`p` on a topic there to see its cards here, and Skim follows as you move
+`b` on a topic there to see its cards here, and Skim follows as you move
 through topics.
 
 ## Features
@@ -26,8 +26,8 @@ through topics.
   note's text with clozes filled in, its card type, its state (new, learning,
   review, suspended, buried) and its flag. Click a row to jump there; drag the
   edge between the list and the card to resize.
-- **Follows Stepwise.** Press `p` on a topic in Stepwise and Skim opens on its
-  cards. Leave Skim open and every topic you move to in Stepwise shows its
+- **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
+  opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
   Search for something else in Skim and it stops following.
 - **Edit in Anki's browser.** `e` opens the card there, with the same search.
@@ -35,7 +35,7 @@ through topics.
 
 ## Usage
 
-1. Open **Tools → Skim** (Cmd/Ctrl+Shift+B), or press `p` on a topic in
+1. Open **Tools → Skim** (Cmd/Ctrl+Shift+B), or press `b` on a topic in
    Stepwise.
 2. Press `/`, type a search the way you would in Anki's browser
    (`tag:Cardio`, `deck:current is:suspended`, `heart`), and press Enter.
@@ -55,7 +55,7 @@ through topics.
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
-| `e` or `b` | Open the card in Anki's browser, to edit it |
+| `e` or `B` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
 | `q` or `Esc` | Close Skim (Esc first cancels a number you've typed) |

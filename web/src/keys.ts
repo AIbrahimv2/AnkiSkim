@@ -143,7 +143,7 @@ export class Keys {
       case "/":
         return { kind: "search" };
       case "e":
-      case "b":
+      case "B": // as in Stepwise, where b opens Skim and B Anki's browser
         return { kind: "edit" };
       case "r":
         return { kind: "replay" };

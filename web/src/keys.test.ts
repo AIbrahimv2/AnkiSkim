@@ -101,7 +101,8 @@ test("sides, scrolling and the rest", () => {
   assert.deepEqual(type(k, "2K"), { kind: "scroll", by: -10 });
   assert.deepEqual(type(k, "/"), { kind: "search" });
   assert.deepEqual(type(k, "e"), { kind: "edit" });
-  assert.deepEqual(type(k, "b"), { kind: "edit" }); // as in Stepwise: b for Anki's browser
+  assert.deepEqual(type(k, "B"), { kind: "edit" }); // as in Stepwise: B for Anki's browser
+  assert.equal(type(k, "b"), undefined);
   assert.deepEqual(type(k, "r"), { kind: "replay" });
   assert.deepEqual(type(k, "p"), { kind: "back" });
   assert.deepEqual(type(k, "q"), { kind: "close" });

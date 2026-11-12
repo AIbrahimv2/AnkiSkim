@@ -14,12 +14,12 @@ All notable changes to this project are documented here. The format is based on
   them.
 - **Instant moves.** The next cards are drawn ahead of time, so moving to one
   takes about one screen refresh (Anki's own preview waits at least 300 ms).
-- **Follows Stepwise.** Press `p` on a topic in Stepwise to see its cards;
+- **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise to see its cards;
   while Skim is open, moving through topics in Stepwise shows each one's
   cards, and `p` in Skim goes back.
 - A list of the cards beside the card, with each one's type, state
   (new, learning, review, suspended, buried) and flag.
-- `e` or `b` opens the card in Anki's browser to edit it (`b`, as in
+- `e` or `B` opens the card in Anki's browser to edit it (`B`, as in
   Stepwise); `r` plays its audio.
 - Settings for the side shown first, playing audio by itself, the first
   search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in the window.

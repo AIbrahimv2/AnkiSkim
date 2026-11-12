@@ -128,7 +128,7 @@ const KEYS: [string[], string][] = [
   [["Space"], "Flip the card"],
   [["J", "K"], "Scroll a long card down / up"],
   [["/"], "Search (Anki's syntax); Enter runs it, Esc goes back"],
-  [["e", "b"], "Open the card in Anki's browser, to edit it"],
+  [["e", "B"], "Open the card in Anki's browser, to edit it"],
   [["r"], "Play the card's audio"],
   [["p"], "Back to the window that opened Skim (Stepwise)"],
   [["q", "Esc"], "Close Skim"],
