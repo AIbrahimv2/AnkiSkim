@@ -107,4 +107,6 @@ test("sides, scrolling and the rest", () => {
   assert.deepEqual(type(k, "p"), { kind: "back" });
   assert.deepEqual(type(k, "q"), { kind: "close" });
   assert.deepEqual(type(k, "?"), { kind: "help" });
+  assert.deepEqual(type(k, "f"), { kind: "filter", by: 1 });
+  assert.deepEqual(type(k, "F"), { kind: "filter", by: -1 });
 });

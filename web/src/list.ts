@@ -1,8 +1,8 @@
-// The card list: one row per card, only the rows on screen in the page
+// The card table: one row per card, only the rows on screen in the page
 // (plus a few either side), reused as you scroll, so a search with 50,000
 // cards scrolls like one with 50. Moving the cursor changes two rows.
 
-import type { Row } from "./types.ts";
+import type { Row, Status } from "./types.ts";
 
 export const ROW_H = 30;
 const OVERSCAN = 10;
@@ -19,26 +19,39 @@ const STATES: Record<number, [label: string, cls: string]> = {
   2: ["Review", "review"],
   4: ["Preview", "learn"],
 };
+const VERDICTS: Record<string, string> = { now: "Now", call: "Your call", wait: "Wait" };
+const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "saved for later" };
+
+/** Columns you can sort by (the facets the page has for every card). */
+export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict";
+const HEADS: [label: string, key: SortKey | null, title: string][] = [
+  ["#", "order", "Original order"],
+  ["Card", null, "The note's text, clozes filled in"],
+  ["State", "state", "New, learning, review, suspended or buried"],
+  ["Yield", "yield", "AnKing's yield tag"],
+  ["Q-bank", "banks", "UWorld (UW), AMBOSS (AM) and NBME (NB) questions tagged on the card"],
+  ["Again in", "later", "Other systems the card is in (green: you've done it; orange: queued)"],
+  ["Verdict", "verdict", "Unsuspend now, or wait for the system it mostly belongs to"],
+];
 
 export interface ListOptions {
   row(cid: number): Row | undefined;
   /** Rows the list is about to show and doesn't have yet. */
   need(cids: number[]): void;
   pick(index: number): void;
+  sort(key: SortKey): void;
 }
 
 interface RowEl {
   el: HTMLDivElement;
-  num: HTMLSpanElement;
-  text: HTMLSpanElement;
-  kind: HTMLSpanElement;
-  state: HTMLSpanElement;
+  cells: HTMLSpanElement[];
   index: number;
   filled: boolean;
 }
 
 export class CardList {
   readonly scroller: HTMLDivElement;
+  private head: HTMLDivElement;
   private sizer: HTMLDivElement;
   private live = new Map<number, RowEl>();
   private spare: RowEl[] = [];
@@ -49,12 +62,28 @@ export class CardList {
 
   constructor(host: HTMLElement, opts: ListOptions) {
     this.opts = opts;
+    this.head = document.createElement("div");
+    this.head.className = "list-head";
+    for (const [label, key, title] of HEADS) {
+      const h = document.createElement("span");
+      h.textContent = label;
+      h.title = title;
+      if (key) {
+        h.className = "sortable";
+        h.dataset.sort = key;
+        h.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          this.opts.sort(key);
+        });
+      }
+      this.head.append(h);
+    }
     this.scroller = document.createElement("div");
     this.scroller.className = "list-scroll";
     this.sizer = document.createElement("div");
     this.sizer.className = "list-sizer";
     this.scroller.append(this.sizer);
-    host.append(this.scroller);
+    host.append(this.head, this.scroller);
     this.scroller.addEventListener("scroll", () => this.schedule(), { passive: true });
     new ResizeObserver(() => this.render()).observe(this.scroller);
     this.scroller.addEventListener("mousedown", (e) => {
@@ -75,6 +104,15 @@ export class CardList {
     return Math.max(1, Math.floor(this.scroller.clientHeight / ROW_H));
   }
 
+  /** Show which column the list is sorted by. */
+  setSort(key: SortKey, dir: 1 | -1): void {
+    for (const h of this.head.querySelectorAll<HTMLElement>("[data-sort]")) {
+      const on = h.dataset.sort === key && key !== "order";
+      h.classList.toggle("sorted", on);
+      h.dataset.dir = on ? (dir > 0 ? "up" : "down") : "";
+    }
+  }
+
   setIds(ids: number[], cursor: number): void {
     this.ids = ids;
     this.cursorIndex = cursor;
@@ -92,9 +130,11 @@ export class CardList {
     this.keepInView();
   }
 
-  /** New rows arrived, or rows changed: fill in what's on screen. */
+  /** New rows arrived, or rows changed (force): fill in what's on screen,
+   *  asking for any it doesn't have. */
   refresh(force = false): void {
     for (const r of this.live.values()) if (force || !r.filled) this.fill(r);
+    if (force) this.render();
   }
 
   private keepInView(): void {
@@ -137,7 +177,7 @@ export class CardList {
         r.index = i;
         r.el.dataset.i = String(i);
         r.el.style.transform = `translateY(${i * ROW_H}px)`;
-        r.num.textContent = String(i + 1);
+        r.cells[0].textContent = String(i + 1);
         this.live.set(i, r);
         this.fill(r);
         this.sizer.append(r.el);
@@ -150,16 +190,13 @@ export class CardList {
   private make(): RowEl {
     const el = document.createElement("div");
     el.className = "row";
-    const num = document.createElement("span");
-    num.className = "r-num num";
-    const text = document.createElement("span");
-    text.className = "r-text";
-    const kind = document.createElement("span");
-    kind.className = "r-kind";
-    const state = document.createElement("span");
-    state.className = "r-state";
-    el.append(num, text, kind, state);
-    return { el, num, text, kind, state, index: -1, filled: false };
+    const cells = ["r-num num", "r-text", "r-state", "r-yield", "r-bank num", "r-again", "r-verdict"].map((cls) => {
+      const c = document.createElement("span");
+      c.className = cls;
+      el.append(c);
+      return c;
+    });
+    return { el, cells, index: -1, filled: false };
   }
 
   private recycle(r: RowEl): void {
@@ -170,26 +207,40 @@ export class CardList {
 
   private fill(r: RowEl): void {
     const row = this.opts.row(this.ids[r.index]);
+    const [, text, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");
     if (!row) {
       r.filled = false;
       cls.push("loading");
-      r.text.textContent = "";
-      r.kind.textContent = "";
-      r.state.textContent = "";
+      for (const c of r.cells.slice(1)) c.replaceChildren();
       r.el.className = cls.join(" ");
       return;
     }
-    const [text, kind, queue, flag] = row;
-    const [label, stateCls] = STATES[queue] ?? ["", ""];
-    if (flag) cls.push(`flag-${flag}`);
-    r.text.textContent = text || "(empty)";
-    r.kind.textContent = kind;
-    r.state.textContent = label;
-    r.state.className = `r-state ${stateCls}`;
+    const [label, stateCls] = STATES[row.q] ?? ["", ""];
+    if (row.f) cls.push(`flag-${row.f}`);
+    text.textContent = row.t || "(empty)";
+    text.title = row.k ? `${row.t}\n${row.k}` : row.t;
+    state.textContent = label;
+    state.className = `r-state ${stateCls}`;
+    yld.textContent = row.y ?? "";
+    yld.className = `r-yield${row.y === "High" ? " high" : ""}`;
+    bank.textContent = row.b ?? "";
+    bank.title = row.b ?? "";
+    again.replaceChildren(...(row.a ?? []).map(([unit, status]) => chip(unit, status)));
+    verdict.textContent = row.v ? VERDICTS[row.v] : "";
+    verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
+    verdict.title = row.r ?? "";
     r.el.className = cls.join(" ");
-    r.el.title = text;
     r.filled = true;
   }
+}
+
+/** A system the card is also in, coloured by Stepwise's status there. */
+export function chip(unit: string, status: Status): HTMLSpanElement {
+  const c = document.createElement("span");
+  c.className = `ag${status ? ` s-${status}` : ""}`;
+  c.textContent = unit;
+  c.title = `${unit}: ${status ? STATUS_WORD[status] : "not started"}`;
+  return c;
 }

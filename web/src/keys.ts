@@ -16,6 +16,7 @@ export type Command =
   | { kind: "back" }
   | { kind: "close" }
   | { kind: "help" }
+  | { kind: "filter"; by: 1 | -1 } // f/F: next / previous filter
   | { kind: "cancel" };
 
 /** The bits of a key event the machine reads (a DOM KeyboardEvent fits). */
@@ -153,6 +154,10 @@ export class Keys {
         return { kind: "close" };
       case "?":
         return { kind: "help" };
+      case "f":
+        return { kind: "filter", by: 1 };
+      case "F":
+        return { kind: "filter", by: -1 };
       case "Escape":
         return typed ? { kind: "cancel" } : { kind: "close" };
     }

@@ -127,6 +127,7 @@ const KEYS: [string[], string][] = [
   [["h", "l"], "Show the front / the back"],
   [["Space"], "Flip the card"],
   [["J", "K"], "Scroll a long card down / up"],
+  [["f", "F"], "Next / previous filter (All, Suspended, Now, Wait, ...)"],
   [["/"], "Search (Anki's syntax); Enter runs it, Esc goes back"],
   [["e", "B"], "Open the card in Anki's browser, to edit it"],
   [["r"], "Play the card's audio"],
@@ -222,6 +223,22 @@ function SettingsDialog(props: { onClose: () => void; onSaved: (config: PageConf
               </Row>
               <Row label="Play audio by itself" hint="Plays a card's sound when you stop on it. r plays it any time.">
                 <Switch checked={v.autoplay} label="" onChange={(x) => set("autoplay", x)} />
+              </Row>
+              <Row
+                label="Wait when a card is mostly elsewhere"
+                hint="On a topic, a suspended card could wait when less than this share of its places is in the topic's system, and a system you haven't done also has it."
+                problem={problems.waitBelow}
+              >
+                <span className="pct-field">
+                  <input
+                    className={`set-input num${problems.waitBelow ? " bad" : ""}`}
+                    inputMode="numeric"
+                    value={String(v.waitBelow)}
+                    onChange={(e) => set("waitBelow", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                    aria-label="Percentage"
+                  />
+                  %
+                </span>
               </Row>
             </div>
           </section>

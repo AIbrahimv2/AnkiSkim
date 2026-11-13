@@ -1,20 +1,26 @@
-// The page: toolbar, card list and card, wired to the keys. Plain DOM, no
-// framework: a key press goes from here straight to the list and the card
-// frames, with nothing to re-render in between. The dialogs, menu and
-// toasts (chrome/) are React, and only run when you open them.
+// The page, laid out like Anki's browser: the card table on the left, the
+// card and its tags on the right. Plain DOM, no framework: a key press goes
+// from here straight to the table and the card frames, with nothing to
+// re-render in between. The dialogs, menu and toasts (chrome/) are React,
+// and only run when you open them.
+//
+// The table can be filtered (All, Suspended, Now, Wait, ...) and sorted
+// by its columns. Both work from "facets": a few numbers per card for the
+// whole view, fetched in slices right after the view arrives.
 
 import { call } from "./bridge.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
 import { type Command, Keys } from "./keys.ts";
-import { CardList } from "./list.ts";
+import { CardList, type SortKey } from "./list.ts";
+import { TagsPane, tagCount } from "./pane.ts";
 import { Stage, type Want } from "./stage.ts";
-import type { CardHtml, Layout, PageConfig, PushEvent, Row, Side, View } from "./types.ts";
+import type { CardHtml, Facets, Layout, PageConfig, PushEvent, Row, Side, View } from "./types.ts";
 
 const SEARCH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-const MAX_ROWS_KEPT = 20000;
-const LIST_MIN = 220;
-const CARD_MIN = 320;
+const LIST_MIN = 360;
+const SIDE_MIN = 320;
+const FACET_SLICE = 3000;
 
 export interface Boot {
   view: View;
@@ -22,6 +28,26 @@ export interface Boot {
   config: PageConfig;
   layout: Layout;
 }
+
+type FilterKey = "all" | "susp" | "now" | "wait" | "call" | "high" | "qbank";
+interface Filter {
+  key: FilterKey;
+  label: string;
+  /** Only with a topic to judge cards against. */
+  topic?: boolean;
+  test(f: Facets, i: number): boolean;
+}
+const FILTERS: Filter[] = [
+  { key: "all", label: "All", test: () => true },
+  { key: "susp", label: "Suspended", test: (f, i) => f.state[i] === -1 },
+  { key: "now", label: "Now", topic: true, test: (f, i) => f.verdict[i] === 1 },
+  { key: "wait", label: "Wait", topic: true, test: (f, i) => f.verdict[i] === 3 },
+  { key: "call", label: "Your call", topic: true, test: (f, i) => f.verdict[i] === 2 },
+  { key: "high", label: "High yield", test: (f, i) => f.yield[i] === 1 || f.yield[i] === 3 },
+  { key: "qbank", label: "Q-bank", test: (f, i) => f.banks[i] > 0 },
+];
+/** First direction when you sort by a column. */
+const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const other = (s: Side): Side => (s === "answer" ? "question" : "answer");
@@ -45,6 +71,8 @@ export class App {
   private view: View;
   private config: PageConfig;
   private side: Side;
+  /** The cards in the table, in its order (the view's, filtered and sorted). */
+  private shown: number[] = [];
   private cursor = 0;
   private dir: 1 | -1 = 1;
   private keys = new Keys();
@@ -52,16 +80,23 @@ export class App {
   private rowsWanted = new Set<number>();
   private rowsInFlight = new Set<number>();
   private rowsQueued = false;
+  private facets: Facets | null = null;
+  private facetsSeq = -1;
+  private filter: FilterKey = "all";
+  private sort: SortKey = "order";
+  private sortDir: 1 | -1 = 1;
   private autoplayTimer = 0;
   private lastPlayed = "";
   private chrome!: ChromeApi;
 
   private list: CardList;
   private stage: Stage;
+  private pane: TagsPane;
   private input: HTMLInputElement;
   private sourceEl: HTMLElement;
   private sides: HTMLElement;
   private pos: HTMLElement;
+  private chips: HTMLElement;
   private typed: HTMLElement;
   private message: HTMLElement;
   private hints: HTMLElement;
@@ -101,14 +136,19 @@ export class App {
 
     const main = el("main", "main");
     const listPanel = el("section", "panel list-panel");
+    this.chips = el("div", "chips");
+    listPanel.append(this.chips);
     this.typed = el("div", "typed num");
     const splitter = el("div", "splitter");
     splitter.title = "Drag to resize";
+    const right = el("div", "side");
     const cardPanel = el("section", "panel card-panel");
     const stageEl = el("div", "stage");
     this.message = el("div", "stage-msg");
     cardPanel.append(stageEl, this.message);
-    main.append(listPanel, splitter, cardPanel);
+    const tagsPanel = el("section", "panel tags-panel");
+    right.append(cardPanel, tagsPanel);
+    main.append(listPanel, splitter, right);
     this.hints = el("footer", "hints");
     this.chromeHost = el("div", "chrome");
     app.append(bar, main, this.hints);
@@ -118,15 +158,17 @@ export class App {
       row: (cid) => this.rows.get(cid),
       need: (cids) => this.needRows(cids),
       pick: (i) => this.go(i, true),
+      sort: (key) => this.sortBy(key),
     });
     listPanel.append(this.typed);
+    this.pane = new TagsPane(tagsPanel);
     this.stage = new Stage(stageEl, boot.frame, {
       fetch: (ids) => call<{ cards: Record<string, CardHtml | null> }>("cards", { ids }).then((r) => r.cards),
       onKey: (e) => this.onKey(e),
-      onShown: (cid, side) => this.shown(cid, side),
+      onShown: (cid, side) => this.shown_(cid, side),
     });
 
-    this.setListWidth(boot.layout.listWidth ?? 380);
+    this.setListWidth(boot.layout.listWidth ?? Math.round(window.innerWidth * 0.62));
     this.dragToResize(splitter, main);
     this.wireSearch();
     window.addEventListener("keydown", (e) => this.onKey(e));
@@ -145,10 +187,11 @@ export class App {
         this.setView(e.view);
         break;
       case "changed":
-        this.rows.clear();
-        this.list.refresh(true);
         this.stage.invalidate();
-        this.update(false);
+        this.retag();
+        break;
+      case "retag":
+        this.retag();
         break;
       case "shown":
         this.view = { ...this.view, back: e.back };
@@ -163,33 +206,104 @@ export class App {
   setView(view: View, first = false): void {
     if (!first && view.seq < this.view.seq) return;
     this.view = view;
-    if (this.rows.size > MAX_ROWS_KEPT) this.rows.clear();
-    this.cursor = 0;
-    this.dir = 1;
+    // Rows read the cards against the view's topic: a new topic, new rows.
+    this.rows.clear();
+    this.facets = null;
     this.keys.reset();
     if (document.activeElement !== this.input) this.input.value = view.search;
-    this.list.setIds(view.ids, 0);
     this.renderChrome();
-    this.update(false);
+    this.relist(null);
+    this.loadFacets();
   }
 
   setConfig(config: PageConfig): void {
     const startChanged = config.startSide !== this.config.startSide;
+    const waitChanged = config.waitBelow !== this.config.waitBelow;
     this.config = config;
     if (startChanged) this.setSide(config.startSide);
+    if (waitChanged) this.retag();
+  }
+
+  /** Stepwise's plan or the cards changed: read rows and facets again. */
+  private retag(): void {
+    this.rows.clear();
+    this.list.refresh(true);
+    this.facets = null;
+    this.loadFacets();
+    this.showPane();
+  }
+
+  /** Fill the table from the view, filtered and sorted, keeping the card
+   *  you're on if it's still there. */
+  private relist(keep: number | null): void {
+    const ids = this.view.ids;
+    let order = ids.map((_, i) => i);
+    const f = this.facets;
+    const lens = !!f && (this.filter !== "all" || this.sort !== "order");
+    if (f && lens) {
+      const filter = FILTERS.find((x) => x.key === this.filter);
+      if (filter && filter.key !== "all") order = order.filter((i) => filter.test(f, i));
+      if (this.sort !== "order") {
+        const d = this.sortDir;
+        const value = (i: number): number => {
+          switch (this.sort) {
+            case "state": return f.state[i];
+            case "yield": return f.yield[i] || 9;
+            case "banks": return f.banks[i];
+            case "later": return f.later[i];
+            case "verdict": return f.verdict[i];
+            default: return i;
+          }
+        };
+        order.sort((a, b) => (value(a) - value(b)) * d || a - b);
+      }
+    }
+    this.shown = order.map((i) => ids[i]);
+    const at = keep !== null ? this.shown.indexOf(keep) : -1;
+    this.cursor = at >= 0 ? at : 0;
+    this.dir = 1;
+    this.list.setIds(this.shown, this.cursor);
+    this.list.setSort(this.sort, this.sortDir);
+    this.renderChips();
+    this.update(false);
+  }
+
+  private loadFacets(): void {
+    const seq = this.view.seq;
+    const total = this.view.ids.length;
+    this.facetsSeq = seq;
+    if (!total) return;
+    const parts: Facets = { state: [], yield: [], banks: [], verdict: [], later: [] };
+    const next = (offset: number) => {
+      call<{ facets?: Facets; stale?: boolean }>("facets", { seq, offset, limit: FACET_SLICE })
+        .then((r) => {
+          if (r.stale || !r.facets || this.facetsSeq !== seq || this.view.seq !== seq) return;
+          for (const k of Object.keys(parts) as (keyof Facets)[]) parts[k].push(...r.facets[k]);
+          if (parts.state.length < total) return next(parts.state.length);
+          this.facets = parts;
+          const keep = this.shown[this.cursor] ?? null;
+          if (this.filter !== "all" || this.sort !== "order") this.relist(keep);
+          else this.renderChips();
+        })
+        .catch(() => {});
+    };
+    next(0);
   }
 
   private update(input: boolean): void {
-    const ids = this.view.ids;
+    const ids = this.shown;
     this.showTyped();
     if (!ids.length) {
       this.stage.clear();
+      this.pane.show(null);
       this.pos.textContent = "";
       this.message.textContent = this.view.error
         ? this.view.error
-        : this.view.search || this.view.source
-          ? "No cards match."
-          : "Search for cards with /";
+        : this.view.ids.length
+          ? "No cards match this filter."
+          : this.view.search || this.view.source
+            ? "No cards match."
+            : "Search for cards with /";
       this.message.classList.toggle("error", !!this.view.error);
       this.message.hidden = false;
       return;
@@ -198,11 +312,18 @@ export class App {
     this.list.setCursor(this.cursor);
     this.pos.textContent = `${fmt(this.cursor + 1)} of ${fmt(ids.length)}`;
     this.stage.want(this.wanted(), this.prefetch(), input);
+    this.showPane();
+  }
+
+  private showPane(): void {
+    const cid = this.shown[this.cursor];
+    const row = cid !== undefined ? this.rows.get(cid) : undefined;
+    this.pane.show(row?.p ?? null, row?.p ? tagCount(row.p) : 0);
   }
 
   /** The card on screen, then the ones you're likely to want next. */
   private wanted(): Want[] {
-    const ids = this.view.ids;
+    const ids = this.shown;
     const i = this.cursor;
     const d = this.dir;
     const s = this.side;
@@ -218,7 +339,7 @@ export class App {
 
   /** Cards whose HTML is fetched ahead, beyond those drawn. */
   private prefetch(): number[] {
-    const ids = this.view.ids;
+    const ids = this.shown;
     const out: number[] = [];
     for (let k = 4; k <= 8; k++) {
       const j = this.cursor + k * this.dir;
@@ -228,7 +349,7 @@ export class App {
   }
 
   private go(index: number, input: boolean): void {
-    const n = this.view.ids.length;
+    const n = this.shown.length;
     if (!n) return;
     const i = Math.max(0, Math.min(n - 1, index));
     if (i !== this.cursor) this.dir = i > this.cursor ? 1 : -1;
@@ -239,10 +360,10 @@ export class App {
   private setSide(side: Side): void {
     this.side = side;
     this.renderSides();
-    if (this.view.ids.length) this.stage.want(this.wanted(), this.prefetch(), true);
+    if (this.shown.length) this.stage.want(this.wanted(), this.prefetch(), true);
   }
 
-  private shown(cid: number, side: Side): void {
+  private shown_(cid: number, side: Side): void {
     if (!this.config.autoplay) return;
     clearTimeout(this.autoplayTimer);
     this.autoplayTimer = window.setTimeout(() => {
@@ -253,6 +374,55 @@ export class App {
         void call("replay", { cid, side });
       }
     }, 250);
+  }
+
+  // --- filters and sorting -------------------------------------------------------
+
+  private filters(): Filter[] {
+    return FILTERS.filter((f) => !f.topic || this.view.topics.length);
+  }
+
+  private setFilter(key: FilterKey): void {
+    if (!this.facets && key !== "all") return; // counts are on their way
+    this.filter = key;
+    this.relist(this.shown[this.cursor] ?? null);
+  }
+
+  private sortBy(key: SortKey): void {
+    if (!this.facets && key !== "order") return;
+    if (this.sort === key && key !== "order") this.sortDir = this.sortDir === 1 ? -1 : 1;
+    else {
+      this.sort = key;
+      this.sortDir = SORT_START[key];
+    }
+    this.relist(this.shown[this.cursor] ?? null);
+  }
+
+  private renderChips(): void {
+    const f = this.facets;
+    const n = this.view.ids.length;
+    const filters = this.filters();
+    if (!filters.some((x) => x.key === this.filter)) this.filter = "all";
+    this.chips.replaceChildren(
+      ...filters.map((x) => {
+        const b = el("button", `chip${x.key === this.filter ? " on" : ""}${x.topic ? ` c-${x.key}` : ""}`);
+        b.type = "button";
+        b.tabIndex = -1;
+        let count = "";
+        if (x.key === "all") count = fmt(n);
+        else if (f) {
+          let c = 0;
+          for (let i = 0; i < n; i++) if (x.test(f, i)) c++;
+          count = fmt(c);
+        } else count = "…";
+        b.append(el("span", "", x.label), el("span", "chip-n num", count));
+        b.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          this.setFilter(x.key);
+        });
+        return b;
+      }),
+    );
   }
 
   // --- keys --------------------------------------------------------------------
@@ -270,8 +440,8 @@ export class App {
   }
 
   private run(cmd: Command): void {
-    const n = this.view.ids.length;
-    const cid = this.view.ids[this.cursor];
+    const n = this.shown.length;
+    const cid = this.shown[this.cursor];
     switch (cmd.kind) {
       case "move":
         return this.go(this.cursor + cmd.by, true);
@@ -285,6 +455,11 @@ export class App {
         return this.setSide(cmd.side === "flip" ? other(this.side) : cmd.side);
       case "scroll":
         return this.stage.scroll(cmd.by);
+      case "filter": {
+        const keys = this.filters().map((x) => x.key);
+        const at = Math.max(0, keys.indexOf(this.filter));
+        return this.setFilter(keys[(at + cmd.by + keys.length) % keys.length]);
+      }
       case "search":
         this.input.focus();
         this.input.select();
@@ -325,11 +500,14 @@ export class App {
       this.rowsQueued = false;
       const ids = [...this.rowsWanted].slice(0, 400);
       this.rowsWanted.clear();
+      const seq = this.view.seq;
       ids.forEach((c) => this.rowsInFlight.add(c));
       call<{ rows: Record<string, Row> }>("rows", { ids })
         .then((r) => {
-          for (const c of ids) this.rows.set(c, r.rows[String(c)] ?? ["(deleted)", "", 99, 0]);
+          if (this.view.seq !== seq) return; // read against another topic
+          for (const c of ids) this.rows.set(c, r.rows[String(c)] ?? { t: "(deleted)", k: "", q: 99, f: 0 });
           this.list.refresh();
+          this.showPane();
         })
         .catch(() => {})
         .finally(() => ids.forEach((c) => this.rowsInFlight.delete(c)));
@@ -341,19 +519,12 @@ export class App {
   private renderChrome(): void {
     const v = this.view;
     this.sourceEl.replaceChildren();
-    if (v.source || v.title) {
-      if (v.source) {
-        const chip = el("span", "source-from");
-        chip.textContent = v.source;
-        chip.title = `Following ${v.source}: these are the cards of what's selected there`;
-        this.sourceEl.append(chip);
-      }
-      if (v.title) {
-        const title = el("span", "source-title");
-        title.textContent = v.title;
-        this.sourceEl.append(title);
-      }
+    if (v.source) {
+      const chip = el("span", "source-from", v.source);
+      chip.title = `Following ${v.source}: these are the cards of what's selected there`;
+      this.sourceEl.append(chip);
     }
+    if (v.title) this.sourceEl.append(el("span", "source-title", v.title));
     this.sourceEl.hidden = !(v.source || v.title);
     this.renderSides();
     this.renderHints();
@@ -369,7 +540,7 @@ export class App {
     const groups: [string[], string][] = [
       [["j", "k"], "move"],
       [["h", "l"], "front, back"],
-      [["Space"], "flip"],
+      [["f"], "filter"],
       [["/"], "search"],
       [["e"], "edit"],
     ];
@@ -379,9 +550,7 @@ export class App {
       ...groups.map(([keys, label]) => {
         const g = el("span", "hint");
         for (const k of keys) g.append(el("kbd", "", k));
-        const l = el("span", "hint-label");
-        l.textContent = label;
-        g.append(l);
+        g.append(el("span", "hint-label", label));
         return g;
       }),
     );
@@ -404,7 +573,7 @@ export class App {
   }
 
   private setListWidth(px: number): void {
-    const max = Math.max(LIST_MIN, window.innerWidth - CARD_MIN - 48);
+    const max = Math.max(LIST_MIN, window.innerWidth - SIDE_MIN - 48);
     const w = Math.max(LIST_MIN, Math.min(max, Math.round(px)));
     document.documentElement.style.setProperty("--list-w", `${w}px`);
   }
@@ -427,6 +596,6 @@ export class App {
   }
 
   cardId(): number | undefined {
-    return this.view.ids[this.cursor];
+    return this.shown[this.cursor];
   }
 }

@@ -15,21 +15,84 @@ export interface View {
   seq: number;
   /** The window `p` goes back to, by its title. */
   back: string | null;
+  /** The tag(s) the cards are read against (Stepwise's topic). */
+  topics: string[];
 }
 
 export interface PageConfig {
   startSide: Side;
   autoplay: boolean;
+  waitBelow: number;
 }
 
 export interface Layout {
   listWidth?: number;
 }
 
-/** A list row: the note's sort field as text, the card type, Anki's queue
- *  number (-1 suspended, -2/-3 buried, 0 new, 1/3 learning, 2 review), and
- *  its flag (0 for none). */
-export type Row = [text: string, kind: string, queue: number, flag: number];
+export type Verdict = "now" | "call" | "wait";
+/** Stepwise's status for a topic. */
+export type Status = "queued" | "completed" | "later" | null;
+
+/** One of a card's places in a resource, for the tags pane. */
+export interface PaneTopic {
+  path: string;
+  tag: string;
+  status: Status;
+  /** Under the topic you're on. */
+  here: boolean;
+  unit: string | null;
+  /** In another system: where you'll meet the card again. */
+  again: boolean;
+  /** Tagged as ::Extra (mentioned in passing). */
+  extra: boolean;
+}
+
+export interface PaneGroup {
+  label: string;
+  pinned: boolean;
+  here: boolean;
+  topics: PaneTopic[];
+}
+
+export interface Pane {
+  verdict: Verdict | null;
+  reason: string | null;
+  yield: string | null;
+  banks: [string, number][];
+  groups: PaneGroup[];
+  /** Tags not worth showing up front (other resources, AnKing's own). */
+  more: string[];
+}
+
+/** A list row (see cards.rows in Python). */
+export interface Row {
+  /** The note's text, clozes filled in. */
+  t: string;
+  /** Card type. */
+  k: string;
+  /** Anki's queue number: -1 suspended, -2/-3 buried, 0 new, 1/3 learning, 2 review. */
+  q: number;
+  /** Flag, 0 for none. */
+  f: number;
+  y?: string | null;
+  b?: string;
+  /** Other systems it comes up in, with Stepwise's status there. */
+  a?: [string, Status][];
+  v?: Verdict | null;
+  r?: string | null;
+  p?: Pane;
+}
+
+/** Per card, in the view's order, for filtering and sorting the list. */
+export interface Facets {
+  state: number[];
+  yield: number[];
+  banks: number[];
+  /** 0 none, 1 now, 2 your call, 3 wait. */
+  verdict: number[];
+  /** Systems it comes up in that you haven't done. */
+  later: number[];
+}
 
 /** Both sides of a card, ready for the reviewer page, and its body class. */
 export interface CardHtml {
@@ -43,11 +106,13 @@ export interface Settings {
   defaultSearch: string;
   startSide: Side;
   autoplay: boolean;
+  waitBelow: number;
 }
 
 export type PushEvent =
   | { type: "view"; view: View }
   | { type: "changed" }
+  | { type: "retag" }
   | { type: "shown"; back: string | null }
   | { type: "hidden" }
   | { type: "settings" };
