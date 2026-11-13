@@ -26,6 +26,7 @@ from aqt.webview import AnkiWebView
 from . import frame
 from .bridge import Bridge
 from .config import ADDON, get_config
+from .tags import Analyzer
 from .viewstate import ViewState
 
 GEOM_KEY = "skim"
@@ -76,6 +77,8 @@ class SkimWindow(QDialog):
         self._loaded = False
         self._dirty = False
         self._view = ViewState()
+        self._analyzer: tuple[tuple, Analyzer] | None = None
+        self._context_version = 0
         self._opener = None
         self._pending: dict | None = None
         self._last_follow = 0.0
@@ -100,6 +103,30 @@ class SkimWindow(QDialog):
 
     def view(self) -> dict:
         return self._view.as_dict(self._opener.windowTitle() if _alive(self._opener) else None)
+
+    def analyzer(self) -> Analyzer:
+        """Reads the view's cards against its topic. Made once per view (and
+        again when settings or Stepwise's plan change): it caches every tag
+        it reads, and a topic's cards share most of theirs."""
+        from . import api
+
+        wait = get_config()["wait_below_percent"] / 100
+        key = (self._view.seq, wait, self._context_version)
+        if self._analyzer is None or self._analyzer[0] != key:
+            self._analyzer = (key, Analyzer(self._view.topics, api.context(), wait))
+        return self._analyzer[1]
+
+    def ids(self) -> list[int]:
+        return self._view.ids
+
+    def context_changed(self) -> None:
+        """Stepwise's plan changed (a topic queued or done): statuses and
+        verdicts are read again."""
+        self._context_version += 1
+        if self.isVisible():
+            self.push({"type": "retag"})
+        else:
+            self._dirty = True
 
     def frame_html(self) -> str:
         return frame.document(
@@ -163,19 +190,20 @@ class SkimWindow(QDialog):
             api.set_shortcut(cfg["shortcut"])
         if "autoplay_audio" in changed:
             self.web.setPlaybackRequiresGesture(not cfg["autoplay_audio"])
-        # The reply carries the page's config; nothing to push.
+        # The reply carries the page's config, and the page reads the rows
+        # again if the wait threshold changed.
 
     # --- what the window shows -------------------------------------------------
 
     def show_cards(self, *, search: str | None = None, card_ids=None, title: str | None = None,
-                   source: str | None = None, opener=None) -> None:
+                   source: str | None = None, topics=None, opener=None) -> None:
         """Show these cards; with neither a search nor ids, what showed last
         (or, the first time, the last search typed here or the default)."""
         if search is None and card_ids is None and not self._view.seq:
             saved = _profile().get(SEARCH_KEY)
             search = saved if isinstance(saved, str) and saved else get_config()["default_search"]
         if search is not None or card_ids is not None:
-            self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source)
+            self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source, topics=topics)
         if opener is not None and opener is not self:
             self._opener = opener
         self.push({"type": "view", "view": self.view()})

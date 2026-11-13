@@ -13,3 +13,8 @@ it too). The keys below are what it saves, for reference.
   switch sides while you browse.
 - `autoplay_audio` — play a card's audio when it comes up (default `false`).
   `r` plays it whenever you want.
+- `wait_below_percent` — when you're looking at a topic (from Stepwise, or a
+  `tag:` search), a suspended card is marked **Wait** if less than this share
+  of the places it's tagged in (in your pinned resources and the one you're on)
+  is in this topic's unit, and a system you haven't done also has it. Default
+  `50`.

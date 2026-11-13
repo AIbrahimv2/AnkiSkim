@@ -18,6 +18,8 @@ from collections.abc import Callable, Iterable
 from anki.collection import Collection
 from anki.utils import ids2str
 
+from .tags import VERDICT_CODES, YIELD_LABELS, Analyzer, banks_text
+
 # A cloze with no cloze inside it: its answer, dropping any hint. Nested
 # clozes fill in from the inside out. Then sound references, runs of space.
 _CLOZE = re.compile(r"\{\{c\d+::((?:(?!\{\{|\}\}).)*?)(?:::(?:(?!\{\{|\}\}).)*?)?\}\}", re.S)
@@ -49,29 +51,71 @@ def row_text(field: object) -> str:
     return _SPACE.sub(" ", html.unescape(text)).strip()[:ROW_CHARS]
 
 
-def rows(col: Collection, cids: Iterable[int]) -> dict[str, list]:
-    """List rows by card id: [text, card type, queue, flag]. Cards that no
-    longer exist are left out."""
+def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None) -> dict[str, dict]:
+    """List rows by card id. Cards that no longer exist are left out.
+
+    t: the note's text, k: card type, q: Anki's queue number, f: flag;
+    with an analyzer, also y: yield, b: question banks, a: the other systems
+    it comes up in ([unit, status]), v/r: the verdict and why, p: its tags
+    pane (see tags.Analyzer)."""
     ids = [int(c) for c in cids]
     if not ids:
         return {}
     models: dict[int, tuple[int, bool, list[str]]] = {}
-    out: dict[str, list] = {}
+    out: dict[str, dict] = {}
     # The note's fields, not its stored sort field: Anki strips that of
     # HTML without leaving spaces where line breaks were.
     sql = (
-        "select c.id, c.ord, c.queue, c.flags, n.mid, n.flds from cards c "
+        "select c.id, c.ord, c.queue, c.flags, n.mid, n.flds, n.tags from cards c "
         f"join notes n on n.id = c.nid where c.id in {ids2str(ids)}"
     )
-    for cid, ord_, queue, flags, mid, flds in col.db.all(sql):
+    for cid, ord_, queue, flags, mid, flds, tags in col.db.all(sql):
         info = models.get(mid)
         if info is None:
             info = models[mid] = _model_info(col, mid)
         sortf, cloze, names = info
         fields = flds.split("\x1f")
-        text = row_text(fields[sortf] if sortf < len(fields) else fields[0])
-        kind = f"Cloze {ord_ + 1}" if cloze else (names[ord_] if ord_ < len(names) else "")
-        out[str(cid)] = [text, kind, queue, flags & 0b111]
+        row = {
+            "t": row_text(fields[sortf] if sortf < len(fields) else fields[0]),
+            "k": f"Cloze {ord_ + 1}" if cloze else (names[ord_] if ord_ < len(names) else ""),
+            "q": queue,
+            "f": flags & 0b111,
+        }
+        if analyzer is not None:
+            facts = analyzer.card(tags.split(), suspended=queue == -1)
+            level = facts["level"]
+            row.update({
+                "y": YIELD_LABELS.get(level) if level else None,
+                "b": banks_text(facts["banks"]),
+                "a": facts["again"],
+                "v": facts["verdict"],
+                "r": facts["reason"],
+                "p": analyzer.pane(facts),
+            })
+        out[str(cid)] = row
+    return out
+
+
+def facets(col: Collection, cids: list[int], analyzer: Analyzer) -> dict[str, list[int]]:
+    """For filtering and sorting the whole list: per card, in `cids`
+    order, its queue, yield level (0 for none), question count, verdict
+    (0 none, 1 now, 2 your call, 3 wait) and how many systems it comes up
+    in that you haven't done. About 30 ms per 1,000 cards."""
+    found: dict[int, tuple[int, str]] = {}
+    for start in range(0, len(cids), 2000):
+        chunk = cids[start:start + 2000]
+        sql = f"select c.id, c.queue, n.tags from cards c join notes n on n.id = c.nid where c.id in {ids2str(chunk)}"
+        for cid, queue, tags in col.db.all(sql):
+            found[cid] = (queue, tags)
+    out: dict[str, list[int]] = {"state": [], "yield": [], "banks": [], "verdict": [], "later": []}
+    for cid in cids:
+        queue, tags = found.get(cid, (99, ""))
+        facts = analyzer.card(tags.split(), suspended=queue == -1)
+        out["state"].append(queue)
+        out["yield"].append(facts["level"] or 0)
+        out["banks"].append(sum(facts["banks"].values()))
+        out["verdict"].append(VERDICT_CODES[facts["verdict"]])
+        out["later"].append(facts["later"])
     return out
 
 

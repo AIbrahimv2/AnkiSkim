@@ -2,5 +2,6 @@
   "shortcut": "Ctrl+Shift+B",
   "default_search": "deck:current",
   "start_side": "answer",
-  "autoplay_audio": false
+  "autoplay_audio": false,
+  "wait_below_percent": 50
 }

@@ -15,6 +15,9 @@ DEFAULTS: dict = {
     "default_search": "deck:current",
     "start_side": "answer",
     "autoplay_audio": False,
+    # A suspended card waits for another system when less than this share
+    # of its places is in the unit you're on (see tags.py).
+    "wait_below_percent": 50,
 }
 
 SIDES = ("question", "answer")
@@ -27,6 +30,7 @@ def get_config() -> dict:
             cfg[key] = value
     if cfg["start_side"] not in SIDES:
         cfg["start_side"] = DEFAULTS["start_side"]
+    cfg["wait_below_percent"] = max(5, min(95, cfg["wait_below_percent"]))
     return cfg
 
 
@@ -60,4 +64,12 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             problems["startSide"] = "Pick one of the options."
     if "autoplay" in values:
         changes["autoplay_audio"] = bool(values["autoplay"])
+    if "waitBelow" in values:
+        try:
+            pct = int(values["waitBelow"])
+            if not 5 <= pct <= 95:
+                raise ValueError
+            changes["wait_below_percent"] = pct
+        except (TypeError, ValueError):
+            problems["waitBelow"] = "Enter a percentage from 5 to 95."
     return changes, problems

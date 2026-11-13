@@ -9,7 +9,8 @@ asks for list rows and card HTML ahead of time, in batches.
 
 The host is the Skim window in Anki, or tools/devserver.py while working on
 the page in a browser. It provides `col`, `view()`, `run_search(query)`,
-`frame_html()`, `prepare`, `hook`, `body_class`, `layout`, and the actions
+`frame_html()`, `analyzer()`, `ids()`, `prepare`, `hook`, `body_class`,
+`layout`, and the actions
 below (`edit`, `back`, `close_window`, `replay`, `play`, `save_layout`, `settings_saved`).
 """
 
@@ -25,7 +26,8 @@ MAX_BATCH = 400
 
 
 def page_config(cfg: dict) -> dict:
-    return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"]}
+    return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"],
+            "waitBelow": cfg["wait_below_percent"]}
 
 
 class Bridge:
@@ -69,7 +71,18 @@ class Bridge:
         return {"view": self.host.run_search(str(msg.get("query") or ""))}
 
     def cmd_rows(self, msg: dict) -> dict:
-        return {"rows": cards.rows(self.host.col, self._ids(msg))}
+        return {"rows": cards.rows(self.host.col, self._ids(msg), self.host.analyzer())}
+
+    def cmd_facets(self, msg: dict) -> dict:
+        """Filter and sort data for the whole list, a slice at a time (the
+        page asks until it has all of them), for the view `seq`."""
+        if msg.get("seq") != self.host.view()["seq"]:
+            return {"stale": True}
+        ids = self.host.ids()
+        start = max(0, int(msg.get("offset") or 0))
+        end = min(len(ids), start + max(1, min(5000, int(msg.get("limit") or 3000))))
+        return {"offset": start, "total": len(ids),
+                "facets": cards.facets(self.host.col, ids[start:end], self.host.analyzer())}
 
     def cmd_cards(self, msg: dict) -> dict:
         h = self.host
@@ -116,6 +129,7 @@ class Bridge:
             "defaultSearch": cfg["default_search"],
             "startSide": cfg["start_side"],
             "autoplay": cfg["autoplay_audio"],
+            "waitBelow": cfg["wait_below_percent"],
         }}
 
     def cmd_save_settings(self, msg: dict) -> dict:

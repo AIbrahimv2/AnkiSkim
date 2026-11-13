@@ -19,21 +19,34 @@ cards, `follow()` with the same source swaps in new ones without taking
 focus (Stepwise does this as you move through topics); once you search for
 something else in Skim, it stops following. `p` in Skim goes back to the
 window that opened it.
+
+`topic` (a tag, or a list of them) is what the cards are read against: the
+tags pane puts that resource first, "Again in" lists the other systems a
+card is in, and suspended cards get a verdict (unsuspend now, or wait for
+the system they mostly belong to). A `tag:` search names its own topic.
+
+`set_context(factory)` lets a study planner say what it knows: `factory()`
+returns an object with `pinned()` (resource tags, in the order to list
+them), `roots()` (top-level tags whose children are resources, like
+"#AK_Step1_v12") and `status(tag)` ("queued", "completed", "later" or
+None). Call `context_changed()` when those change.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from aqt import mw
 from aqt.qt import QAction, QApplication, QKeySequence
 
+from .tags import Context
 from .window import SkimWindow
 
-VERSION = 1
+VERSION = 2
 
 _window: SkimWindow | None = None
 _action: QAction | None = None
+_context_factory: Callable[[], Context] | None = None
 
 
 def _get() -> SkimWindow:
@@ -43,8 +56,15 @@ def _get() -> SkimWindow:
     return _window
 
 
+def _topics(topic: str | Sequence[str] | None) -> list[str] | None:
+    if topic is None:
+        return None
+    return [topic] if isinstance(topic, str) else [t for t in topic if isinstance(t, str)]
+
+
 def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
-         title: str | None = None, source: str | None = None, focus: bool = True) -> None:
+         title: str | None = None, source: str | None = None, focus: bool = True,
+         topic: str | Sequence[str] | None = None) -> None:
     """Show Skim on these cards (or, with neither `search` nor `card_ids`,
     on whatever it showed last) and give it the keys."""
     if mw.col is None:
@@ -54,18 +74,41 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
     # main window when you open Skim from the Tools menu.
     opener = QApplication.activeWindow() if source else None
     window.show_cards(search=search, card_ids=card_ids, title=title, source=source,
-                      opener=opener if opener is not window else None)
+                      topics=_topics(topic), opener=opener if opener is not window else None)
     window.present(focus)
 
 
 def follow(*, search: str, card_ids: Sequence[int] | None = None, title: str | None = None,
-           source: str) -> bool:
+           source: str, topic: str | Sequence[str] | None = None) -> bool:
     """If Skim is open on `source`'s cards, show these instead, without
     taking focus. Returns whether it did. Cheap to call on every move."""
     if _window is None or not _window.following(source):
         return False
-    _window.follow(search=search, card_ids=card_ids, title=title, source=source)
+    _window.follow(search=search, card_ids=card_ids, title=title, source=source, topics=_topics(topic))
     return True
+
+
+def set_context(factory: Callable[[], Context] | None) -> None:
+    """Register what a study planner knows (see the module docstring)."""
+    global _context_factory
+    if factory is not _context_factory:
+        _context_factory = factory
+        context_changed()
+
+
+def context_changed() -> None:
+    if _window is not None:
+        _window.context_changed()
+
+
+def context() -> Context | None:
+    """A fresh snapshot from the registered planner, if any."""
+    if _context_factory is None:
+        return None
+    try:
+        return _context_factory()
+    except Exception:
+        return None
 
 
 def is_open() -> bool:
