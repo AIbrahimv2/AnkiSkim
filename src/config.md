@@ -5,6 +5,7 @@ window itself: **⋯ → Settings…** (Anki's Config button for this add-on ope
 it too). The keys below are what it saves, for reference.
 
 - `shortcut` — keyboard shortcut for the Tools menu entry (empty to disable).
+  During a review it opens Skim on the card you're reviewing.
 - `default_search` — what Skim shows the first time you open it, in Anki's
   search syntax (default `deck:current`). After that it reopens on your last
   search.

@@ -34,6 +34,9 @@ All notable changes to this project are documented here. The format is based on
   resources. The threshold is a setting.
 - **Filters** (All, Suspended, Now, Wait, Your call, High yield, Q-bank) with
   counts; `f` and `F` go through them.
+- **From a review:** Cmd/Ctrl+Shift+B while reviewing opens Skim on that
+  card (with its note's other cards) and follows the review while Skim stays
+  open; `p` goes back to the review.
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.

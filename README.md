@@ -51,13 +51,18 @@ through topics.
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
   Search for something else in Skim and it stops following.
+- **From a review.** Press Cmd/Ctrl+Shift+B while reviewing and Skim opens on
+  the card you're on, with its note's other cards, and where it lives under
+  it. Leave Skim open and it follows the review, card by card; `p` goes back
+  to the review.
 - **Edit in Anki's browser.** `e` opens the card there, with the same search.
 - **Follows Anki's light and dark themes**, and looks like Stepwise.
 
 ## Usage
 
 1. Open **Tools → Skim** (Cmd/Ctrl+Shift+B), or press `b` on a topic in
-   Stepwise.
+   Stepwise. During a review, the same shortcut opens Skim on the card you're
+   reviewing.
 2. Press `/`, type a search the way you would in Anki's browser
    (`tag:Cardio`, `deck:current is:suspended`, `heart`), and press Enter.
 3. Move with `j` and `k`. `l` shows the back, `h` the front.
