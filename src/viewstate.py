@@ -28,11 +28,14 @@ class ViewState:
         # the list mustn't give away (the ones still to come).
         self.side: str | None = None
         self.hidden: set[int] = set()
+        # Anything else the page shows with these cards (a review's views).
+        self.extra: dict = {}
 
     def set(self, col, *, search: str, ids: Iterable[int] | None = None,
             title: str | None = None, source: str | None = None,
             topics: Iterable[str] | None = None, select: int | None = None,
-            ordered: bool = False, side: str | None = None, hidden: Iterable[int] | None = None) -> None:
+            ordered: bool = False, side: str | None = None, hidden: Iterable[int] | None = None,
+            extra: dict | None = None) -> None:
         """Show `ids` (sorted, as a search would), or else what `search`
         finds. A bad search shows Anki's message and no cards. `topics` are
         the tags the cards are read against; a search for one tag names
@@ -53,6 +56,7 @@ class ViewState:
         self.select = int(select) if select else None
         self.side = side if side in ("question", "answer") else None
         self.hidden = {int(c) for c in hidden or ()}
+        self.extra = dict(extra or {})
 
     def as_dict(self, back: str | None = None) -> dict:
         return {
@@ -66,4 +70,5 @@ class ViewState:
             "topics": self.topics,
             "select": self.select,
             "side": self.side,
+            **self.extra,
         }

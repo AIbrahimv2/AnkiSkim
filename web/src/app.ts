@@ -98,6 +98,7 @@ export class App {
   private sides: HTMLElement;
   private pos: HTMLElement;
   private chips: HTMLElement;
+  private lensBar: HTMLElement;
   private typed: HTMLElement;
   private message: HTMLElement;
   private hints: HTMLElement;
@@ -137,8 +138,9 @@ export class App {
 
     const main = el("main", "main");
     const listPanel = el("section", "panel list-panel");
+    this.lensBar = el("div", "lenses");
     this.chips = el("div", "chips");
-    listPanel.append(this.chips);
+    listPanel.append(this.lensBar, this.chips);
     this.typed = el("div", "typed num");
     const splitter = el("div", "splitter");
     splitter.title = "Drag to resize";
@@ -470,6 +472,13 @@ export class App {
         const at = Math.max(0, keys.indexOf(this.filter));
         return this.setFilter(keys[(at + cmd.by + keys.length) % keys.length]);
       }
+      case "lens": {
+        const lenses = this.view.lenses ?? [];
+        if (!lenses.length) return;
+        const at = Math.max(0, lenses.findIndex(([k]) => k === this.view.lens));
+        void call("review_lens", { lens: lenses[(at + cmd.by + lenses.length) % lenses.length][0] });
+        return;
+      }
       case "search":
         this.input.focus();
         this.input.select();
@@ -537,7 +546,27 @@ export class App {
     if (v.title) this.sourceEl.append(el("span", "source-title", v.title));
     this.sourceEl.hidden = !(v.source || v.title);
     this.renderSides();
+    this.renderLenses();
     this.renderHints();
+  }
+
+  /** From a review: the session and Anki's Today searches, with counts. */
+  private renderLenses(): void {
+    const lenses = this.view.lenses ?? [];
+    this.lensBar.hidden = !lenses.length;
+    this.lensBar.replaceChildren(
+      ...lenses.map(([key, label, count]) => {
+        const b = el("button", `lens${key === this.view.lens ? " on" : ""}${count ? "" : " empty"}`);
+        b.type = "button";
+        b.tabIndex = -1;
+        b.append(el("span", "", label), el("span", "lens-n num", fmt(count)));
+        b.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          if (key !== this.view.lens) void call("review_lens", { lens: key });
+        });
+        return b;
+      }),
+    );
   }
 
   private renderSides(): void {
@@ -554,6 +583,7 @@ export class App {
       [["/"], "search"],
       [["e"], "edit"],
     ];
+    if (this.view.lenses?.length) groups.push([["t"], "view"]);
     if (this.view.back) groups.push([["p"], `back to ${this.view.back}`]);
     groups.push([["?"], "all keys"]);
     this.hints.replaceChildren(

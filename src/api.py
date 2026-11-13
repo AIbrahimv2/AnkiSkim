@@ -67,7 +67,7 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
          title: str | None = None, source: str | None = None, focus: bool = True,
          topic: str | Sequence[str] | None = None, select: int | None = None,
          back_label: str | None = None, ordered: bool = False, side: str | None = None,
-         hidden: Sequence[int] | None = None) -> None:
+         hidden: Sequence[int] | None = None, extra: dict | None = None) -> None:
     """Show Skim on these cards (or, with neither `search` nor `card_ids`,
     on whatever it showed last) and give it the keys."""
     if mw.col is None:
@@ -78,19 +78,20 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
     opener = QApplication.activeWindow() if source else None
     window.show_cards(search=search, card_ids=card_ids, title=title, source=source,
                       topics=_topics(topic), select=select, ordered=ordered, side=side, hidden=hidden,
-                      opener=opener if opener is not window else None, back_label=back_label)
+                      extra=extra, opener=opener if opener is not window else None, back_label=back_label)
     window.present(focus)
 
 
 def follow(*, search: str, card_ids: Sequence[int] | None = None, title: str | None = None,
            source: str, topic: str | Sequence[str] | None = None, select: int | None = None,
-           ordered: bool = False, side: str | None = None, hidden: Sequence[int] | None = None) -> bool:
+           ordered: bool = False, side: str | None = None, hidden: Sequence[int] | None = None,
+           extra: dict | None = None) -> bool:
     """If Skim is open on `source`'s cards, show these instead, without
     taking focus. Returns whether it did. Cheap to call on every move."""
     if _window is None or not _window.following(source):
         return False
     _window.follow(search=search, card_ids=card_ids, title=title, source=source, topics=_topics(topic),
-                   select=select, ordered=ordered, side=side, hidden=hidden)
+                   select=select, ordered=ordered, side=side, hidden=hidden, extra=extra)
     return True
 
 
@@ -133,7 +134,7 @@ def open_from_menu() -> None:
     reviewing; anywhere else, what Skim showed last."""
     card = review_card()
     if card is not None:
-        open(back_label="the review", **_review_view(card))
+        open(back_label="the review", **_review_view(card, slow=True))
     else:
         open()
 
@@ -191,25 +192,123 @@ def _session(card) -> tuple[list[int], list[int], str]:
     return studied, upcoming, name
 
 
-def _review_view(card, side: str | None = None) -> dict:
-    """What Skim shows from a review: the session, on the card on screen,
-    showing the side the reviewer is on. Answers of cards still to come
-    (and this one, until it's answered) stay hidden in the list."""
+# The review's views: the session, and Anki's browser's "Today" searches
+# (with the same definitions), on the deck you're reviewing.
+LENSES: list[tuple[str, str, str]] = [
+    ("session", "This review", ""),
+    ("due", "Due", "due today"),
+    ("added", "Added", "added today"),
+    ("edited", "Edited", "edited today"),
+    ("studied", "Studied", "studied today"),
+    ("first", "First review", "first reviewed today"),
+    ("rescheduled", "Rescheduled", "rescheduled today"),
+    ("again", "Again", "answered Again today"),
+    ("overdue", "Overdue", "overdue"),
+]
+# Rescans every note (about 200 ms on a big collection): counted when Skim
+# opens from a review or you change view, not after every card.
+_SLOW = {"added", "edited"}
+_RATED = {"studied", "first", "rescheduled", "again"}
+_lens = "session"
+_slow_counts: dict[str, int] = {}
+
+
+def _lens_search(lens: str) -> str:
+    from anki.collection import SearchNode
+
+    rated = SearchNode.Rated
+    node = {
+        "due": lambda: SearchNode(due_on_day=0),
+        "added": lambda: SearchNode(added_in_days=1),
+        "edited": lambda: SearchNode(edited_in_days=1),
+        "studied": lambda: SearchNode(rated=rated(days=1)),
+        "first": lambda: SearchNode(introduced_in_days=1),
+        "rescheduled": lambda: SearchNode(rated=rated(days=1, rating=SearchNode.RATING_BY_RESCHEDULE)),
+        "again": lambda: SearchNode(rated=rated(days=1, rating=SearchNode.RATING_AGAIN)),
+        "overdue": lambda: mw.col.group_searches(SearchNode(card_state=SearchNode.CARD_STATE_DUE),
+                                                 SearchNode(negated=SearchNode(due_on_day=0))),
+    }[lens]()
+    return mw.col.build_search_string(node, SearchNode(parsable_text="deck:current"))
+
+
+def _lens_ids(lens: str) -> list[int]:
+    """A Today view's cards: due ones soonest first, edited ones latest
+    first, studied ones in the order you studied them."""
+    col = mw.col
+    search = _lens_search(lens)
+    if lens in ("due", "overdue"):
+        return list(col.find_cards(search, order="c.due, c.id"))
+    if lens == "edited":
+        return list(col.find_cards(search, order="n.mod desc, c.id"))
+    ids = list(col.find_cards(search, order="c.id"))
+    if lens in _RATED and ids:
+        start = (col.sched.day_cutoff - 86400) * 1000
+        order = col.db.list(
+            f"select cid from revlog where id > ? and cid in {ids2str(ids)} group by cid order by min(id)", start)
+        ids = order + [c for c in ids if c not in set(order)]
+    return ids
+
+
+def _counts(session: int, slow: bool) -> list[list]:
+    if slow or not _slow_counts:
+        for lens in _SLOW:
+            _slow_counts[lens] = len(mw.col.find_cards(_lens_search(lens)))
+    out = []
+    for key, label, _ in LENSES:
+        if key == "session":
+            n = session
+        elif key in _SLOW:
+            n = _slow_counts.get(key, 0)
+        else:
+            n = len(mw.col.find_cards(_lens_search(key)))
+        out.append([key, label, n])
+    return out
+
+
+def _review_view(card, side: str | None = None, lens: str | None = None, slow: bool = False) -> dict:
+    """What Skim shows from a review: the session (or one of the Today
+    views), on the card on screen, showing the side the reviewer is on.
+    Answers of cards still to come (and this one, until it's answered) stay
+    hidden in the list."""
+    lens = lens or _lens
     if side is None:
         side = "answer" if getattr(getattr(mw, "reviewer", None), "state", None) == "answer" else "question"
     try:
         studied, upcoming, deck = _session(card)
     except Exception:  # an unusual collection: the card's note alone
         studied, upcoming, deck = [], [], ""
-    ids = [*studied, card.id, *upcoming]
-    hidden = [*upcoming, *([card.id] if side == "question" else [])]
-    title = f"{deck}: {len(studied):,} studied, {len(upcoming) + 1:,} to go"
+    secret = set(upcoming) | ({card.id} if side == "question" else set())
+    session = [*studied, card.id, *upcoming]
     if not deck:
-        ids, title = list(card.note().card_ids()), "This card's note"
+        ids, title, extra = list(card.note().card_ids()), "This card's note", {}
+    else:
+        try:
+            ids = session if lens == "session" else _lens_ids(lens)
+            lenses = _counts(len(session), slow)
+        except Exception:
+            lens, ids, lenses = "session", session, []
+        phrase = next(p for k, _, p in LENSES if k == lens)
+        title = (f"{deck}: {len(studied):,} studied, {len(upcoming) + 1:,} to go" if lens == "session"
+                 else f"{deck}: {len(ids):,} {phrase}")
+        extra = {"lens": lens, "lenses": lenses}
     # No search: the title says what these are (e still opens the card in
     # Anki's browser).
-    return {"search": "", "card_ids": ids, "ordered": True, "select": card.id, "side": side, "hidden": hidden,
-            "title": title, "source": REVIEW, "topic": _review_topics(card) or None}
+    return {"search": "", "card_ids": ids, "ordered": True, "select": card.id, "side": side,
+            "hidden": [c for c in ids if c in secret], "title": title, "source": REVIEW,
+            "topic": _review_topics(card) or None, "extra": extra}
+
+
+def set_review_lens(lens: str) -> None:
+    """Switch the review's view (the bar over the table, or t/T)."""
+    global _lens
+    if lens not in {k for k, _, _ in LENSES}:
+        return
+    _lens = lens
+    card = review_card()
+    if card is not None and _window is not None and _window.following(REVIEW):
+        view = _review_view(card, lens=lens, slow=True)
+        view["topics"] = _topics(view.pop("topic"))
+        _window.show_cards(**view)
 
 
 def on_review_question(card) -> None:

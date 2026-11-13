@@ -21,6 +21,10 @@ export interface View {
   select?: number | null;
   /** From a review: the side the reviewer is showing. */
   side?: Side | null;
+  /** From a review: which view is showing (the session, or a Today search). */
+  lens?: string;
+  /** From a review: the views, with their labels and card counts. */
+  lenses?: [key: string, label: string, count: number][];
 }
 
 export interface PageConfig {

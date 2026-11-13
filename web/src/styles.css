@@ -483,6 +483,25 @@ body {
   .splitter, .side { display: none; }
 }
 
+/* --- Skim: a review's views (the session and Anki's Today searches) ------ */
+
+.lenses { display: flex; flex-wrap: wrap; gap: 2px 4px; padding: 8px 10px 0; }
+#root .lens {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 8px 6px;
+  border-radius: 7px 7px 0 0;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-2);
+}
+#root .lens:hover { color: var(--text); background: var(--hover); }
+#root .lens.on { color: var(--text); border-bottom-color: var(--text); }
+#root .lens.empty { color: var(--text-3); }
+.lens-n { font-size: 11px; font-weight: 500; color: var(--text-3); }
+
 /* --- Skim: filters ------------------------------------------------------------- */
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 10px 8px; border-bottom: 1px solid var(--line); }

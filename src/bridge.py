@@ -116,6 +116,13 @@ class Bridge:
         self.host.play(int(msg.get("cid") or 0), str(msg.get("tag") or ""))
         return {}
 
+    def cmd_review_lens(self, msg: dict) -> dict:
+        """One of a review's views: the session, or a Today search."""
+        switch = getattr(self.host, "review_lens", None)
+        if switch:
+            switch(str(msg.get("lens") or ""))
+        return {}
+
     def cmd_layout(self, msg: dict) -> dict:
         share = msg.get("share")
         if isinstance(share, (int, float)) and 0.4 <= share <= 0.9:

@@ -128,6 +128,7 @@ const KEYS: [string[], string][] = [
   [["Space"], "Flip the card"],
   [["J", "K"], "Scroll a long card down / up"],
   [["f", "F"], "Next / previous filter (All, Suspended, Now, Wait, ...)"],
+  [["t", "T"], "From a review: next / previous view (this review, Due, Studied, Again, ...)"],
   [["/"], "Search (Anki's syntax); Enter runs it, Esc goes back"],
   [["e", "B"], "Open the card in Anki's browser, to edit it"],
   [["r"], "Play the card's audio"],
