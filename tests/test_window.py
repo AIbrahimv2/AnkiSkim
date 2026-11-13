@@ -215,6 +215,26 @@ try:
     api.on_review_question(nxt)
     check(wait_for(f"{POS} === '4 of 6' && document.querySelector('.sides .active').textContent === 'Front'"),
           "the next card shows, front first, while Skim follows the review")
+    lenses = js("JSON.stringify([...document.querySelectorAll('.lens')].map(b => [b.textContent, b.classList.contains('on')]))")
+    check(lenses.startswith('[["This review6",true],["Due') and '"Studied3"' in lenses and '"Again0"' in lenses,
+          f"a bar over the table has the review's views, with counts, Anki's Today searches among them ({lenses})")
+    press("t")
+    check(wait_for("document.querySelector('.lens.on').textContent.startsWith('Due')"), "t goes to the next view")
+    api.set_review_lens("studied")
+    check(wait_for(f"{POS} === '1 of 3' || {POS} === '3 of 3'"), "Studied today: the three answered cards")
+    check(api._window._view.ids == studied + [card.id], "in the order you studied them")
+    check(js("document.querySelector('.source-title').textContent") == "Topics: 3 studied today", "and says so")
+    third = col.sched.getCard()
+    third.start_timer()
+    col.sched.answerCard(third, 1)  # Again
+    mw.reviewer.card = col.sched.getCard()
+    api.on_review_question(mw.reviewer.card)
+    check(wait_for("document.querySelector('.source-title').textContent === 'Topics: 4 studied today'"),
+          "following keeps the view you chose, and its count goes up")
+    check(wait_for("[...document.querySelectorAll('.lens')].some(b => b.textContent === 'Again1')"), "Again counts the card you failed")
+    api.set_review_lens("session")
+    check(wait_for("document.querySelector('.lens.on').textContent.startsWith('This review')"), "and back to the review")
+
     api._window.run_search("tag:Neuro")
     api.on_review_question(nxt)
     pump(0.3)
