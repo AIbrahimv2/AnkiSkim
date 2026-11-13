@@ -118,6 +118,12 @@ check(f4["verdict"] == "wait" and "Extra" in f4["reason"], f"tagged here only as
 only = [f"{TOPIC}::05_Antifungals::03_Echinocandins", f"{S1}::#Bootcamp::Microbiology::37_Antifungals"]
 check(an.card(only, suspended=True)["reason"] == "Only here", "a card nowhere else: now, only here")
 
+print("the same resource in two steps")
+two = KETO + [f"#AK_Step2_v12::#B&B::08_Infectious_Disease::02_Fungi"]
+bare2 = Analyzer([TOPIC], None, 0.5)
+labels2 = [g["label"] for g in bare2.pane(bare2.card(two))["groups"]]
+check("B&B (Step 1)" in labels2 and "B&B (Step 2)" in labels2, f"say which step ({labels2})")
+
 print("without Stepwise")
 bare = Analyzer([TOPIC], None, 0.5)
 f5 = bare.card(KETO, suspended=True)

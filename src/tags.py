@@ -297,6 +297,13 @@ class Analyzer:
                 "again": bool(t.unit in SYSTEMS and not t.here and t.unit not in self.here_units),
                 "extra": t.extra,
             })
+        # Step 1's B&B and Step 2's B&B: say which is which.
+        names = Counter(g["label"] for g in groups.values())
+        for key, g in groups.items():
+            if names[g["label"]] > 1 and SEP in key:
+                root = key.split(SEP)[0]
+                step = re.search(r"step_?(\d)", root)
+                g["label"] += f" (Step {step.group(1)})" if step else f" ({root.lstrip('#')})"
         ordered = sorted(groups.values(), key=lambda g: (
             not g["here"], g["rank"] is None, g["rank"] if g["rank"] is not None else 0, g["label"].lower()))
         for g in ordered:
