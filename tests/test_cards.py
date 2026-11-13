@@ -33,6 +33,15 @@ check(brain["k"] == "Cloze 2", "a cloze card shows its number")
 mitral = [rows[str(c)] for c in col.find_cards(f"nid:{notes['mitral']}")]
 check(all(r["q"] == -1 for r in mitral), "suspended cards say so")
 
+print("answers kept back")
+check(cards.row_text("The {{c1::brainstem}} has {{c2::three::number}} parts", hide=2) == "The brainstem has [number] parts",
+      "a card's own cloze shows as its hint")
+check(cards.row_text("{{c1::Ceftriaxone}} treats {{c2::meningitis}}", hide=1) == "[...] treats meningitis", "or as [...]")
+heart_cards = list(col.find_cards(f"nid:{notes['heart']}", order="c.ord"))
+kept = cards.rows(col, heart_cards, hidden={heart_cards[1]})
+check(kept[str(heart_cards[1])]["t"] == "Four" and kept[str(heart_cards[0])]["t"].startswith("Heart"),
+      "a reversed card still to come shows its front, not the note's sort field")
+
 print("rows read against a topic")
 from skim.tags import Analyzer  # noqa: E402
 

@@ -185,35 +185,52 @@ try:
     check(not api.following("Stepwise"), "follow() no longer applies")
 
     print("from a review")
-    brain_cards = list(col.find_cards(f"nid:{notes['brainstem']}", order="c.ord"))
+    col.decks.select(col.decks.id("Topics"))
+    for _ in range(2):  # two cards answered Easy today: off today's queue
+        done = col.sched.getCard()
+        done.start_timer()
+        col.sched.answerCard(done, 4)
+    studied = col.db.list("select cid from revlog order by id")
+    card = col.sched.getCard()
     mw.state = "review"
-    mw.reviewer.card = col.get_card(brain_cards[1])
+    mw.reviewer.card = card
+    mw.reviewer.state = "question"
     api.open_from_menu()
-    # Skim lists a note's cards by id, and a note's cards needn't have ids
-    # in the order of their card types.
-    at = sorted(brain_cards).index(brain_cards[1]) + 1
-    check(wait_for(f"{POS} === '{at} of 2'"), "Cmd+Shift+B mid-review shows the card's note, on the card you're reviewing")
-    shown_is(brain_cards[1])
-    check(js("document.querySelector('.source-from').textContent") == "Review", "as the review's")
-    heart = col.find_cards(f"nid:{notes['heart']}", order="c.ord")
-    api.on_review_question(col.get_card(heart[1]))
-    at = sorted(heart).index(heart[1]) + 1
-    check(wait_for(f"{POS} === '{at} of 2' && {SHOWN} === {heart[1]}"), "the next card you review shows too, while Skim is open")
+    check(wait_for(f"{POS} === '3 of 6'"), "Cmd+Shift+B mid-review shows today's review: 2 studied, this card, 3 to come")
+    shown_is(card.id)
+    check(js("document.querySelector('.source-title').textContent") == "Topics: 2 studied, 4 to go", "named for the deck")
+    check(js("document.querySelector('.sides .active').textContent") == "Front", "on the question, Skim shows the front")
+    check(api._window._view.ids[:2] == studied, "the studied cards first, in the order you answered them")
+    hidden_rows = wait_for("[...document.querySelectorAll('.row')].filter(r => +r.dataset.i >= 2).map(r => r.querySelector('.r-text').textContent).join(' | ')")
+    check("[number]" in hidden_rows and "three" not in hidden_rows,
+          f"cards still to come don't give their answers away ({hidden_rows})")
+    api.on_review_answer(card)
+    check(wait_for("document.querySelector('.sides .active').textContent === 'Back'"), "showing the answer flips Skim to the back")
+    check(card.id not in api._window._view.hidden, "and the card's row may say what it is")
+    card.start_timer()
+    col.sched.answerCard(card, 4)
+    nxt = col.sched.getCard()
+    mw.reviewer.card = nxt
+    mw.reviewer.state = "question"
+    api.on_review_question(nxt)
+    check(wait_for(f"{POS} === '4 of 6' && document.querySelector('.sides .active').textContent === 'Front'"),
+          "the next card shows, front first, while Skim follows the review")
     api._window.run_search("tag:Neuro")
-    api.on_review_question(col.get_card(heart[0]))
-    pump(0.2)
+    api.on_review_question(nxt)
+    pump(0.3)
     check(api._window._view.search == "tag:Neuro", "until you search for something else")
+
     from skim.tags import Context
 
     class Queued(Context):
         def status(self, tag):
             return {"Neuro::Brainstem": "queued", "Neuro::Movement": "completed"}.get(tag)
 
+    brain_cards = list(col.find_cards(f"nid:{notes['brainstem']}"))
     api.set_context(Queued)
-    view = api._review_view(col.get_card(brain_cards[0]))
-    check(view["topic"] == ["Neuro::Brainstem"] and view["select"] == brain_cards[0],
+    check(api._review_topics(col.get_card(brain_cards[0])) == ["Neuro::Brainstem"],
           "with Stepwise, the review's card is read against the topic you've queued")
-    check(api._review_view(col.get_card(movement[0]))["topic"] == ["Neuro::Movement"], "or else one you've done")
+    check(api._review_topics(col.get_card(movement[0])) == ["Neuro::Movement"], "or else one you've done")
     api.set_context(None)
     mw.state = "deckBrowser"
     mw.reviewer.card = None
