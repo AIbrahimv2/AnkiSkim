@@ -115,9 +115,9 @@ class Bridge:
         return {}
 
     def cmd_layout(self, msg: dict) -> dict:
-        width = msg.get("listWidth")
-        if isinstance(width, (int, float)):
-            self.host.save_layout({"listWidth": int(width)})
+        share = msg.get("share")
+        if isinstance(share, (int, float)) and 0.4 <= share <= 0.9:
+            self.host.save_layout({"share": round(float(share), 3)})
         return {}
 
     # --- settings ----------------------------------------------------------

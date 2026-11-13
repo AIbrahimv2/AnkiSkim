@@ -26,7 +26,8 @@ export interface PageConfig {
 }
 
 export interface Layout {
-  listWidth?: number;
+  /** The table's share of the window's width (0.4 to 0.9). */
+  share?: number;
 }
 
 export type Verdict = "now" | "call" | "wait";

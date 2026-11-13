@@ -18,8 +18,8 @@ import type { CardHtml, Facets, Layout, PageConfig, PushEvent, Row, Side, View }
 
 const SEARCH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-const LIST_MIN = 360;
-const SIDE_MIN = 320;
+/** The table's share of the width: three quarters, the card the rest. */
+const LIST_SHARE = 0.72;
 const FACET_SLICE = 3000;
 
 export interface Boot {
@@ -85,6 +85,7 @@ export class App {
   private filter: FilterKey = "all";
   private sort: SortKey = "order";
   private sortDir: 1 | -1 = 1;
+  private listShare = LIST_SHARE;
   private autoplayTimer = 0;
   private lastPlayed = "";
   private chrome!: ChromeApi;
@@ -168,7 +169,7 @@ export class App {
       onShown: (cid, side) => this.shown_(cid, side),
     });
 
-    this.setListWidth(boot.layout.listWidth ?? Math.round(window.innerWidth * 0.62));
+    this.setListShare(boot.layout.share ?? LIST_SHARE);
     this.dragToResize(splitter, main);
     this.wireSearch();
     window.addEventListener("keydown", (e) => this.onKey(e));
@@ -572,23 +573,24 @@ export class App {
     });
   }
 
-  private setListWidth(px: number): void {
-    const max = Math.max(LIST_MIN, window.innerWidth - SIDE_MIN - 48);
-    const w = Math.max(LIST_MIN, Math.min(max, Math.round(px)));
-    document.documentElement.style.setProperty("--list-w", `${w}px`);
+  /** The table's share of the width; it never gets narrower than its
+   *  columns need (--list-min in the stylesheet), whatever the share. */
+  private setListShare(share: number): void {
+    this.listShare = Math.max(0.4, Math.min(0.9, share || LIST_SHARE));
+    document.documentElement.style.setProperty("--list-share", `${(this.listShare * 100).toFixed(1)}%`);
   }
 
   private dragToResize(splitter: HTMLElement, main: HTMLElement): void {
     splitter.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       splitter.setPointerCapture(e.pointerId);
-      const left = main.getBoundingClientRect().left + 16;
-      const move = (ev: PointerEvent) => this.setListWidth(ev.clientX - left - 6);
+      const box = main.getBoundingClientRect();
+      const inner = box.width - 32; // .main's side padding
+      const move = (ev: PointerEvent) => this.setListShare((ev.clientX - box.left - 16 - 6) / inner);
       const up = () => {
         splitter.removeEventListener("pointermove", move);
         splitter.removeEventListener("pointerup", up);
-        const w = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--list-w"), 10);
-        if (w) void call("layout", { listWidth: w });
+        void call("layout", { share: this.listShare });
       };
       splitter.addEventListener("pointermove", move);
       splitter.addEventListener("pointerup", up);
