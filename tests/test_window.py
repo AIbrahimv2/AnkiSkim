@@ -103,6 +103,27 @@ try:
     wait_for("[...document.querySelectorAll('.card-frame')].filter(f => f.contentWindow.skimCid).length >= 4")
     check(True, "the cards around it are drawn ahead")
 
+    print("table, filters and tags")
+    check(js("[...document.querySelectorAll('.list-head span')].map(s => s.textContent).join(',')")
+          == "#,Card,State,Yield,Q-bank,Again in,Verdict", "the table has its columns")
+    chips = wait_for("[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',').includes('Suspended2') && "
+                     "[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',')")
+    check("All4" in chips and "Now2" in chips and "Wait0" in chips, f"filter chips count the topic's cards ({chips})")
+    check(js("document.querySelector('.tp-title').textContent") == "Where this card lives", "the tags pane is under the card")
+    wait_for("document.querySelector('.tp-res') && document.querySelector('.tp-res').textContent.includes('you')")
+    check(True, "and shows the card's places, the topic's resource first")
+    js("[...document.querySelectorAll('.chip')].find(c => c.textContent.startsWith('Suspended')).dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")
+    check(wait_for(f"{POS} === '1 of 2'"), "a chip filters the table")
+    check(wait_for("document.querySelector('.tp-verdict') && document.querySelector('.tp-verdict').textContent.includes('Only here')"),
+          "a suspended card's verdict and reason show in the pane")
+    press("f")
+    check(js("document.querySelector('.chip.on').textContent.startsWith('Now')"), "f goes to the next filter")
+    press("F", "F")
+    check(js("document.querySelector('.chip.on').textContent.startsWith('All')") and js(POS).endswith("of 4"), "F back to All")
+    check(js(POS) != "1 of 4", "still on the card you were on")
+    press("g", "g")
+    shown_is(ALL[0])
+
     print("keys")
     press("j")
     check(js(POS) == "2 of 4", "j moves on")

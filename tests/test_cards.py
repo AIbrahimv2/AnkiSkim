@@ -22,15 +22,29 @@ check(v.as_dict("Stepwise")["back"] == "Stepwise" and v.seq == 3, "every view ge
 print("rows")
 rows = cards.rows(col, ALL)
 heart = rows[str(ALL[0])]
-check(heart[0] == "Heart chambers? Count them", f"row text: tags dropped, line breaks as spaces ({heart[0]!r})")
-check(heart[1] == "Card 1", "a Basic card shows its card type")
-check(heart[3] == 1, "the red flag comes through")
+check(heart["t"] == "Heart chambers? Count them", f"row text: tags dropped, line breaks as spaces ({heart['t']!r})")
+check(heart["k"] == "Card 1", "a Basic card shows its card type")
+check(heart["f"] == 1, "the red flag comes through")
+check("v" not in heart, "without an analyzer, no verdict")
 brain_cids = col.find_cards(f"nid:{notes['brainstem']}", order="c.ord")
 brain = rows[str(brain_cids[1])]
-check(brain[0] == "The brainstem has three parts", f"clozes filled in, hints dropped ({brain[0]!r})")
-check(brain[1] == "Cloze 2", "a cloze card shows its number")
+check(brain["t"] == "The brainstem has three parts", f"clozes filled in, hints dropped ({brain['t']!r})")
+check(brain["k"] == "Cloze 2", "a cloze card shows its number")
 mitral = [rows[str(c)] for c in col.find_cards(f"nid:{notes['mitral']}")]
-check(all(r[2] == -1 for r in mitral), "suspended cards say so")
+check(all(r["q"] == -1 for r in mitral), "suspended cards say so")
+
+print("rows read against a topic")
+from skim.tags import Analyzer  # noqa: E402
+
+an = Analyzer(["Cardio"])
+read = cards.rows(col, ALL, an)
+m = read[str(col.find_cards(f"nid:{notes['mitral']}")[0])]
+check(m["v"] == "now" and m["r"] == "Only here", f"a suspended card under the topic gets a verdict ({m['r']})")
+check(read[str(ALL[0])]["v"] is None, "a card that isn't suspended doesn't")
+check(m["p"]["groups"] and m["p"]["groups"][0]["here"], "and a tags pane, the topic's resource first")
+fac = cards.facets(col, ALL, an)
+check(len(fac["state"]) == len(ALL) and fac["state"].count(-1) == 2, "facets cover every card, in order")
+check(fac["verdict"].count(1) == 2, "suspended cards' verdicts are in the facets")
 check(cards.rows(col, [123]) == {}, "a card that doesn't exist is left out")
 
 print("render")

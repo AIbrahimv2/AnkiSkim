@@ -5,6 +5,7 @@ import json
 
 from harness import ALL, check, col, mw
 from skim.bridge import MAX_BATCH, Bridge
+from skim.tags import Analyzer
 from skim.viewstate import ViewState
 
 
@@ -26,6 +27,12 @@ class Host:
     def view(self):
         return self.state.as_dict()
 
+    def ids(self):
+        return self.state.ids
+
+    def analyzer(self):
+        return Analyzer(self.state.topics)
+
     def run_search(self, query):
         self.state.set(col, search=query)
         return self.view()
@@ -46,16 +53,21 @@ many = call("rows", ids=ALL * 200)
 check(len(many["rows"]) == len(ALL), f"rows are capped at {MAX_BATCH} ids a call, duplicates once")
 check(call("rows", ids=["x", None, ALL[0]])["rows"].keys() == {str(ALL[0])}, "junk ids are skipped")
 check(len(call("cards", ids=ALL)["cards"]) == len(ALL), "cards render in batches")
+seq = call("search", query="tag:Cardio")["view"]["seq"]
+part = call("facets", seq=seq, offset=1, limit=2)
+check(part["offset"] == 1 and part["total"] == 4 and len(part["facets"]["state"]) == 2, "facets come a slice at a time")
+check(call("facets", seq=seq - 1).get("stale"), "and not for a view that's gone")
 
 print("settings")
 s = call("settings")["settings"]
-check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False},
-      "the defaults")
+check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False,
+           "waitBelow": 50}, "the defaults")
+check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 r = call("save_settings", settings={"shortcut": "Ctrl+Shift+Nope"})
 check(r.get("problems", {}).get("shortcut"), "a shortcut Qt can't read is refused")
 check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
-check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True}, "a change is saved and sent back")
+check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50}, "a change is saved and sent back")
 check(host.saved == [{"start_side", "autoplay_audio"}], "the window hears what changed")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(not r["saved"] and len(host.saved) == 1, "saving the same again changes nothing")
