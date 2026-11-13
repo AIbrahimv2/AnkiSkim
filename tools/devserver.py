@@ -57,6 +57,8 @@ def main() -> None:
     ap.add_argument("--media", required=True, help="the collection's media folder (read only)")
     ap.add_argument("--search", default="deck:current", help="what the page opens on")
     ap.add_argument("--back", default="Stepwise", help="window title p would go back to ('' for none)")
+    ap.add_argument("--stepwise", help="Stepwise's meta.json: pinned resources and roots, as Stepwise would pass them "
+                    "(statuses come from the collection)")
     ap.add_argument("--dark", action="store_true")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", 5183)))
     args = ap.parse_args()
@@ -109,7 +111,35 @@ def main() -> None:
     spec.loader.exec_module(pkg)
     from skim_dev import frame
     from skim_dev.bridge import Bridge
+    from skim_dev.tags import Analyzer, Context
     from skim_dev.viewstate import ViewState
+
+    class StepwiseLike(Context):
+        """What Stepwise would tell Skim: pins and roots from its settings,
+        statuses from its state in the collection (a tag's own, or its
+        nearest ancestor's)."""
+
+        def __init__(self, cfg: dict):
+            self.cfg = cfg
+            raw = (col.get_config("tagQueue", None) or {}).get("tags") or {}
+            self.state = {k.lower(): v.get("status") for k, v in raw.items() if isinstance(v, dict)}
+
+        def pinned(self):
+            return sorted(self.cfg.get("pinned_resources") or [], key=lambda t: t.rsplit("::", 1)[-1].lower())
+
+        def roots(self):
+            pats = [p.lower().rstrip("*") for p in self.cfg.get("resource_roots") or []]
+            return [t for t in col.tags.all() if "::" not in t and any(t.lower().startswith(p) for p in pats)]
+
+        def status(self, tag):
+            parts = tag.lower().split("::")
+            for i in range(len(parts), 0, -1):
+                s = self.state.get("::".join(parts[:i]))
+                if s:
+                    return s
+            return None
+
+    stepwise_cfg = json.load(open(args.stepwise)).get("config", {}) if args.stepwise else None
 
     base = f"http://127.0.0.1:{args.port}/"
     night = " nightMode night_mode" if args.dark else ""
@@ -132,6 +162,16 @@ def main() -> None:
 
         def view(self):
             return self.state.as_dict(args.back or None)
+
+        def ids(self):
+            return self.state.ids
+
+        def analyzer(self):
+            key = self.state.seq
+            if getattr(self, "_an", (None,))[0] != key:
+                ctx = StepwiseLike(stepwise_cfg) if stepwise_cfg is not None else None
+                self._an = (key, Analyzer(self.state.topics, ctx, mw.addonManager.cfg.get("wait_below_percent", 50) / 100))
+            return self._an[1]
 
         def frame_html(self):
             return frame.document(base_url=base, night=args.dark, standard_css="",
