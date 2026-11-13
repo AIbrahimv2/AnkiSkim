@@ -184,6 +184,42 @@ try:
     api._window.run_search("tag:Cardio")
     check(not api.following("Stepwise"), "follow() no longer applies")
 
+    print("from a review")
+    brain_cards = list(col.find_cards(f"nid:{notes['brainstem']}", order="c.ord"))
+    mw.state = "review"
+    mw.reviewer.card = col.get_card(brain_cards[1])
+    api.open_from_menu()
+    # Skim lists a note's cards by id, and a note's cards needn't have ids
+    # in the order of their card types.
+    at = sorted(brain_cards).index(brain_cards[1]) + 1
+    check(wait_for(f"{POS} === '{at} of 2'"), "Cmd+Shift+B mid-review shows the card's note, on the card you're reviewing")
+    shown_is(brain_cards[1])
+    check(js("document.querySelector('.source-from').textContent") == "Review", "as the review's")
+    heart = col.find_cards(f"nid:{notes['heart']}", order="c.ord")
+    api.on_review_question(col.get_card(heart[1]))
+    at = sorted(heart).index(heart[1]) + 1
+    check(wait_for(f"{POS} === '{at} of 2' && {SHOWN} === {heart[1]}"), "the next card you review shows too, while Skim is open")
+    api._window.run_search("tag:Neuro")
+    api.on_review_question(col.get_card(heart[0]))
+    pump(0.2)
+    check(api._window._view.search == "tag:Neuro", "until you search for something else")
+    from skim.tags import Context
+
+    class Queued(Context):
+        def status(self, tag):
+            return {"Neuro::Brainstem": "queued", "Neuro::Movement": "completed"}.get(tag)
+
+    api.set_context(Queued)
+    view = api._review_view(col.get_card(brain_cards[0]))
+    check(view["topic"] == ["Neuro::Brainstem"] and view["select"] == brain_cards[0],
+          "with Stepwise, the review's card is read against the topic you've queued")
+    check(api._review_view(col.get_card(movement[0]))["topic"] == ["Neuro::Movement"], "or else one you've done")
+    api.set_context(None)
+    mw.state = "deckBrowser"
+    mw.reviewer.card = None
+    api.open_from_menu()
+    check(api._window._view.search == "tag:Neuro", "outside a review, the shortcut opens what Skim showed last")
+
     print("close")
     press("q")
     pump(0.3)
