@@ -34,9 +34,11 @@ All notable changes to this project are documented here. The format is based on
   resources. The threshold is a setting.
 - **Filters** (All, Suspended, Now, Wait, Your call, High yield, Q-bank) with
   counts; `f` and `F` go through them.
-- **From a review:** Cmd/Ctrl+Shift+B while reviewing opens Skim on that
-  card (with its note's other cards) and follows the review while Skim stays
-  open; `p` goes back to the review.
+- **From a review:** Cmd/Ctrl+Shift+B while reviewing opens Skim on today's
+  review of the deck (cards studied so far, the one on screen, then the ones
+  still to come), at the card you're on and on the side the reviewer shows.
+  Cards still to come keep their answers hidden in the list. Skim follows the
+  review while it stays open, flipping when you do; `p` goes back to it.
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.

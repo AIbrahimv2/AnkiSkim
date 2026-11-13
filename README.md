@@ -52,17 +52,21 @@ through topics.
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
   Search for something else in Skim and it stops following.
 - **From a review.** Press Cmd/Ctrl+Shift+B while reviewing and Skim opens on
-  the card you're on, with its note's other cards, and where it lives under
-  it. Leave Skim open and it follows the review, card by card; `p` goes back
-  to the review.
+  today's review of the deck: the cards you've studied so far, in the order
+  you answered them, the card on screen (where it starts), then the cards
+  still to come, in the order Anki will show them. It shows the side the
+  reviewer is on: the front until you've shown the answer, then the back. The
+  list doesn't give away answers you haven't seen: a card still to come shows
+  its front, with its cloze as `[...]` (or its hint). Leave Skim open and it
+  follows the review, flipping when you do; `p` goes back to the review.
 - **Edit in Anki's browser.** `e` opens the card there, with the same search.
 - **Follows Anki's light and dark themes**, and looks like Stepwise.
 
 ## Usage
 
 1. Open **Tools → Skim** (Cmd/Ctrl+Shift+B), or press `b` on a topic in
-   Stepwise. During a review, the same shortcut opens Skim on the card you're
-   reviewing.
+   Stepwise. During a review, the same shortcut opens Skim on today's review,
+   at the card you're on.
 2. Press `/`, type a search the way you would in Anki's browser
    (`tag:Cardio`, `deck:current is:suspended`, `heart`), and press Enter.
 3. Move with `j` and `k`. `l` shows the back, `h` the front.
