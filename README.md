@@ -1,9 +1,11 @@
 # Skim
 
-**A card browser for Anki that keeps up with your keys.** Search with Anki's
-own syntax, then move through the cards with vim keys. Each card looks the way
-it does when you review it, and the next ones are drawn before you get there,
-so moving is instant.
+**A card browser for Anki that keeps up with your keys, and helps you decide
+what to unsuspend.** Search with Anki's own syntax, then move through the
+cards with vim keys. Each card looks the way it does when you review it, and
+the next ones are drawn before you get there, so moving is instant. On a
+topic, each suspended card says whether to unsuspend it now or wait for the
+system it mostly belongs to, and why.
 
 It pairs with [Stepwise](https://github.com/AIbrahimv2/AnkiStepwise): press
 `b` on a topic there to see its cards here, and Skim follows as you move
@@ -22,10 +24,29 @@ through topics.
   `gg`/`G` and `25G` to jump, `Ctrl-d`/`Ctrl-u` for half a page, `h`/`l` or
   Space for the front and back, `/` to search. Arrow keys, Home and End work
   too.
-- **A list beside the card.** Every card the search found, one line each: the
-  note's text with clozes filled in, its card type, its state (new, learning,
-  review, suspended, buried) and its flag. Click a row to jump there; drag the
-  edge between the list and the card to resize.
+- **Laid out like Anki's browser.** A table of the cards on the left, the card
+  on the right, and where it lives under it. Drag the edge between them to
+  resize; click a row to jump there.
+- **Columns that help you decide.** The note's text with clozes filled in, its
+  state (new, learning, review, suspended, buried), AnKing's yield tag, the
+  UWorld, AMBOSS and NBME questions tagged on it, the other systems it comes up
+  in ("Again in", coloured by what you've done in Stepwise), and a verdict.
+  Click a column's title to sort by it (again to reverse it).
+- **Now or wait.** On a topic (from Stepwise, or a `tag:` search), each
+  suspended card gets a verdict. Its places in your pinned resources (and the
+  one you're on) are sorted by system: if at least half are in this topic's
+  system, unsuspend it now; if not, and a system you haven't started also has
+  it, it could wait, since you'll meet it there. High-yield cards that would
+  wait are "your call", and a card tagged here only as `::Extra` leans to
+  waiting. The reason shows beside it ("43% here; comes up again in Endocrine,
+  Repro"). The threshold is a setting.
+- **Filters.** All, Suspended, Now, Wait, Your call, High yield and Q-bank, each
+  with its count. Click one, or press `f` / `F` to go through them.
+- **Where this card lives.** Under the card, its tags grouped by resource: the
+  one you're on first, then your pinned resources in Stepwise's order, each
+  place with its Stepwise status. Places in other systems are marked with
+  theirs, so you can see where you'll meet the card again. Other resources and
+  AnKing's own tags fold into "Show more"; a card can have 60 of them.
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
@@ -54,6 +75,7 @@ through topics.
 | `h` / `l` | Show the front / the back |
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
+| `f` / `F` | Next / previous filter |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
 | `e` or `B` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |
@@ -65,15 +87,18 @@ through topics.
 
 **⋯ → Settings…** in the window (Anki's **Config** button for the add-on
 opens the same thing): the side each card opens on (the back, by default,
-which for most note types includes the front), playing audio by itself, the
-search Skim opens on the first time, and the keyboard shortcut.
+which for most note types includes the front), playing audio by itself, when
+a card could wait (less than half its places in the topic's system, by
+default), the search Skim opens on the first time, and the keyboard shortcut.
 
 ### For other add-ons
 
 Skim publishes a small API as `aqt.mw.skim` (see [src/api.py](src/api.py)):
 `open()` shows a search or a list of card ids, and `follow()` swaps in new
 cards while Skim shows yours. Passing card ids skips Anki's search, which
-for a tag reads every note.
+for a tag reads every note. Passing a `topic` says what to read the cards'
+tags against, and `set_context()` lets a study planner (Stepwise) say which
+resources are pinned and what you've done.
 
 ## Installation
 

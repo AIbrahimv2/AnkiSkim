@@ -23,3 +23,17 @@ All notable changes to this project are documented here. The format is based on
   Stepwise); `r` plays its audio.
 - Settings for the side shown first, playing audio by itself, the first
   search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in the window.
+- **Laid out like Anki's browser:** the card table on the left, the card and
+  where it lives on the right.
+- **Columns to decide by:** state, AnKing yield, question banks (UWorld,
+  AMBOSS, NBME), the other systems a card comes up in ("Again in", coloured by
+  your Stepwise progress) and a verdict. Click a column to sort by it.
+- **Now or wait.** On a topic, each suspended card says whether to unsuspend
+  it now or wait for the system it mostly belongs to, and why ("43% here;
+  comes up again in Endocrine, Repro"), from where it's tagged in your pinned
+  resources. The threshold is a setting.
+- **Filters** (All, Suspended, Now, Wait, Your call, High yield, Q-bank) with
+  counts; `f` and `F` go through them.
+- **Where this card lives:** its tags by resource, the one you're on and your
+  pinned ones first, with Stepwise's status and the other systems marked; the
+  rest folded away.

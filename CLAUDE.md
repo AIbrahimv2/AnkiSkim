@@ -19,8 +19,13 @@ This repo:
   React: the page (plain DOM, `web/src/app.ts`, `list.ts`, `stage.ts`) handles
   the keys and swaps between card frames drawn ahead of time. Keep it that
   way; `tools/bench_display.py` times the approaches.
-- **Stepwise** opens and follows Skim through `aqt.mw.skim` (`src/api.py`).
-  Keep that API backwards compatible.
+- **Stepwise** opens and follows Skim through `aqt.mw.skim` (`src/api.py`),
+  and tells it about pins and statuses through `set_context`. Keep that API
+  backwards compatible (Stepwise checks `VERSION`).
+- **Now or wait:** `src/tags.py` reads a card's tags against the topic (units,
+  the tags pane, the verdict). `tests/test_tags.py` pins down its rules; the
+  unit names map resources' chapters onto organ systems, so new resources may
+  need a pattern there.
 - **Looks:** the shared styles and React controls are copied from Stepwise
   (`web/src/styles.css`, `web/src/chrome/ui.tsx`); change both together.
 - **Tests:** `./tests/run.sh` (Anki's Python, a made-up collection) and
