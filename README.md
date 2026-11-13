@@ -59,6 +59,12 @@ through topics.
   list doesn't give away answers you haven't seen: a card still to come shows
   its front, with its cloze as `[...]` (or its hint). Leave Skim open and it
   follows the review, flipping when you do; `p` goes back to the review.
+- **Today's views.** From a review, a bar over the table switches between
+  the review and Anki's browser's "Today" searches, on the deck you're
+  reviewing: Due, Added, Edited, Studied, First review, Rescheduled, Again and
+  Overdue, each with its count. Click one or press `t` / `T`. Skim keeps the
+  view as it follows the review (studied cards in the order you studied
+  them), and the next Cmd/Ctrl+Shift+B opens on it.
 - **Edit in Anki's browser.** `e` opens the card there, with the same search.
 - **Follows Anki's light and dark themes**, and looks like Stepwise.
 
@@ -85,6 +91,7 @@ through topics.
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
 | `f` / `F` | Next / previous filter |
+| `t` / `T` | From a review: next / previous view (this review, Due, Studied, Again, ...) |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
 | `e` or `B` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |
