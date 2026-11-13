@@ -22,7 +22,7 @@ from .tags import VERDICT_CODES, YIELD_LABELS, Analyzer, banks_text
 
 # A cloze with no cloze inside it: its answer, dropping any hint. Nested
 # clozes fill in from the inside out. Then sound references, runs of space.
-_CLOZE = re.compile(r"\{\{c\d+::((?:(?!\{\{|\}\}).)*?)(?:::(?:(?!\{\{|\}\}).)*?)?\}\}", re.S)
+_CLOZE = re.compile(r"\{\{c(\d+)::((?:(?!\{\{|\}\}).)*?)(?:::((?:(?!\{\{|\}\}).)*?))?\}\}", re.S)
 # Line breaks and blocks become spaces; inline tags (<b>, <span>) vanish.
 _BREAK = re.compile(r"<(?:br|hr)\b[^>]*>|</(?:div|p|li|tr|td|th|h\d|blockquote)\s*>", re.I)
 _TAG = re.compile(r"<[^>]*>")
@@ -39,20 +39,39 @@ def search(col: Collection, query: str) -> list[int]:
     return list(col.find_cards(query, order="c.id"))
 
 
-def row_text(field: object) -> str:
-    """A note's sort field as one line of plain text, clozes filled in."""
+def row_text(field: object, hide: int | None = None) -> str:
+    """A note's sort field as one line of plain text, clozes filled in,
+    except cloze number `hide` (a card you haven't answered yet), which
+    shows as its front does: [...] or [hint]."""
+
+    def fill(m: re.Match) -> str:
+        if hide is not None and int(m.group(1)) == hide:
+            return f"[{m.group(3) or '...'}]"
+        return m.group(2)
+
     text = str(field)
     for _ in range(3):  # nested clozes
-        filled = _CLOZE.sub(r"\1", text)
+        filled = _CLOZE.sub(fill, text)
         if filled == text:
             break
         text = filled
+    return plain(text)
+
+
+_BLOCKS = re.compile(r"<(style|script)\b.*?</\1\s*>", re.S | re.I)
+
+
+def plain(html_text: str) -> str:
+    text = _BLOCKS.sub(" ", html_text)
     text = _TAG.sub("", _BREAK.sub(" ", _SOUND.sub(" ", text)))
     return _SPACE.sub(" ", html.unescape(text)).strip()[:ROW_CHARS]
 
 
-def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None) -> dict[str, dict]:
+def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
+         hidden: set[int] | frozenset[int] = frozenset()) -> dict[str, dict]:
     """List rows by card id. Cards that no longer exist are left out.
+    Cards in `hidden` (ones still to come in a review) don't give their
+    answers away: a cloze shows as [...], other cards show their front.
 
     t: the note's text, k: card type, q: Anki's queue number, f: flag;
     with an analyzer, also y: yield, b: question banks, a: the other systems
@@ -75,8 +94,15 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None)
             info = models[mid] = _model_info(col, mid)
         sortf, cloze, names = info
         fields = flds.split("\x1f")
+        sort_field = fields[sortf] if sortf < len(fields) else fields[0]
+        if cid not in hidden:
+            text = row_text(sort_field)
+        elif cloze:
+            text = row_text(sort_field, hide=ord_ + 1)
+        else:
+            text = _front_text(col, cid)
         row = {
-            "t": row_text(fields[sortf] if sortf < len(fields) else fields[0]),
+            "t": text,
             "k": f"Cloze {ord_ + 1}" if cloze else (names[ord_] if ord_ < len(names) else ""),
             "q": queue,
             "f": flags & 0b111,
@@ -117,6 +143,14 @@ def facets(col: Collection, cids: list[int], analyzer: Analyzer) -> dict[str, li
         out["verdict"].append(VERDICT_CODES[facts["verdict"]])
         out["later"].append(facts["later"])
     return out
+
+
+def _front_text(col: Collection, cid: int) -> str:
+    """A card's front as text: what you'd see before answering it."""
+    try:
+        return plain(col.get_card(cid).question())
+    except Exception:
+        return ""
 
 
 def _model_info(col: Collection, mid: int) -> tuple[int, bool, list[str]]:

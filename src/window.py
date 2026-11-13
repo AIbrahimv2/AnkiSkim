@@ -121,6 +121,15 @@ class SkimWindow(QDialog):
     def ids(self) -> list[int]:
         return self._view.ids
 
+    def hidden(self) -> set[int]:
+        return self._view.hidden
+
+    def reveal(self, cid: int) -> None:
+        """The reviewer showed a card's answer: so does Skim."""
+        self._view.hidden.discard(cid)
+        self._view.side = "answer"
+        self.push({"type": "reveal", "cid": cid})
+
     def context_changed(self) -> None:
         """Stepwise's plan changed (a topic queued or done): statuses and
         verdicts are read again."""
@@ -199,6 +208,7 @@ class SkimWindow(QDialog):
 
     def show_cards(self, *, search: str | None = None, card_ids=None, title: str | None = None,
                    source: str | None = None, topics=None, select: int | None = None,
+                   ordered: bool = False, side: str | None = None, hidden=None,
                    opener=None, back_label: str | None = None) -> None:
         """Show these cards; with neither a search nor ids, what showed last
         (or, the first time, the last search typed here or the default)."""
@@ -207,7 +217,7 @@ class SkimWindow(QDialog):
             search = saved if isinstance(saved, str) and saved else get_config()["default_search"]
         if search is not None or card_ids is not None:
             self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source,
-                           topics=topics, select=select)
+                           topics=topics, select=select, ordered=ordered, side=side, hidden=hidden)
         if opener is not None and opener is not self:
             self._opener = opener
             self._back_label = back_label

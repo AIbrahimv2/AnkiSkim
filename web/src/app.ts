@@ -194,6 +194,13 @@ export class App {
       case "retag":
         this.retag();
         break;
+      case "reveal":
+        // The reviewer showed this card's answer: show it here too, and
+        // let its row say what it is.
+        this.rows.delete(e.cid);
+        this.list.refresh(true);
+        this.setSide("answer");
+        break;
       case "shown":
         this.view = { ...this.view, back: e.back };
         this.renderChrome();
@@ -212,6 +219,8 @@ export class App {
     this.facets = null;
     this.keys.reset();
     if (document.activeElement !== this.input) this.input.value = view.search;
+    // From a review: the side the reviewer is on (front until you answer).
+    if (view.side) this.side = view.side;
     this.renderChrome();
     this.relist(view.select ?? null);
     this.loadFacets();

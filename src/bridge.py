@@ -71,7 +71,9 @@ class Bridge:
         return {"view": self.host.run_search(str(msg.get("query") or ""))}
 
     def cmd_rows(self, msg: dict) -> dict:
-        return {"rows": cards.rows(self.host.col, self._ids(msg), self.host.analyzer())}
+        hidden = getattr(self.host, "hidden", None)
+        return {"rows": cards.rows(self.host.col, self._ids(msg), self.host.analyzer(),
+                                   hidden() if hidden else frozenset())}
 
     def cmd_facets(self, msg: dict) -> dict:
         """Filter and sort data for the whole list, a slice at a time (the

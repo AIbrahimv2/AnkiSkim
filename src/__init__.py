@@ -37,6 +37,7 @@ gui_hooks.profile_will_close.append(api.close)
 gui_hooks.operation_did_execute.append(api.on_operation)
 gui_hooks.theme_did_change.append(api.on_theme_change)
 gui_hooks.reviewer_did_show_question.append(api.on_review_question)
+gui_hooks.reviewer_did_show_answer.append(api.on_review_answer)
 mw.addonManager.setConfigAction(ADDON, api.open_settings)
 # Serve the built page (src/web/) to the Skim window.
 mw.addonManager.setWebExports(ADDON, r"web/.*\.(js|css)")

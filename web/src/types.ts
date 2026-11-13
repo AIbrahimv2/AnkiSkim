@@ -19,6 +19,8 @@ export interface View {
   topics: string[];
   /** The card to start on (the one you were reviewing). */
   select?: number | null;
+  /** From a review: the side the reviewer is showing. */
+  side?: Side | null;
 }
 
 export interface PageConfig {
@@ -116,6 +118,7 @@ export type PushEvent =
   | { type: "view"; view: View }
   | { type: "changed" }
   | { type: "retag" }
+  | { type: "reveal"; cid: number }
   | { type: "shown"; back: string | null }
   | { type: "hidden" }
   | { type: "settings" };

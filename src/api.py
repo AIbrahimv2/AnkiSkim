@@ -37,7 +37,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from aqt import mw
-from aqt.qt import QAction, QApplication, QKeySequence
+from anki.utils import ids2str
+from aqt.qt import QAction, QApplication, QKeySequence, QTimer
 
 from .tags import Context
 from .window import SkimWindow
@@ -65,7 +66,8 @@ def _topics(topic: str | Sequence[str] | None) -> list[str] | None:
 def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
          title: str | None = None, source: str | None = None, focus: bool = True,
          topic: str | Sequence[str] | None = None, select: int | None = None,
-         back_label: str | None = None) -> None:
+         back_label: str | None = None, ordered: bool = False, side: str | None = None,
+         hidden: Sequence[int] | None = None) -> None:
     """Show Skim on these cards (or, with neither `search` nor `card_ids`,
     on whatever it showed last) and give it the keys."""
     if mw.col is None:
@@ -75,19 +77,20 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
     # main window when you open Skim from the Tools menu.
     opener = QApplication.activeWindow() if source else None
     window.show_cards(search=search, card_ids=card_ids, title=title, source=source,
-                      topics=_topics(topic), select=select,
+                      topics=_topics(topic), select=select, ordered=ordered, side=side, hidden=hidden,
                       opener=opener if opener is not window else None, back_label=back_label)
     window.present(focus)
 
 
 def follow(*, search: str, card_ids: Sequence[int] | None = None, title: str | None = None,
-           source: str, topic: str | Sequence[str] | None = None, select: int | None = None) -> bool:
+           source: str, topic: str | Sequence[str] | None = None, select: int | None = None,
+           ordered: bool = False, side: str | None = None, hidden: Sequence[int] | None = None) -> bool:
     """If Skim is open on `source`'s cards, show these instead, without
     taking focus. Returns whether it did. Cheap to call on every move."""
     if _window is None or not _window.following(source):
         return False
     _window.follow(search=search, card_ids=card_ids, title=title, source=source, topics=_topics(topic),
-                   select=select)
+                   select=select, ordered=ordered, side=side, hidden=hidden)
     return True
 
 
@@ -138,6 +141,9 @@ def open_from_menu() -> None:
 # --- the review -----------------------------------------------------------------
 
 REVIEW = "Review"
+# The scheduler's whole queue for a big deck is a few hundred cards.
+QUEUE_LIMIT = 2000
+REVIEW_DELAY_MS = 60
 
 
 def review_card():
@@ -147,27 +153,76 @@ def review_card():
     return getattr(getattr(mw, "reviewer", None), "card", None)
 
 
-def _review_view(card) -> dict:
-    """The card's note (so its siblings show too), starting on the card,
-    read against the topics you're studying it for: its tags that the
-    planner (Stepwise) has queued, or else done."""
-    topics: list[str] = []
+def _review_topics(card) -> list[str]:
+    """The topics you're studying the card for: its tags the planner
+    (Stepwise) has queued, or else done."""
     ctx = context()
-    if ctx is not None:
-        try:
-            tags = card.note().tags
-            status = {t: ctx.status(t) for t in tags}
-            topics = [t for t in tags if status[t] == "queued"] or [t for t in tags if status[t] == "completed"]
-        except Exception:
-            topics = []
-    return {"search": f"nid:{card.nid}", "select": card.id, "title": "This card's note",
-            "source": REVIEW, "topic": topics or None}
+    if ctx is None:
+        return []
+    try:
+        tags = card.note().tags
+        status = {t: ctx.status(t) for t in tags}
+    except Exception:
+        return []
+    return [t for t in tags if status[t] == "queued"] or [t for t in tags if status[t] == "completed"]
+
+
+def _session(card) -> tuple[list[int], list[int], str]:
+    """Today's review of the deck you're studying: the cards answered so
+    far (in the order you answered them), and the ones still to come (in
+    the scheduler's order), without the card on screen; and the deck's
+    name."""
+    col = mw.col
+    did = col.decks.get_current_id()
+    dids = col.decks.deck_and_child_ids(did)
+    start = (col.sched.day_cutoff - 86400) * 1000
+    studied = col.db.list(
+        "select r.cid from revlog r join cards c on c.id = r.cid "
+        f"where r.id > ? and r.ease > 0 and c.did in {ids2str(dids)} "
+        "group by r.cid order by min(r.id)", start)
+    try:
+        queued = [q.card.id for q in col.sched.get_queued_cards(fetch_limit=QUEUE_LIMIT).cards]
+    except Exception:
+        queued = []
+    upcoming = [c for c in queued if c != card.id]
+    coming = set(upcoming)
+    studied = [c for c in studied if c != card.id and c not in coming]
+    name = col.decks.name(did).rsplit("::", 1)[-1]
+    return studied, upcoming, name
+
+
+def _review_view(card, side: str | None = None) -> dict:
+    """What Skim shows from a review: the session, on the card on screen,
+    showing the side the reviewer is on. Answers of cards still to come
+    (and this one, until it's answered) stay hidden in the list."""
+    if side is None:
+        side = "answer" if getattr(getattr(mw, "reviewer", None), "state", None) == "answer" else "question"
+    try:
+        studied, upcoming, deck = _session(card)
+    except Exception:  # an unusual collection: the card's note alone
+        studied, upcoming, deck = [], [], ""
+    ids = [*studied, card.id, *upcoming]
+    hidden = [*upcoming, *([card.id] if side == "question" else [])]
+    title = f"{deck}: {len(studied):,} studied, {len(upcoming) + 1:,} to go"
+    if not deck:
+        ids, title = list(card.note().card_ids()), "This card's note"
+    # No search: the title says what these are (e still opens the card in
+    # Anki's browser).
+    return {"search": "", "card_ids": ids, "ordered": True, "select": card.id, "side": side, "hidden": hidden,
+            "title": title, "source": REVIEW, "topic": _review_topics(card) or None}
 
 
 def on_review_question(card) -> None:
-    """The reviewer moved on: if Skim is open on the review, show this card."""
+    """The reviewer moved on: if Skim is open on the review, show this card,
+    front only. Just after the reviewer has drawn it, so it never waits."""
     if following(REVIEW):
-        follow(**_review_view(card))
+        QTimer.singleShot(REVIEW_DELAY_MS, lambda: following(REVIEW) and follow(**_review_view(card, "question")))
+
+
+def on_review_answer(card) -> None:
+    """The reviewer showed the answer: so does Skim."""
+    if following(REVIEW) and _window is not None:
+        _window.reveal(card.id)
 
 
 def prewarm() -> None:
