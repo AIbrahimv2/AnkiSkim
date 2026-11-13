@@ -80,6 +80,7 @@ class SkimWindow(QDialog):
         self._analyzer: tuple[tuple, Analyzer] | None = None
         self._context_version = 0
         self._opener = None
+        self._back_label: str | None = None
         self._pending: dict | None = None
         self._last_follow = 0.0
         self._follow_timer = QTimer(self)
@@ -102,7 +103,8 @@ class SkimWindow(QDialog):
         return theme_manager.body_classes_for_card_ord(ord_)
 
     def view(self) -> dict:
-        return self._view.as_dict(self._opener.windowTitle() if _alive(self._opener) else None)
+        back = (self._back_label or self._opener.windowTitle()) if _alive(self._opener) else None
+        return self._view.as_dict(back)
 
     def analyzer(self) -> Analyzer:
         """Reads the view's cards against its topic. Made once per view (and
@@ -196,16 +198,19 @@ class SkimWindow(QDialog):
     # --- what the window shows -------------------------------------------------
 
     def show_cards(self, *, search: str | None = None, card_ids=None, title: str | None = None,
-                   source: str | None = None, topics=None, opener=None) -> None:
+                   source: str | None = None, topics=None, select: int | None = None,
+                   opener=None, back_label: str | None = None) -> None:
         """Show these cards; with neither a search nor ids, what showed last
         (or, the first time, the last search typed here or the default)."""
         if search is None and card_ids is None and not self._view.seq:
             saved = _profile().get(SEARCH_KEY)
             search = saved if isinstance(saved, str) and saved else get_config()["default_search"]
         if search is not None or card_ids is not None:
-            self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source, topics=topics)
+            self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source,
+                           topics=topics, select=select)
         if opener is not None and opener is not self:
             self._opener = opener
+            self._back_label = back_label
         self.push({"type": "view", "view": self.view()})
 
     def following(self, source: str) -> bool:

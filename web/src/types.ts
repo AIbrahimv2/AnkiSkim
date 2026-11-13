@@ -17,6 +17,8 @@ export interface View {
   back: string | null;
   /** The tag(s) the cards are read against (Stepwise's topic). */
   topics: string[];
+  /** The card to start on (the one you were reviewing). */
+  select?: number | null;
 }
 
 export interface PageConfig {

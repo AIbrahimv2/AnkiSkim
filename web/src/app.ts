@@ -213,7 +213,7 @@ export class App {
     this.keys.reset();
     if (document.activeElement !== this.input) this.input.value = view.search;
     this.renderChrome();
-    this.relist(null);
+    this.relist(view.select ?? null);
     this.loadFacets();
   }
 
@@ -522,7 +522,7 @@ export class App {
     this.sourceEl.replaceChildren();
     if (v.source) {
       const chip = el("span", "source-from", v.source);
-      chip.title = `Following ${v.source}: these are the cards of what's selected there`;
+      chip.title = `Following ${v.source}: Skim shows what you're on there`;
       this.sourceEl.append(chip);
     }
     if (v.title) this.sourceEl.append(el("span", "source-title", v.title));

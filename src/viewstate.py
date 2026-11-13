@@ -22,10 +22,12 @@ class ViewState:
         self.error: str | None = None
         # The tag(s) these cards are "here" in, for reading their tags.
         self.topics: list[str] = []
+        # The card to start on (the one you were reviewing), if not the first.
+        self.select: int | None = None
 
     def set(self, col, *, search: str, ids: Iterable[int] | None = None,
             title: str | None = None, source: str | None = None,
-            topics: Iterable[str] | None = None) -> None:
+            topics: Iterable[str] | None = None, select: int | None = None) -> None:
         """Show `ids` (sorted, as a search would), or else what `search`
         finds. A bad search shows Anki's message and no cards. `topics` are
         the tags the cards are read against; a search for one tag names
@@ -41,6 +43,7 @@ class ViewState:
         self.seq += 1
         self.search, self.ids, self.title, self.source, self.error = search, found, title, source, error
         self.topics = [t for t in topics or [] if isinstance(t, str) and t] or topics_from_search(search)
+        self.select = int(select) if select else None
 
     def as_dict(self, back: str | None = None) -> dict:
         return {
@@ -52,4 +55,5 @@ class ViewState:
             "seq": self.seq,
             "back": back,
             "topics": self.topics,
+            "select": self.select,
         }

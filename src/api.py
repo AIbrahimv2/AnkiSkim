@@ -64,7 +64,8 @@ def _topics(topic: str | Sequence[str] | None) -> list[str] | None:
 
 def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
          title: str | None = None, source: str | None = None, focus: bool = True,
-         topic: str | Sequence[str] | None = None) -> None:
+         topic: str | Sequence[str] | None = None, select: int | None = None,
+         back_label: str | None = None) -> None:
     """Show Skim on these cards (or, with neither `search` nor `card_ids`,
     on whatever it showed last) and give it the keys."""
     if mw.col is None:
@@ -74,17 +75,19 @@ def open(*, search: str | None = None, card_ids: Sequence[int] | None = None,
     # main window when you open Skim from the Tools menu.
     opener = QApplication.activeWindow() if source else None
     window.show_cards(search=search, card_ids=card_ids, title=title, source=source,
-                      topics=_topics(topic), opener=opener if opener is not window else None)
+                      topics=_topics(topic), select=select,
+                      opener=opener if opener is not window else None, back_label=back_label)
     window.present(focus)
 
 
 def follow(*, search: str, card_ids: Sequence[int] | None = None, title: str | None = None,
-           source: str, topic: str | Sequence[str] | None = None) -> bool:
+           source: str, topic: str | Sequence[str] | None = None, select: int | None = None) -> bool:
     """If Skim is open on `source`'s cards, show these instead, without
     taking focus. Returns whether it did. Cheap to call on every move."""
     if _window is None or not _window.following(source):
         return False
-    _window.follow(search=search, card_ids=card_ids, title=title, source=source, topics=_topics(topic))
+    _window.follow(search=search, card_ids=card_ids, title=title, source=source, topics=_topics(topic),
+                   select=select)
     return True
 
 
@@ -123,7 +126,48 @@ def following(source: str) -> bool:
 
 
 def open_from_menu() -> None:
-    open()
+    """Tools → Skim (Cmd/Ctrl+Shift+B): during a review, the card you're
+    reviewing; anywhere else, what Skim showed last."""
+    card = review_card()
+    if card is not None:
+        open(back_label="the review", **_review_view(card))
+    else:
+        open()
+
+
+# --- the review -----------------------------------------------------------------
+
+REVIEW = "Review"
+
+
+def review_card():
+    """The card on screen in the reviewer, if you're reviewing."""
+    if getattr(mw, "state", None) != "review":
+        return None
+    return getattr(getattr(mw, "reviewer", None), "card", None)
+
+
+def _review_view(card) -> dict:
+    """The card's note (so its siblings show too), starting on the card,
+    read against the topics you're studying it for: its tags that the
+    planner (Stepwise) has queued, or else done."""
+    topics: list[str] = []
+    ctx = context()
+    if ctx is not None:
+        try:
+            tags = card.note().tags
+            status = {t: ctx.status(t) for t in tags}
+            topics = [t for t in tags if status[t] == "queued"] or [t for t in tags if status[t] == "completed"]
+        except Exception:
+            topics = []
+    return {"search": f"nid:{card.nid}", "select": card.id, "title": "This card's note",
+            "source": REVIEW, "topic": topics or None}
+
+
+def on_review_question(card) -> None:
+    """The reviewer moved on: if Skim is open on the review, show this card."""
+    if following(REVIEW):
+        follow(**_review_view(card))
 
 
 def prewarm() -> None:
