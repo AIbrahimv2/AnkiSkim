@@ -1,13 +1,17 @@
-// The parts of the page you open: the ⋯ menu, Settings, the list of keys,
-// and toasts. React, like Stepwise's; nothing here runs while you move
+// The parts of the page you open: the ⋯ menu, Settings (with What's new and
+// About, from the shared add-on kit), the list of keys, and toasts. React, like Stepwise's; nothing here runs while you move
 // between cards.
 
-import { CircleCheck, Ellipsis, Info, Keyboard, Settings2, SquarePen, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, Ellipsis, Info, Keyboard, Settings2, Sparkles, SquarePen, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { call } from "../bridge.ts";
 import type { PageConfig, Settings, Side } from "../types.ts";
+import { AddonDialog, selfOf, useKitAbout } from "../kit/AddonDialog.tsx";
+import { Row, ShortcutField } from "../kit/settings.tsx";
+import type { KitTab } from "../kit/types.ts";
+import { kitCall } from "../kitCall.ts";
 import { type Anchor, IconButton, Menu, Modal, Switch, anchorBelow } from "./ui.tsx";
 
 export interface ChromeApi {
@@ -49,7 +53,9 @@ export function mountChrome(host: HTMLElement, props: ChromeProps): ChromeApi {
 
 function Chrome(props: ChromeProps) {
   const [menu, setMenu] = useState<Anchor | null>(null);
-  const [settings, setSettings] = useState(false);
+  const [settings, setSettings] = useState<KitTab | null>(null);
+  const [kitAbout] = useKitAbout(kitCall);
+  const unseen = !!selfOf(kitAbout)?.unseen;
   const [help, setHelp] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const button = useRef<HTMLButtonElement>(null);
@@ -59,7 +65,7 @@ function Chrome(props: ChromeProps) {
     setToasts((t) => [...t.slice(-2), { id, message, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 6500 : 3200);
   };
-  control.settings = (open) => setSettings(open);
+  control.settings = (open) => setSettings(open ? "settings" : null);
   control.help = () => setHelp((h) => !h);
 
   return (
@@ -75,6 +81,7 @@ function Chrome(props: ChromeProps) {
           onClick={() => button.current && setMenu(anchorBelow(button.current, true))}
         >
           <Ellipsis size={17} />
+          {unseen && <span className="kit-dot" aria-label="What's new" />}
         </button>,
         props.slot,
       )}
@@ -87,13 +94,18 @@ function Chrome(props: ChromeProps) {
             { label: "Edit in Anki's browser", icon: <SquarePen size={14} />, hint: "e", onSelect: props.onEdit },
             { label: "Keys", icon: <Keyboard size={14} />, hint: "?", onSelect: () => setHelp(true) },
             { separator: true },
-            { label: "Settings…", icon: <Settings2 size={14} />, onSelect: () => setSettings(true) },
+            { label: "Settings…", icon: <Settings2 size={14} />, onSelect: () => setSettings("settings") },
+            { separator: true },
+            { label: "What's new", icon: <Sparkles size={14} />, dot: unseen, onSelect: () => setSettings("news") },
+            { label: "About Skim", icon: <Info size={14} />, onSelect: () => setSettings("about") },
           ]}
         />
       )}
       {settings && (
         <SettingsDialog
-          onClose={() => setSettings(false)}
+          tab={settings}
+          onTab={setSettings}
+          onClose={() => setSettings(null)}
           onSaved={(config) => {
             props.onConfig(config);
             control.toast("Settings saved");
@@ -169,7 +181,12 @@ const SIDES: { value: Side; label: string }[] = [
   { value: "answer", label: "Back" },
 ];
 
-function SettingsDialog(props: { onClose: () => void; onSaved: (config: PageConfig) => void }) {
+function SettingsDialog(props: {
+  tab: KitTab;
+  onTab: (tab: KitTab) => void;
+  onClose: () => void;
+  onSaved: (config: PageConfig) => void;
+}) {
   const [v, setV] = useState<Settings | null>(null);
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -196,14 +213,13 @@ function SettingsDialog(props: { onClose: () => void; onSaved: (config: PageConf
   };
 
   return (
-    <Modal onClose={props.onClose} width={540}>
-      <div className="dialog-head">
-        <h2>Settings</h2>
-        <IconButton size="sm" label="Close" onClick={props.onClose}>
-          <X size={15} />
-        </IconButton>
-      </div>
-      {v && (
+    <AddonDialog
+      call={kitCall}
+      tab={props.tab}
+      onTab={props.onTab}
+      onClose={props.onClose}
+      settings={
+        v ? (
         <div className="settings">
           <section className="set-section">
             <h3>Cards</h3>
@@ -267,7 +283,11 @@ function SettingsDialog(props: { onClose: () => void; onSaved: (config: PageConf
             </div>
           </section>
         </div>
-      )}
+      ) : (
+          <div className="skeleton" style={{ height: 300, borderRadius: 12 }} />
+        )
+      }
+      settingsFooter={
       <div className="modal-actions">
         <button type="button" className="btn ghost" onClick={props.onClose}>
           Cancel
@@ -276,90 +296,7 @@ function SettingsDialog(props: { onClose: () => void; onSaved: (config: PageConf
           Save
         </button>
       </div>
-    </Modal>
-  );
-}
-
-function Row(props: { label: string; hint?: string; problem?: string; children: React.ReactNode }) {
-  return (
-    <div className="set-row">
-      <div className="set-text">
-        <div className="set-label">{props.label}</div>
-        {props.hint && <div className="set-hint">{props.hint}</div>}
-        {props.problem && <div className="set-problem">{props.problem}</div>}
-      </div>
-      <div className="set-control">{props.children}</div>
-    </div>
-  );
-}
-
-// --- shortcut (from Stepwise's Settings.tsx) ---------------------------------------
-
-const IS_MAC = /Mac/i.test(navigator.platform);
-
-/** Qt's names for the modifiers, from a key event. On a Mac Qt's "Ctrl"
- *  is ⌘ and "Meta" is ⌃. */
-function comboFrom(e: React.KeyboardEvent): string | null {
-  let key: string | null = null;
-  const c = e.code;
-  if (/^Key[A-Z]$/.test(c)) key = c.slice(3);
-  else if (/^Digit\d$/.test(c)) key = c.slice(5);
-  else if (/^F\d{1,2}$/.test(c)) key = c;
-  else if (c === "Space") key = "Space";
-  if (!key) return null;
-  const mods = [
-    (IS_MAC ? e.metaKey : e.ctrlKey) && "Ctrl",
-    (IS_MAC ? e.ctrlKey : e.metaKey) && "Meta",
-    e.altKey && "Alt",
-    e.shiftKey && "Shift",
-  ].filter(Boolean);
-  // Plain letters would fire while typing; F-keys may stand alone.
-  if (!mods.length && !key.startsWith("F")) return null;
-  return [...mods, key].join("+");
-}
-
-function displayShortcut(s: string): string {
-  if (!IS_MAC) return s.replace(/\+/g, " + ");
-  const sym: Record<string, string> = { Ctrl: "⌘", Meta: "⌃", Alt: "⌥", Shift: "⇧" };
-  const parts = s.split("+");
-  const key = parts.pop() ?? "";
-  const order = ["Meta", "Alt", "Shift", "Ctrl"]; // ⌃⌥⇧⌘, the Mac order
-  return order.filter((m) => parts.includes(m)).map((m) => sym[m]).join("") + key;
-}
-
-function ShortcutField(props: { value: string; onChange: (s: string) => void }) {
-  const [recording, setRecording] = useState(false);
-  return (
-    <div className="shortcut-field">
-      <button
-        type="button"
-        className={`keycap-btn${recording ? " recording" : ""}`}
-        onClick={() => setRecording(true)}
-        onBlur={() => setRecording(false)}
-        onKeyDown={(e) => {
-          if (!recording) return;
-          e.preventDefault();
-          e.stopPropagation(); // Escape cancels recording, not the dialog
-          if (e.key === "Escape") return setRecording(false);
-          if (e.key === "Backspace" || e.key === "Delete") {
-            props.onChange("");
-            return setRecording(false);
-          }
-          const combo = comboFrom(e);
-          if (combo) {
-            props.onChange(combo);
-            setRecording(false);
-          }
-        }}
-        title="Click, then press the keys"
-      >
-        {recording ? "Press keys…" : props.value ? displayShortcut(props.value) : "None"}
-      </button>
-      {props.value && !recording && (
-        <IconButton size="sm" label="No shortcut" onClick={() => props.onChange("")}>
-          <X size={14} />
-        </IconButton>
-      )}
-    </div>
+      }
+    />
   );
 }
