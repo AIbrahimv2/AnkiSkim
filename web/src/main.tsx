@@ -2,6 +2,7 @@ import { type Boot, App } from "./app.ts";
 import { call, setErrorHandler } from "./bridge.ts";
 import { mountChrome } from "./chrome/Chrome.tsx";
 import type { PushEvent } from "./types.ts";
+import "./kit/kit.css";
 import "./styles.css";
 
 // Python can push before the page has booted (Skim opened while loading):
