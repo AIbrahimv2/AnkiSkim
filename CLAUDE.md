@@ -26,8 +26,12 @@ This repo:
   the tags pane, the verdict). `tests/test_tags.py` pins down its rules; the
   unit names map resources' chapters onto organ systems, so new resources may
   need a pattern there.
-- **Looks:** the shared styles and React controls are copied from Stepwise
-  (`web/src/styles.css`, `web/src/chrome/ui.tsx`); change both together.
+- **Shared kit:** `src/kit/` and `web/src/kit/` are copies of `../anki-addon-kit` (the
+  theme, the controls, the Settings / What's new / About dialog and the
+  notice after updates). Don't edit them here: change the kit and run its
+  `sync.py`; `build.sh` warns when they're behind. `build.sh` puts
+  `CHANGELOG.md` in the package, where What's new shows it to users, so
+  write it in their terms.
 - **Tests:** `./tests/run.sh` (Anki's Python, a made-up collection) and
   `cd web && npm test` (the vim keys).
 - **Building:** `./build.sh` builds the page into `src/web/` and the package
