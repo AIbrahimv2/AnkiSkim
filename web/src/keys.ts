@@ -17,7 +17,7 @@ export type Command =
   | { kind: "close" }
   | { kind: "help" }
   | { kind: "filter"; by: 1 | -1 } // f/F: next / previous filter
-  | { kind: "lens"; by: 1 | -1 } // t/T: a review's next / previous view
+  | { kind: "lens"; by: 1 | -1 } // t/T, L/H: a review's next / previous view
   | { kind: "cancel" };
 
 /** The bits of a key event the machine reads (a DOM KeyboardEvent fits). */
@@ -162,7 +162,10 @@ export class Keys {
       case "t":
         return { kind: "lens", by: 1 };
       case "T":
+      case "H": // the view to the left in the bar
         return { kind: "lens", by: -1 };
+      case "L": // and to the right
+        return { kind: "lens", by: 1 };
       case "Escape":
         return typed ? { kind: "cancel" } : { kind: "close" };
     }

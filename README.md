@@ -62,7 +62,7 @@ through topics.
 - **Today's views.** From a review, a bar over the table switches between
   the review and Anki's browser's "Today" searches, on the deck you're
   reviewing: Due, Added, Edited, Studied, First review, Rescheduled, Again and
-  Overdue, each with its count. Click one or press `t` / `T`. Skim keeps the
+  Overdue, each with its count. Click one or press `t` / `T` (or `H` / `L`). Skim keeps the
   view as it follows the review (studied cards in the order you studied
   them), and the next Cmd/Ctrl+Shift+B opens on it.
 - **Edit in Anki's browser.** `e` opens the card there, with the same search.
@@ -92,6 +92,7 @@ through topics.
 | `J` / `K` | Scroll a long card down / up |
 | `f` / `F` | Next / previous filter |
 | `t` / `T` | From a review: next / previous view (this review, Due, Studied, Again, ...) |
+| `H` / `L` | From a review: the view to the left / right |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
 | `e` or `B` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |

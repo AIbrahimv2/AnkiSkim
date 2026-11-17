@@ -111,4 +111,6 @@ test("sides, scrolling and the rest", () => {
   assert.deepEqual(type(k, "F"), { kind: "filter", by: -1 });
   assert.deepEqual(type(k, "t"), { kind: "lens", by: 1 });
   assert.deepEqual(type(k, "T"), { kind: "lens", by: -1 });
+  assert.deepEqual(type(k, "L"), { kind: "lens", by: 1 });
+  assert.deepEqual(type(k, "H"), { kind: "lens", by: -1 });
 });

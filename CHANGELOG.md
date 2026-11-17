@@ -48,7 +48,7 @@ All notable changes to this project are documented here. The format is based on
 - **Today's views** for a review: Due, Added, Edited, Studied, First review,
   Rescheduled, Again and Overdue (Anki's browser's "Today" searches, on the
   deck you're reviewing), each with its count, in a bar over the table;
-  `t` and `T` go through them.
+  `t` and `T` (or `H` and `L`, left and right) go through them.
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.
