@@ -27,7 +27,7 @@ MAX_BATCH = 400
 
 def page_config(cfg: dict) -> dict:
     return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"],
-            "waitBelow": cfg["wait_below_percent"]}
+            "waitBelow": cfg["wait_below_percent"], "systemDone": cfg["system_done_percent"]}
 
 
 class Bridge:
@@ -143,6 +143,7 @@ class Bridge:
             "startSide": cfg["start_side"],
             "autoplay": cfg["autoplay_audio"],
             "waitBelow": cfg["wait_below_percent"],
+            "systemDone": cfg["system_done_percent"],
         }}
 
     def cmd_save_settings(self, msg: dict) -> dict:

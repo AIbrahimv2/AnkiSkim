@@ -30,7 +30,7 @@ const HEADS: [label: string, key: SortKey | null, title: string][] = [
   ["State", "state", "New, learning, review, suspended or buried"],
   ["Yield", "yield", "AnKing's yield tag"],
   ["Q-bank", "banks", "UWorld (UW), AMBOSS (AM) and NBME (NB) questions tagged on the card"],
-  ["Again in", "later", "Other systems the card is in (green: you've done it; orange: queued)"],
+  ["Again in", "later", "Other systems the card is in (green: done; orange: queued)"],
   ["Verdict", "verdict", "Unsuspend now, or wait for the system it mostly belongs to"],
 ];
 
@@ -227,7 +227,7 @@ export class CardList {
     yld.className = `r-yield${row.y === "High" ? " high" : ""}`;
     bank.textContent = row.b ?? "";
     bank.title = row.b ?? "";
-    again.replaceChildren(...(row.a ?? []).map(([unit, status]) => chip(unit, status)));
+    again.replaceChildren(...(row.a ?? []).map(([unit, status, part]) => chip(unit, status, part)));
     verdict.textContent = row.v ? VERDICTS[row.v] : "";
     verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
     verdict.title = row.r ?? "";
@@ -236,11 +236,13 @@ export class CardList {
   }
 }
 
-/** A system the card is also in, coloured by Stepwise's status there. */
-export function chip(unit: string, status: Status): HTMLSpanElement {
+/** A system the card is also in, coloured by Stepwise's status there;
+ * the tooltip says how much of the system is done. */
+export function chip(unit: string, status: Status, part: number | null = null): HTMLSpanElement {
   const c = document.createElement("span");
   c.className = `ag${status ? ` s-${status}` : ""}`;
   c.textContent = unit;
-  c.title = `${unit}: ${status ? STATUS_WORD[status] : "not started"}`;
+  const word = status ? STATUS_WORD[status] : part ? "not done yet" : "not started";
+  c.title = `${unit}: ${word}${part === null ? "" : ` (${part}% of its topics done)`}`;
   return c;
 }

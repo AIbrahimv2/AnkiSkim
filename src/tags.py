@@ -17,9 +17,16 @@ The verdict, for a topic in a unit (say SketchyPharm's antimicrobials,
 "Micro"): count the places the card sits in the resources that count (your
 pinned ones and the one you're on), by unit. If at least `wait_below` of
 them are in this unit, it's "now". If not, and another system you haven't
-started (or saved for later) has it, it's "wait": you'll meet it there.
+done (or saved for later) has it, it's "wait": you'll meet it there.
 High-yield cards that would wait are "your call". Cards tagged here only
 as ::Extra lean to waiting.
+
+A system is done on a card when every place the card has in it is done,
+or when the whole system is: at least `done_at` of its topics in your
+pinned resources are done (see `system_shares`). A block you've finished
+leaves topics you never marked; one you haven't started has a few done
+through other blocks. Read card by card the two look alike, so it's
+decided once per system.
 
 Stepwise supplies the pinned resources, the resource roots and each tag's
 status through a context (see api.set_context); without it, every resource
@@ -151,9 +158,14 @@ class Analyzer:
     """Reads cards' tags against the topic(s) you're on. One per view: it
     remembers every tag it has read, and a topic's cards share most."""
 
-    def __init__(self, topics: Iterable[str], context: Context | None = None, wait_below: float = 0.5):
+    def __init__(self, topics: Iterable[str], context: Context | None = None, wait_below: float = 0.5,
+                 done_at: float = 0.5):
         self.ctx = context or Context()
+        self.planned = context is not None
         self.wait_below = wait_below
+        self.done_at = done_at
+        # Each system's share of topics done (system_shares), once set.
+        self.shares: dict[str, float] = {}
         try:
             pins = [p.lower() for p in self.ctx.pinned() if isinstance(p, str)]
             roots = [r.lower() for r in self.ctx.roots() if isinstance(r, str)]
@@ -184,8 +196,11 @@ class Analyzer:
 
     def tag(self, tag: str) -> Tag:
         t = self._tags.get(tag)
-        if t is not None:
-            return t
+        if t is None:
+            t = self._tags[tag] = self._read(tag)
+        return t
+
+    def _read(self, tag: str, status: bool = True) -> Tag:
         low = tag.lower()
         resource, path, label = self._place(tag)
         last = low.rsplit(SEP, 1)[-1]
@@ -200,13 +215,34 @@ class Analyzer:
             here = any(low == p or low.startswith(p + SEP) for p in self.topics)
             extra = last == "extra"
             unit = unit_of([s for s in path if s.lower() != "extra"])
-            try:
-                status = self.ctx.status(tag)
-            except Exception:
-                status = None
-            t = Tag(tag, "place", resource, label, path, unit, self.pins.get(resource), here, extra, status)
-        self._tags[tag] = t
+            t = Tag(tag, "place", resource, label, path, unit, self.pins.get(resource), here, extra,
+                    self._status(tag) if status else None)
         return t
+
+    def _status(self, tag: str) -> str | None:
+        try:
+            return self.ctx.status(tag)
+        except Exception:
+            return None
+
+    def system_shares(self, tags: Iterable[str]) -> dict[str, float]:
+        """Each system's share of topics done: of the tags in your pinned
+        resources (every resource, without pins), the ones Stepwise has as
+        completed. Read from every tag in the collection, so it's the same
+        on every card. Nothing without Stepwise."""
+        if not self.planned:
+            return {}
+        done: Counter = Counter()
+        total: Counter = Counter()
+        for tag in tags:
+            resource, path, _ = self._place(tag)
+            if not path or (self.pins and resource not in self.pins):
+                continue
+            t = self._read(tag, status=False)
+            if t.kind == "place" and t.unit in SYSTEMS:
+                total[t.unit] += 1
+                done[t.unit] += self._status(tag) == "completed"
+        return {unit: done[unit] / n for unit, n in total.items()}
 
     def counts(self, t: Tag) -> bool:
         """Places in your pinned resources (or every resource, without
@@ -236,13 +272,18 @@ class Analyzer:
         total = sum(len(r) for r in by_unit.values())
         share = len(by_unit.get("here", ())) / total if total else None
 
+        # [system, status, % of the system done]: done when every place
+        # the card has there is, or most of the system is; a topic queued
+        # or saved for later there says so first.
         again = []
         for unit in sorted(u for u in by_unit if u in SYSTEMS):
             s = statuses[unit]
+            part = self.shares.get(unit)
             summary = ("completed" if all(x == "completed" for x in s)
-                       else "queued" if "queued" in s else "later" if "later" in s else None)
-            again.append([unit, summary])
-        later = [u for u, s in again if s in (None, "later")]
+                       else "queued" if "queued" in s else "later" if "later" in s
+                       else "completed" if part is not None and part >= self.done_at else None)
+            again.append([unit, summary, None if part is None else round(part * 100)])
+        later = [u for u, s, _ in again if s in (None, "later")]
 
         verdict = reason = None
         if suspended and here_places and share is not None:

@@ -257,6 +257,22 @@ function SettingsDialog(props: {
                   %
                 </span>
               </Row>
+              <Row
+                label="Count a system as done at"
+                hint="Once this share of a system's topics in your pinned Stepwise resources is done, it shows as done on every card, and cards stop waiting for it. Hover a system to see its share."
+                problem={problems.systemDone}
+              >
+                <span className="pct-field">
+                  <input
+                    className={`set-input num${problems.systemDone ? " bad" : ""}`}
+                    inputMode="numeric"
+                    value={String(v.systemDone)}
+                    onChange={(e) => set("systemDone", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                    aria-label="Percentage"
+                  />
+                  %
+                </span>
+              </Row>
             </div>
           </section>
           <section className="set-section">

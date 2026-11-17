@@ -72,7 +72,7 @@ an = Analyzer([TOPIC], Plan(), 0.5)
 f = an.card(KETO, suspended=True)
 check(f["verdict"] == "wait", f"it could wait ({f['reason']})")
 check("Endocrine" in f["reason"] and "Repro" in f["reason"], "for Endocrine and Repro")
-check([u for u, _ in f["again"]] == ["Endocrine", "Repro"], "Again in: Endocrine, Repro")
+check([a[0] for a in f["again"]] == ["Endocrine", "Repro"], "Again in: Endocrine, Repro")
 check(f["level"] == 4 and f["banks"] == {"UWorld": 2, "AMBOSS": 1}, "yield and question banks read")
 p = an.pane(f)
 labels = [g["label"] for g in p["groups"]]
@@ -91,7 +91,7 @@ done = Analyzer([TOPIC], Plan({f"{S1}::#B&B::09_Endocrinology": "completed", f"{
                                f"{S1}::#FirstAid::15_Repro": "queued", f"{S1}::^Systems::Reproductive": "queued"}), 0.5)
 f2 = done.card(KETO, suspended=True)
 check(f2["verdict"] == "now", f"with Endocrine done and Repro queued, it's now ({f2['reason']})")
-check(dict(f2["again"]) == {"Endocrine": "completed", "Repro": "queued"}, "and Again in says so")
+check({u: s for u, s, _ in f2["again"]} == {"Endocrine": "completed", "Repro": "queued"}, "and Again in says so")
 later = Analyzer([TOPIC], Plan({f"{S1}::#B&B::22_Repro": "later"}), 0.5)
 check(later.card(KETO, suspended=True)["verdict"] == "wait", "a system saved for later still counts as later")
 
@@ -130,4 +130,48 @@ f5 = bare.card(KETO, suspended=True)
 check(f5["verdict"] == "wait", "still judged, every resource counting")
 check(len(bare.pane(f5)["groups"]) >= 6, "and every resource shows")
 check(Analyzer([], Plan(), 0.5).card(KETO, suspended=True)["verdict"] is None, "no topic, no verdict")
+check(bare.system_shares(KETO) == {} and all(a[2] is None for a in f5["again"]), "and no system is done")
+
+print("a system you've finished")
+# Every tag in the collection, as far as systems go: Endocrine is 3 of 4
+# topics done in the pinned resources, Repro 1 of 4.
+EVERY = [
+    f"{S1}::#B&B::09_Endocrinology::01_Thyroid",
+    f"{S1}::#B&B::09_Endocrinology::02_Adrenals::02_Cushing_Syndrome",
+    f"{S1}::#FirstAid::08_Endocrine::02_Physiology",
+    f"{S1}::#FirstAid::08_Endocrine::03_Pathology",
+    f"{S1}::#Pixorize::03_Pharmacology::10_Endocrine_Pharm",  # not pinned
+    f"{S1}::#B&B::22_Repro::05_Breast::01_Breast_Tissue",
+    f"{S1}::#Bootcamp::Reproduction::06_Pharmacology::04_Antiandrogens",
+    f"{S1}::#FirstAid::15_Repro::05_Pharm::13_Antiandrogens::*Ketoconazole",
+    f"{S1}::^Systems::Reproductive::Pharmacology",
+    f"{TOPIC}::05_Antifungals::02_Azoles",  # Micro: not a system
+    f"{S1}::#UWorld::Step::12345",
+    f"{S1}::#B&B",
+]
+DONE = {f"{S1}::#B&B::09_Endocrinology::01_Thyroid": "completed",
+        f"{S1}::#B&B::09_Endocrinology::02_Adrenals": "completed",
+        f"{S1}::#FirstAid::08_Endocrine::03_Pathology": "completed",
+        f"{S1}::#B&B::22_Repro::05_Breast": "completed"}
+
+
+def finished(statuses, done_at=0.5):
+    a = Analyzer([TOPIC], Plan(statuses), 0.5, done_at)
+    a.shares = a.system_shares(EVERY)
+    return a
+
+
+fin = finished(DONE)
+check(fin.shares == {"Endocrine": 0.75, "Repro": 0.25}, f"each system's share, pinned resources only ({fin.shares})")
+f6 = fin.card(KETO, suspended=True)
+check(f6["again"] == [["Endocrine", "completed", 75], ["Repro", None, 25]],
+      f"Endocrine is done on the card though its First Aid place isn't; Repro isn't ({f6['again']})")
+check(f6["verdict"] == "wait" and "Repro" in f6["reason"] and "Endocrine" not in f6["reason"],
+      f"so it waits for Repro only ({f6['reason']})")
+check(finished(DONE, 0.8).card(KETO)["again"][0][1] is None, "a higher threshold: Endocrine isn't done yet")
+f7 = finished(DONE, 0.25).card(KETO, suspended=True)
+check([a[1] for a in f7["again"]] == ["completed", "completed"] and f7["verdict"] == "now",
+      f"a lower one: Repro is done too, and the card is for now ({f7['reason']})")
+saved = finished({**DONE, f"{S1}::#FirstAid::08_Endocrine::02_Physiology": "later"})
+check(saved.card(KETO)["again"][0][1] == "later", "a topic saved for later in a done system still says so")
 print("all passed")

@@ -32,6 +32,12 @@ All notable changes to this project are documented here. The format is based on
   it now or wait for the system it mostly belongs to, and why ("43% here;
   comes up again in Endocrine, Repro"), from where it's tagged in your pinned
   resources. The threshold is a setting.
+- **Blocks you've finished show as done.** Once half of a system's topics in
+  your pinned resources are done, it shows green under "Again in" on every
+  card, and no card waits for it any more, even where a card is also tagged
+  in a topic you never marked. A system you haven't started stays grey,
+  except on a card whose every topic there you've done. Hover a system to
+  see how much of it is done; the share is a setting.
 - **Filters** (All, Suspended, Now, Wait, Your call, High yield, Q-bank) with
   counts; `f` and `F` go through them.
 - **From a review:** Cmd/Ctrl+Shift+B while reviewing opens Skim on today's

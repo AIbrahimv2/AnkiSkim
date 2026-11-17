@@ -170,7 +170,13 @@ def main() -> None:
             key = self.state.seq
             if getattr(self, "_an", (None,))[0] != key:
                 ctx = StepwiseLike(stepwise_cfg) if stepwise_cfg is not None else None
-                self._an = (key, Analyzer(self.state.topics, ctx, mw.addonManager.cfg.get("wait_below_percent", 50) / 100))
+                cfg = mw.addonManager.cfg
+                an = Analyzer(self.state.topics, ctx, cfg.get("wait_below_percent", 50) / 100,
+                              cfg.get("system_done_percent", 50) / 100)
+                if getattr(self, "_shares", None) is None:
+                    self._shares = an.system_shares(col.tags.all())
+                an.shares = self._shares
+                self._an = (key, an)
             return self._an[1]
 
         def frame_html(self):

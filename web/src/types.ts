@@ -31,6 +31,7 @@ export interface PageConfig {
   startSide: Side;
   autoplay: boolean;
   waitBelow: number;
+  systemDone: number;
 }
 
 export interface Layout {
@@ -85,8 +86,9 @@ export interface Row {
   f: number;
   y?: string | null;
   b?: string;
-  /** Other systems it comes up in, with Stepwise's status there. */
-  a?: [string, Status][];
+  /** Other systems it comes up in, with Stepwise's status there and how
+   * much of the system is done (%, null without Stepwise). */
+  a?: [string, Status, number | null][];
   v?: Verdict | null;
   r?: string | null;
   p?: Pane;
@@ -116,6 +118,7 @@ export interface Settings {
   startSide: Side;
   autoplay: boolean;
   waitBelow: number;
+  systemDone: number;
 }
 
 export type PushEvent =

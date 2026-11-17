@@ -18,6 +18,9 @@ DEFAULTS: dict = {
     # A suspended card waits for another system when less than this share
     # of its places is in the unit you're on (see tags.py).
     "wait_below_percent": 50,
+    # A system counts as done on every card once this share of its topics
+    # in your pinned resources is done (see tags.py).
+    "system_done_percent": 50,
 }
 
 SIDES = ("question", "answer")
@@ -31,6 +34,7 @@ def get_config() -> dict:
     if cfg["start_side"] not in SIDES:
         cfg["start_side"] = DEFAULTS["start_side"]
     cfg["wait_below_percent"] = max(5, min(95, cfg["wait_below_percent"]))
+    cfg["system_done_percent"] = max(5, min(100, cfg["system_done_percent"]))
     return cfg
 
 
@@ -72,4 +76,12 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             changes["wait_below_percent"] = pct
         except (TypeError, ValueError):
             problems["waitBelow"] = "Enter a percentage from 5 to 95."
+    if "systemDone" in values:
+        try:
+            pct = int(values["systemDone"])
+            if not 5 <= pct <= 100:
+                raise ValueError
+            changes["system_done_percent"] = pct
+        except (TypeError, ValueError):
+            problems["systemDone"] = "Enter a percentage from 5 to 100."
     return changes, problems

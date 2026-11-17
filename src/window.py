@@ -78,6 +78,7 @@ class SkimWindow(QDialog):
         self._dirty = False
         self._view = ViewState()
         self._analyzer: tuple[tuple, Analyzer] | None = None
+        self._shares: tuple[tuple, dict[str, float]] | None = None
         self._context_version = 0
         self._opener = None
         self._back_label: str | None = None
@@ -112,11 +113,24 @@ class SkimWindow(QDialog):
         it reads, and a topic's cards share most of theirs."""
         from . import api
 
-        wait = get_config()["wait_below_percent"] / 100
-        key = (self._view.seq, wait, self._context_version)
+        cfg = get_config()
+        wait = cfg["wait_below_percent"] / 100
+        done_at = cfg["system_done_percent"] / 100
+        key = (self._view.seq, wait, done_at, self._context_version)
         if self._analyzer is None or self._analyzer[0] != key:
-            self._analyzer = (key, Analyzer(self._view.topics, api.context(), wait))
+            an = Analyzer(self._view.topics, api.context(), wait, done_at)
+            an.shares = self._system_shares(an)
+            self._analyzer = (key, an)
         return self._analyzer[1]
+
+    def _system_shares(self, an: Analyzer) -> dict[str, float]:
+        """How much of each system is done, from every tag in the
+        collection (about 0.1 s for an AnKing deck): kept until Stepwise's
+        plan or pins change, not read again for every topic you move to."""
+        key = (self._context_version, id(mw.col), tuple(an.pins), tuple(sorted(an.roots)))
+        if self._shares is None or self._shares[0] != key:
+            self._shares = (key, an.system_shares(mw.col.tags.all()))
+        return self._shares[1]
 
     def ids(self) -> list[int]:
         return self._view.ids
@@ -207,7 +221,7 @@ class SkimWindow(QDialog):
         if "autoplay_audio" in changed:
             self.web.setPlaybackRequiresGesture(not cfg["autoplay_audio"])
         # The reply carries the page's config, and the page reads the rows
-        # again if the wait threshold changed.
+        # again if either threshold changed.
 
     # --- what the window shows -------------------------------------------------
 

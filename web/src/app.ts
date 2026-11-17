@@ -230,10 +230,10 @@ export class App {
 
   setConfig(config: PageConfig): void {
     const startChanged = config.startSide !== this.config.startSide;
-    const waitChanged = config.waitBelow !== this.config.waitBelow;
+    const retag = config.waitBelow !== this.config.waitBelow || config.systemDone !== this.config.systemDone;
     this.config = config;
     if (startChanged) this.setSide(config.startSide);
-    if (waitChanged) this.retag();
+    if (retag) this.retag();
   }
 
   /** Stepwise's plan or the cards changed: read rows and facets again. */

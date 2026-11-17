@@ -19,3 +19,9 @@ it too). The keys below are what it saves, for reference.
   of the places it's tagged in (in your pinned resources and the one you're on)
   is in this topic's unit, and a system you haven't done also has it. Default
   `50`.
+- `system_done_percent` — a system counts as done (green under **Again in**,
+  and no reason to wait for it) once at least this share of its topics in
+  your pinned Stepwise resources is done, so a block you've finished shows
+  as done on every card even though you never marked every topic in it.
+  Hover a system to see how much of it is done. Default `50`; `100` means
+  only when every topic is.

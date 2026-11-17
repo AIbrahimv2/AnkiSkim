@@ -3,5 +3,6 @@
   "default_search": "deck:current",
   "start_side": "answer",
   "autoplay_audio": false,
-  "wait_below_percent": 50
+  "wait_below_percent": 50,
+  "system_done_percent": 50
 }
