@@ -53,10 +53,13 @@ many = call("rows", ids=ALL * 200)
 check(len(many["rows"]) == len(ALL), f"rows are capped at {MAX_BATCH} ids a call, duplicates once")
 check(call("rows", ids=["x", None, ALL[0]])["rows"].keys() == {str(ALL[0])}, "junk ids are skipped")
 check(len(call("cards", ids=ALL)["cards"]) == len(ALL), "cards render in batches")
-seq = call("search", query="tag:Cardio")["view"]["seq"]
-part = call("facets", seq=seq, offset=1, limit=2)
-check(part["offset"] == 1 and part["total"] == 4 and len(part["facets"]["state"]) == 2, "facets come a slice at a time")
-check(call("facets", seq=seq - 1).get("stale"), "and not for a view that's gone")
+cardio = call("search", query="tag:Cardio")["view"]
+part = call("facets", seq=cardio["seq"], ids=[cardio["ids"][3], cardio["ids"][1]])
+check(part["ids"] == [cardio["ids"][3], cardio["ids"][1]] and len(part["facets"]["state"]) == 2,
+      "facets come for the cards asked for, in that order")
+check(part["reading"] == cardio["reading"] == "Cardio", "named for what they were read against")
+check(call("facets", seq=cardio["seq"] - 1, ids=ALL).get("stale"), "and not for a view that's gone")
+check(call("rows", ids=ALL[:1])["reading"] == "Cardio", "rows say their reading too")
 
 print("settings")
 s = call("settings")["settings"]

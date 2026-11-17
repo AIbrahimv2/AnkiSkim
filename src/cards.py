@@ -73,7 +73,8 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
     Cards in `hidden` (ones still to come in a review) don't give their
     answers away: a cloze shows as [...], other cards show their front.
 
-    t: the note's text, k: card type, q: Anki's queue number, f: flag;
+    t: the note's text, k: card type, q: Anki's queue number, f: flag,
+    h: 1 if the answer was kept back;
     with an analyzer, also y: yield, b: question banks, a: the other systems
     it comes up in ([unit, status]), v/r: the verdict and why, p: its tags
     pane (see tags.Analyzer)."""
@@ -107,6 +108,8 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
             "q": queue,
             "f": flags & 0b111,
         }
+        if cid in hidden:
+            row["h"] = 1  # its answer kept back: not the row to show once it's seen
         if analyzer is not None:
             facts = analyzer.card(tags.split(), suspended=queue == -1)
             level = facts["level"]

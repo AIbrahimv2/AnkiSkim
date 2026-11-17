@@ -6,9 +6,12 @@
 //
 // The table can be filtered (All, Suspended, Now, Wait, ...) and sorted
 // by its columns. Both work from "facets": a few numbers per card for the
-// whole view, fetched in slices once its first card is on screen.
+// whole view, fetched in slices once its first card is on screen. Facets
+// and rows are kept per card across views (cache.ts), so a view of cards
+// you've seen before needs neither.
 
 import { call } from "./bridge.ts";
+import { Cache } from "./cache.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
 import { type Command, Keys } from "./keys.ts";
 import { CardList, type SortKey } from "./list.ts";
@@ -80,12 +83,17 @@ export class App {
   private cursor = 0;
   private dir: 1 | -1 = 1;
   private keys = new Keys();
-  private rows = new Map<number, Row>();
+  /** Rows and facets, per card, kept across views. */
+  private cache = new Cache();
+  /** The view's cards whose answers the list keeps back. */
+  private hidden = new Set<number>();
   private rowsWanted = new Set<number>();
   private rowsInFlight = new Set<number>();
   private rowsQueued = false;
   private facets: Facets | null = null;
   private facetsSeq = -1;
+  /** Bumped by each loadFacets, so an older one stops asking. */
+  private facetsRun = 0;
   private filter: FilterKey = "all";
   /** The view you've picked in the bar and don't have yet: the bar shows
    *  it at once, the table shows placeholder rows until its cards come. */
@@ -173,7 +181,7 @@ export class App {
     root.append(app, this.chromeHost);
 
     this.list = new CardList(listPanel, {
-      row: (cid) => this.rows.get(cid),
+      row: (cid) => this.rowFor(cid),
       need: (cids) => this.needRows(cids),
       pick: (i) => this.go(i, true),
       sort: (key) => this.sortBy(key),
@@ -213,8 +221,8 @@ export class App {
         break;
       case "reveal":
         // The reviewer showed this card's answer: show it here too, and
-        // let its row say what it is.
-        this.rows.delete(e.cid);
+        // let its row say what it is (the kept one doesn't).
+        this.hidden.delete(e.cid);
         this.list.refresh(true);
         this.setSide("answer");
         break;
@@ -241,19 +249,29 @@ export class App {
     if (!first && this.wantLens !== null && view.lens !== this.wantLens) return;
     this.endSwitch();
     this.view = view;
-    // Rows read the cards against the view's topic: a new topic, new rows.
-    this.rows.clear();
-    this.facets = null;
+    this.hidden = new Set(view.hidden ?? []);
+    // Kept from an earlier view of these cards, read the same way?
+    this.facets = this.cache.facets(view.reading, view.ids);
     this.keys.reset();
     if (document.activeElement !== this.input) this.input.value = view.search;
     // From a review: the side the reviewer is on (front until you answer).
     if (view.side) this.side = view.side;
     this.renderChrome();
     this.relist(view.select ?? null);
+    clearTimeout(this.facetsTimer);
+    if (this.facets) {
+      this.facetsSeq = view.seq;
+      this.facetsAfterCard = null;
+      return;
+    }
     // Once its first card is on screen (see FACETS_AFTER_MS).
     this.facetsAfterCard = view.seq;
-    clearTimeout(this.facetsTimer);
     this.facetsTimer = window.setTimeout(() => this.startFacets(view.seq), view.ids.length ? FACETS_AFTER_MS : 0);
+  }
+
+  /** A card's row as it should show in this view, if it's kept. */
+  private rowFor(cid: number): Row | undefined {
+    return this.cache.row(this.view.reading, cid, this.hidden.has(cid));
   }
 
   private startFacets(seq: number): void {
@@ -331,9 +349,10 @@ export class App {
     if (retag) this.retag();
   }
 
-  /** Stepwise's plan or the cards changed: read rows and facets again. */
+  /** Stepwise's plan or the cards changed: read rows and facets again,
+   *  forgetting the ones kept for other views too. */
   private retag(): void {
-    this.rows.clear();
+    this.cache.clear();
     this.list.refresh(true);
     this.facets = null;
     this.loadFacets();
@@ -375,25 +394,34 @@ export class App {
     this.update(false);
   }
 
+  /** The view's facets: the kept ones, and the rest from Python a slice
+   *  at a time (kept too, for the next view of these cards). */
   private loadFacets(): void {
-    const seq = this.view.seq;
-    const total = this.view.ids.length;
+    const { seq, ids, reading } = this.view;
+    const gen = this.cache.gen;
+    const run = ++this.facetsRun;
     this.facetsSeq = seq;
-    if (!total) return;
-    const parts: Facets = { state: [], yield: [], banks: [], verdict: [], later: [] };
-    const next = (offset: number) => {
-      call<{ facets?: Facets; stale?: boolean }>("facets", { seq, offset, limit: FACET_SLICE })
-        .then((r) => {
-          if (r.stale || !r.facets || this.facetsSeq !== seq || this.view.seq !== seq) return;
-          for (const k of Object.keys(parts) as (keyof Facets)[]) parts[k].push(...r.facets[k]);
-          if (parts.state.length < total) return next(parts.state.length);
-          this.facets = parts;
-          if (this.wantLens !== null) return; // the table waits for the next view
-          const keep = this.shown[this.cursor] ?? null;
-          if (this.filter !== "all" || this.sort !== "order") this.relist(keep);
-          else this.renderChips();
-        })
-        .catch(() => {});
+    const missing = this.cache.missingFacets(reading, ids);
+    const live = () => this.facetsRun === run && this.view.seq === seq && this.cache.gen === gen;
+    const next = (start: number): void => {
+      if (start < missing.length) {
+        const slice = missing.slice(start, start + FACET_SLICE);
+        call<{ ids?: number[]; facets?: Facets; reading?: string; stale?: boolean }>("facets", { seq, ids: slice })
+          .then((r) => {
+            if (r.stale || !r.ids || !r.facets || this.cache.gen !== gen) return;
+            this.cache.putFacets(r.reading ?? "", r.ids, r.facets);
+            if (live() && r.reading === reading) next(start + FACET_SLICE);
+          })
+          .catch(() => {});
+        return;
+      }
+      const f = this.cache.facets(reading, ids);
+      if (!f || !live()) return;
+      this.facets = f;
+      if (this.wantLens !== null) return; // the table waits for the next view
+      const keep = this.shown[this.cursor] ?? null;
+      if (this.filter !== "all" || this.sort !== "order") this.relist(keep);
+      else this.renderChips();
     };
     next(0);
   }
@@ -426,7 +454,7 @@ export class App {
   private showPane(): void {
     if (this.wantLens !== null) return; // keeps the card you were on, dimmed
     const cid = this.shown[this.cursor];
-    const row = cid !== undefined ? this.rows.get(cid) : undefined;
+    const row = cid !== undefined ? this.rowFor(cid) : undefined;
     this.pane.show(row?.p ?? null, row?.p ? tagCount(row.p) : 0);
   }
 
@@ -613,20 +641,28 @@ export class App {
   // --- list rows -----------------------------------------------------------------
 
   private needRows(cids: number[]): void {
-    for (const c of cids) if (!this.rows.has(c) && !this.rowsInFlight.has(c)) this.rowsWanted.add(c);
+    for (const c of cids) if (!this.rowFor(c) && !this.rowsInFlight.has(c)) this.rowsWanted.add(c);
     if (this.rowsQueued || !this.rowsWanted.size) return;
     this.rowsQueued = true;
     queueMicrotask(() => {
       this.rowsQueued = false;
       const ids = [...this.rowsWanted].slice(0, 400);
       this.rowsWanted.clear();
-      const seq = this.view.seq;
+      const gen = this.cache.gen;
+      const asked = this.view.reading;
       ids.forEach((c) => this.rowsInFlight.add(c));
-      call<{ rows: Record<string, Row> }>("rows", { ids })
+      call<{ rows: Record<string, Row>; reading?: string }>("rows", { ids })
         .then((r) => {
-          if (this.view.seq !== seq) return; // read against another topic
-          for (const c of ids) this.rows.set(c, r.rows[String(c)] ?? { t: "(deleted)", k: "", q: 99, f: 0 });
-          this.list.refresh();
+          if (this.cache.gen !== gen) return; // the cards changed meanwhile
+          // Kept under what Python read them against, which a switch may
+          // have changed since they were asked for.
+          const reading = r.reading ?? asked;
+          for (const c of ids) {
+            const gone: Row = { t: "(deleted)", k: "", q: 99, f: 0, ...(this.hidden.has(c) ? { h: 1 } : {}) };
+            this.cache.putRow(reading, c, r.rows[String(c)] ?? gone);
+          }
+          // Rows for another reading: ask again for this one's.
+          this.list.refresh(reading !== this.view.reading);
           this.showPane();
         })
         .catch(() => {})

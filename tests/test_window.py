@@ -325,6 +325,28 @@ try:
           and js(LENS_ON).startswith("Edited"), "and that's the view that shows")
     check(len(asked) <= 2 and asked[-1] == "edited", f"without asking for each one on the way ({asked})")
     del api._window.review_lens
+
+    print("views keep what they've read")
+    calls: list[str] = []
+    def counting(raw):
+        calls.append(json.loads(raw).get("cmd") if raw.startswith("{") else raw)
+        return api._window.bridge.handle(raw)
+    api._window.web.set_bridge_command(counting, api._window)
+    CHIPS_IN = "![...document.querySelectorAll('.chip')].some(c => c.textContent.includes('…'))"
+    SETTLED = f"!document.querySelector('.app.switching') && !document.querySelector('.row.loading') && {CHIPS_IN}"
+    api.set_review_lens("all")
+    check(wait_for(f"{LENS_ON} === 'All4' && {SETTLED}"), "All, with its rows and filter counts")
+    press("L")
+    check(wait_for(f"{LENS_ON}.startsWith('This review') && {SETTLED}"), "another view, with its own")
+    calls.clear()
+    press("H")
+    check(wait_for(f"{LENS_ON} === 'All4' && {SETTLED}"), "back to All")
+    pump(0.6)  # past the wait for facets
+    check("facets" not in calls and "rows" not in calls,
+          f"its rows and filter counts are the ones kept from before: nothing asked but the view ({calls})")
+    api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+    check(wait_for(f"{SETTLED}") and "facets" in calls, f"a change to the cards forgets them ({calls})")
+    api._window.web.set_bridge_command(api._window.bridge.handle, api._window)
     mw.state = "review"
     mw.reviewer.card = col.sched.getCard() or nxt
     press("q")

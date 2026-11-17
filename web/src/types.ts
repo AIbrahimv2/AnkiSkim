@@ -17,6 +17,11 @@ export interface View {
   back: string | null;
   /** The tag(s) the cards are read against (Stepwise's topic). */
   topics: string[];
+  /** The same as a key: views with the same reading share rows and facets
+   *  (see cache.ts). */
+  reading: string;
+  /** From a review: cards whose answers the list keeps back. */
+  hidden?: number[];
   /** The card to start on (the one you were reviewing). */
   select?: number | null;
   /** From a review: the side the reviewer is showing. */
@@ -88,6 +93,8 @@ export interface Row {
   q: number;
   /** Flag, 0 for none. */
   f: number;
+  /** 1 if the card's answer was kept back (a card still to come). */
+  h?: 1;
   y?: string | null;
   b?: string;
   /** Other systems it comes up in, with Stepwise's status there and how

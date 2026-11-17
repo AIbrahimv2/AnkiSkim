@@ -12,6 +12,12 @@ from . import cards
 from .tags import topics_from_search
 
 
+def reading(topics: Iterable[str]) -> str:
+    """A key for what cards are read against (the view's topics): rows and
+    facets for the same reading are the same, whichever view asked."""
+    return "\n".join(topics)
+
+
 class ViewState:
     def __init__(self) -> None:
         self.seq = 0
@@ -70,5 +76,9 @@ class ViewState:
             "topics": self.topics,
             "select": self.select,
             "side": self.side,
+            # What the cards are read against: the page keeps rows and
+            # facets per reading, across views (see web/src/cache.ts).
+            "reading": reading(self.topics),
+            "hidden": sorted(self.hidden),
             **self.extra,
         }

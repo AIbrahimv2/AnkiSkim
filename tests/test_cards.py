@@ -44,6 +44,8 @@ heart_cards = list(col.find_cards(f"nid:{notes['heart']}", order="c.ord"))
 kept = cards.rows(col, heart_cards, hidden={heart_cards[1]})
 check(kept[str(heart_cards[1])]["t"] == "Four" and kept[str(heart_cards[0])]["t"].startswith("Heart"),
       "a reversed card still to come shows its front, not the note's sort field")
+check(kept[str(heart_cards[1])].get("h") == 1 and "h" not in kept[str(heart_cards[0])],
+      "and says its answer was kept back, so the page won't show that row once it's seen")
 
 print("rows read against a topic")
 from skim.tags import Analyzer  # noqa: E402

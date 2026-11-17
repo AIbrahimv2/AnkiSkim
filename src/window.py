@@ -129,15 +129,16 @@ class SkimWindow(QDialog):
         return out
 
     def analyzer(self) -> Analyzer:
-        """Reads the view's cards against its topic. Made once per view (and
-        again when settings or Stepwise's plan change): it caches every tag
-        it reads, and a topic's cards share most of theirs."""
+        """Reads the view's cards against its topic. Made once per topic
+        (and again when settings or Stepwise's plan change), not per view:
+        it caches every tag it reads, so the bar's views, which share a
+        topic, share what it has read."""
         from . import api
 
         cfg = get_config()
         wait = cfg["wait_below_percent"] / 100
         done_at = cfg["system_done_percent"] / 100
-        key = (self._view.seq, wait, done_at, self._context_version)
+        key = (tuple(self._view.topics), wait, done_at, self._context_version)
         if self._analyzer is None or self._analyzer[0] != key:
             an = Analyzer(self._view.topics, api.context(), wait, done_at)
             an.shares = self._system_shares(an)

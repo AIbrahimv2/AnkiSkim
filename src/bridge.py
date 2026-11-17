@@ -23,6 +23,8 @@ from . import cards, kit
 from .config import check_settings, get_config, update_config
 
 MAX_BATCH = 400
+# Facets are a few numbers a card: the page asks for a few thousand at once.
+MAX_FACETS = 5000
 
 
 def page_config(cfg: dict) -> dict:
@@ -48,9 +50,9 @@ class Bridge:
             return {"error": f"{type(exc).__name__}: {exc}"}
 
     @staticmethod
-    def _ids(msg: dict) -> list[int]:
+    def _ids(msg: dict, cap: int = MAX_BATCH) -> list[int]:
         out = []
-        for c in (msg.get("ids") or [])[:MAX_BATCH]:
+        for c in (msg.get("ids") or [])[:cap]:
             try:
                 out.append(int(c))
             except (TypeError, ValueError):
@@ -71,20 +73,23 @@ class Bridge:
         return {"view": self.host.run_search(str(msg.get("query") or ""))}
 
     def cmd_rows(self, msg: dict) -> dict:
+        """List rows, with the reading they were made for: the page keeps
+        them per reading, across views."""
         hidden = getattr(self.host, "hidden", None)
         return {"rows": cards.rows(self.host.col, self._ids(msg), self.host.analyzer(),
-                                   hidden() if hidden else frozenset())}
+                                   hidden() if hidden else frozenset()),
+                "reading": self.host.view()["reading"]}
 
     def cmd_facets(self, msg: dict) -> dict:
-        """Filter and sort data for the whole list, a slice at a time (the
-        page asks until it has all of them), for the view `seq`."""
-        if msg.get("seq") != self.host.view()["seq"]:
+        """Filter and sort data for some of the view `seq`'s cards (the page
+        asks a slice at a time for the ones it doesn't have yet), in the
+        order asked, with the reading they were made for."""
+        view = self.host.view()
+        if msg.get("seq") != view["seq"]:
             return {"stale": True}
-        ids = self.host.ids()
-        start = max(0, int(msg.get("offset") or 0))
-        end = min(len(ids), start + max(1, min(5000, int(msg.get("limit") or 3000))))
-        return {"offset": start, "total": len(ids),
-                "facets": cards.facets(self.host.col, ids[start:end], self.host.analyzer())}
+        ids = self._ids(msg, MAX_FACETS)
+        return {"ids": ids, "facets": cards.facets(self.host.col, ids, self.host.analyzer()),
+                "reading": view["reading"]}
 
     def cmd_cards(self, msg: dict) -> dict:
         h = self.host

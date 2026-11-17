@@ -39,7 +39,9 @@ All notable changes to this project are documented here. The format is based on
   except on a card whose every topic there you've done. Hover a system to
   see how much of it is done; the share is a setting.
 - **Filters** (All, Suspended, Now, Wait, Your call, High yield, Q-bank) with
-  counts; `f` and `F` go through them.
+  counts; `f` and `F` go through them. Skim keeps what it has read about each
+  card, so going back to a view, or to any view of cards you've already seen,
+  shows its rows and counts at once.
 - **From a review:** Cmd/Ctrl+Shift+B while reviewing opens Skim on today's
   review of the deck (cards studied so far, the one on screen, then the ones
   still to come), at the card you're on and on the side the reviewer shows.
