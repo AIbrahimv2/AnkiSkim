@@ -45,10 +45,12 @@ All notable changes to this project are documented here. The format is based on
   still to come), at the card you're on and on the side the reviewer shows.
   Cards still to come keep their answers hidden in the list. Skim follows the
   review while it stays open, flipping when you do; `p` goes back to it.
-- **Today's views** for a review: Due, Added, Edited, Studied, First review,
-  Rescheduled, Again and Overdue (Anki's browser's "Today" searches, on the
-  deck you're reviewing), each with its count, in a bar over the table;
-  `t` and `T` (or `H` and `L`, left and right) go through them.
+- **Views** in a bar over the table: All (your search, or Stepwise's topic),
+  This review, and Anki's browser's "Today" searches (Due, Added, Edited,
+  Studied, First review, Rescheduled, Again and Overdue), each with its count,
+  on the deck you're reviewing or the one selected in Anki. Skim opens on All,
+  or on This review during a review. `t` and `T` (or `H` and `L`, left and
+  right) go through them.
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.

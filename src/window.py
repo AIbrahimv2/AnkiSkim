@@ -36,6 +36,9 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 # Stepwise moving its cursor sends a new topic per key; show the latest at
 # most this often.
 FOLLOW_EVERY = 0.04
+# Count the bar's views this long after the window opens, once its first
+# cards are in (moving between them never waits on Python).
+RECOUNT_DELAY_MS = 300
 
 def asset_url(name: str) -> str:
     """URL for a built asset, versioned by mtime so a rebuild is never
@@ -77,6 +80,10 @@ class SkimWindow(QDialog):
         self._loaded = False
         self._dirty = False
         self._view = ViewState()
+        # All, the first view in the bar: the last search or Stepwise's
+        # cards (show_cards' arguments), and how many cards it found.
+        self._all: dict | None = None
+        self._all_count: int | None = None
         self._analyzer: tuple[tuple, Analyzer] | None = None
         self._shares: tuple[tuple, dict[str, float]] | None = None
         self._context_version = 0
@@ -87,6 +94,9 @@ class SkimWindow(QDialog):
         self._follow_timer = QTimer(self)
         self._follow_timer.setSingleShot(True)
         qconnect(self._follow_timer.timeout, self._flush_follow)
+        self._recount_timer = QTimer(self)
+        self._recount_timer.setSingleShot(True)
+        qconnect(self._recount_timer.timeout, self._recount)
 
     # --- host interface for Bridge -------------------------------------------
 
@@ -104,8 +114,18 @@ class SkimWindow(QDialog):
         return theme_manager.body_classes_for_card_ord(ord_)
 
     def view(self) -> dict:
+        """The view for the page, with the bar's views: All, then the
+        review's (counted with it) or the last counts."""
+        from . import api
+
         back = (self._back_label or self._opener.windowTitle()) if _alive(self._opener) else None
-        return self._view.as_dict(back)
+        out = self._view.as_dict(back)
+        if "lens" in out:
+            today, n = out.get("lenses") or api.lens_counts(), self._all_count
+        else:
+            out["lens"], today, n = api.ALL, api.lens_counts(), len(self._view.ids)
+        out["lenses"] = [[api.ALL, "All", n], *today]
+        return out
 
     def analyzer(self) -> Analyzer:
         """Reads the view's cards against its topic. Made once per view (and
@@ -180,6 +200,7 @@ class SkimWindow(QDialog):
         query = query.strip()
         _profile()[SEARCH_KEY] = query
         self._view.set(mw.col, search=query)
+        self._remember_all(search=query)
         return self.view()
 
     def edit(self, cid: int) -> None:
@@ -232,16 +253,51 @@ class SkimWindow(QDialog):
         """Show these cards; with neither a search nor ids, what showed last
         (or, the first time, the last search typed here or the default)."""
         if search is None and card_ids is None and not self._view.seq:
-            saved = _profile().get(SEARCH_KEY)
-            # An empty search typed here is kept: it shows every card.
-            search = saved if isinstance(saved, str) else get_config()["default_search"]
+            search = self._saved_search()
         if search is not None or card_ids is not None:
             self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source,
                            topics=topics, select=select, ordered=ordered, side=side, hidden=hidden, extra=extra)
+            if "lens" not in self._view.extra:
+                self._remember_all(search=search or "", card_ids=card_ids, title=title, source=source,
+                                   topics=topics)
         if opener is not None and opener is not self:
             self._opener = opener
             self._back_label = back_label
         self.push({"type": "view", "view": self.view()})
+
+    @staticmethod
+    def _saved_search() -> str:
+        """The last search typed here, or the default one."""
+        saved = _profile().get(SEARCH_KEY)
+        # An empty search typed here is kept: it shows every card.
+        return saved if isinstance(saved, str) else get_config()["default_search"]
+
+    def _remember_all(self, **view) -> None:
+        self._all = view
+        self._all_count = len(self._view.ids)
+
+    def show_all(self) -> None:
+        """All: the last search, or what Stepwise handed over, as it was
+        before you picked another view in the bar."""
+        if "lens" not in self._view.extra:
+            self.show_cards()
+        else:
+            self.show_cards(**(self._all or {"search": self._saved_search()}))
+
+    def _recount(self) -> None:
+        """Count the bar's views (see api.recount): the Today views, unless
+        the review just counted them, and All if it hasn't shown yet."""
+        from . import api
+
+        if not self.isVisible():
+            return
+        if "lens" not in self._view.extra:
+            api.recount()
+        if self._all_count is None:
+            scratch = ViewState()
+            scratch.set(mw.col, search=self._saved_search())
+            self._all_count = len(scratch.ids)
+        self.push({"type": "lenses", "seq": self._view.seq, "lenses": self.view()["lenses"]})
 
     def following(self, source: str) -> bool:
         return self.isVisible() and self._view.source == source
@@ -268,6 +324,7 @@ class SkimWindow(QDialog):
         if not self._loaded:
             self.load()
         self.show()
+        self._recount_timer.start(RECOUNT_DELAY_MS)
         if focus:
             self.raise_()
             self.activateWindow()
@@ -325,4 +382,5 @@ class SkimWindow(QDialog):
 
     def cleanup(self) -> None:
         self._follow_timer.stop()
+        self._recount_timer.stop()
         self.web.cleanup()

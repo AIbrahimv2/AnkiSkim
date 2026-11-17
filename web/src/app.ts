@@ -203,6 +203,12 @@ export class App {
         this.list.refresh(true);
         this.setSide("answer");
         break;
+      case "lenses":
+        // The bar's counts, once the window has counted them.
+        if (e.seq !== this.view.seq) break;
+        this.view = { ...this.view, lenses: e.lenses };
+        this.renderLenses();
+        break;
       case "shown":
         this.view = { ...this.view, back: e.back };
         this.renderChrome();
@@ -313,7 +319,7 @@ export class App {
         ? this.view.error
         : this.view.ids.length
           ? "No cards match this filter."
-          : this.view.search || this.view.source
+          : this.view.search || this.view.source || this.view.title
             ? "No cards match."
             : "Search for cards with /";
       this.message.classList.toggle("error", !!this.view.error);
@@ -550,16 +556,16 @@ export class App {
     this.renderHints();
   }
 
-  /** From a review: the session and Anki's Today searches, with counts. */
+  /** All, the review's session and Anki's Today searches, with counts. */
   private renderLenses(): void {
     const lenses = this.view.lenses ?? [];
     this.lensBar.hidden = !lenses.length;
     this.lensBar.replaceChildren(
       ...lenses.map(([key, label, count]) => {
-        const b = el("button", `lens${key === this.view.lens ? " on" : ""}${count ? "" : " empty"}`);
+        const b = el("button", `lens${key === this.view.lens ? " on" : ""}${count === 0 ? " empty" : ""}`);
         b.type = "button";
         b.tabIndex = -1;
-        b.append(el("span", "", label), el("span", "lens-n num", fmt(count)));
+        b.append(el("span", "", label), el("span", "lens-n num", count === null ? "" : fmt(count)));
         b.addEventListener("mousedown", (e) => {
           e.preventDefault();
           if (key !== this.view.lens) void call("review_lens", { lens: key });

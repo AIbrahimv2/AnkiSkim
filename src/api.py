@@ -130,13 +130,23 @@ def following(source: str) -> bool:
 
 
 def open_from_menu() -> None:
-    """Tools → Skim (Cmd/Ctrl+Shift+B): during a review, the card you're
-    reviewing; anywhere else, what Skim showed last."""
+    """Tools → Skim (Cmd/Ctrl+Shift+B): during a review, the review, on This
+    review (or, while Skim already follows it, the view you picked there);
+    anywhere else, All: what Skim showed last, unless that was one of the
+    bar's other views."""
+    global _lens
+    if mw.col is None:
+        return
     card = review_card()
     if card is not None:
+        if not following(REVIEW):
+            _lens = "session"
         open(back_label="the review", **_review_view(card, slow=True))
-    else:
-        open()
+        return
+    window = _get()
+    if not window.isVisible():
+        window.show_all()
+    window.present()
 
 
 # --- the review -----------------------------------------------------------------
@@ -169,10 +179,10 @@ def _review_topics(card) -> list[str]:
 
 
 def _session(card) -> tuple[list[int], list[int], str]:
-    """Today's review of the deck you're studying: the cards answered so
-    far (in the order you answered them), and the ones still to come (in
-    the scheduler's order), without the card on screen; and the deck's
-    name."""
+    """Today's review of the deck you're studying (or, with no `card`, the
+    deck selected in Anki): the cards answered so far (in the order you
+    answered them), and the ones still to come (in the scheduler's order),
+    without the card on screen; and the deck's name."""
     col = mw.col
     did = col.decks.get_current_id()
     dids = col.decks.deck_and_child_ids(did)
@@ -185,15 +195,19 @@ def _session(card) -> tuple[list[int], list[int], str]:
         queued = [q.card.id for q in col.sched.get_queued_cards(fetch_limit=QUEUE_LIMIT).cards]
     except Exception:
         queued = []
-    upcoming = [c for c in queued if c != card.id]
+    here = card.id if card is not None else None
+    upcoming = [c for c in queued if c != here]
     coming = set(upcoming)
-    studied = [c for c in studied if c != card.id and c not in coming]
+    studied = [c for c in studied if c != here and c not in coming]
     name = col.decks.name(did).rsplit("::", 1)[-1]
     return studied, upcoming, name
 
 
-# The review's views: the session, and Anki's browser's "Today" searches
-# (with the same definitions), on the deck you're reviewing.
+# The views in the bar over the table, after All (Skim's own search, which
+# the window keeps): the session, and Anki's browser's "Today" searches
+# (with the same definitions), on the deck you're reviewing, or else the
+# one selected in Anki.
+ALL = "all"
 LENSES: list[tuple[str, str, str]] = [
     ("session", "This review", ""),
     ("due", "Due", "due today"),
@@ -209,8 +223,12 @@ LENSES: list[tuple[str, str, str]] = [
 # opens from a review or you change view, not after every card.
 _SLOW = {"added", "edited"}
 _RATED = {"studied", "first", "rescheduled", "again"}
+# The view Skim follows a review on: This review, until you pick another.
 _lens = "session"
 _slow_counts: dict[str, int] = {}
+# The last counts, for views that don't count them (a search, Stepwise's
+# topic): counted again when Skim opens (see recount).
+_last_counts: list[list] = []
 
 
 def _lens_search(lens: str) -> str:
@@ -262,25 +280,50 @@ def _counts(session: int, slow: bool) -> list[list]:
         else:
             n = len(mw.col.find_cards(_lens_search(key)))
         out.append([key, label, n])
+    _last_counts[:] = out
     return out
 
 
+def lens_counts() -> list[list]:
+    """The bar's views (but All) with the last counts (None until the
+    first)."""
+    return [list(x) for x in _last_counts] or [[k, label, None] for k, label, _ in LENSES]
+
+
+def recount() -> None:
+    """Count the bar's views again. Each count is a search, and Added and
+    Edited read every note, so this runs once Skim is open, not on every
+    move."""
+    card = review_card()
+    try:
+        studied, upcoming, _ = _session(card)
+        _counts(len(studied) + len(upcoming) + (card is not None), slow=True)
+    except Exception:
+        pass
+
+
 def _review_view(card, side: str | None = None, lens: str | None = None, slow: bool = False) -> dict:
-    """What Skim shows from a review: the session (or one of the Today
-    views), on the card on screen, showing the side the reviewer is on.
-    Answers of cards still to come (and this one, until it's answered) stay
+    """One of the bar's views but All. From a review (`card`): the session
+    (or one of the Today views), on the card on screen, showing the side the
+    reviewer is on, following the review. With no review, the same views of
+    the deck selected in Anki, starting on the next card to study. Answers
+    of cards still to come (and the reviewer's, until it's answered) stay
     hidden in the list."""
     lens = lens or _lens
-    if side is None:
+    reviewing = card is not None
+    if reviewing and side is None:
         side = "answer" if getattr(getattr(mw, "reviewer", None), "state", None) == "answer" else "question"
     try:
         studied, upcoming, deck = _session(card)
     except Exception:  # an unusual collection: the card's note alone
         studied, upcoming, deck = [], [], ""
-    secret = set(upcoming) | ({card.id} if side == "question" else set())
-    session = [*studied, card.id, *upcoming]
+    here = [card.id] if reviewing else []
+    secret = set(upcoming) | (set(here) if side == "question" else set())
+    session = [*studied, *here, *upcoming]
+    select = card.id if reviewing else (upcoming[0] if upcoming and lens == "session" else None)
     if not deck:
-        ids, title, extra = list(card.note().card_ids()), "This card's note", {}
+        ids = list(card.note().card_ids()) if reviewing else []
+        title, extra = "This card's note" if reviewing else None, {"lens": lens, "lenses": []}
     else:
         try:
             ids = session if lens == "session" else _lens_ids(lens)
@@ -288,27 +331,33 @@ def _review_view(card, side: str | None = None, lens: str | None = None, slow: b
         except Exception:
             lens, ids, lenses = "session", session, []
         phrase = next(p for k, _, p in LENSES if k == lens)
-        title = (f"{deck}: {len(studied):,} studied, {len(upcoming) + 1:,} to go" if lens == "session"
+        title = (f"{deck}: {len(studied):,} studied, {len(upcoming) + len(here):,} to go" if lens == "session"
                  else f"{deck}: {len(ids):,} {phrase}")
         extra = {"lens": lens, "lenses": lenses}
     # No search: the title says what these are (e still opens the card in
     # Anki's browser).
-    return {"search": "", "card_ids": ids, "ordered": True, "select": card.id, "side": side,
-            "hidden": [c for c in ids if c in secret], "title": title, "source": REVIEW,
-            "topic": _review_topics(card) or None, "extra": extra}
+    return {"search": "", "card_ids": ids, "ordered": True, "select": select, "side": side,
+            "hidden": [c for c in ids if c in secret], "title": title, "source": REVIEW if reviewing else None,
+            "topic": (_review_topics(card) or None) if reviewing else None, "extra": extra}
 
 
 def set_review_lens(lens: str) -> None:
-    """Switch the review's view (the bar over the table, or t/T)."""
+    """Switch views (the bar over the table, t/T or H/L). All goes back to
+    Skim's search; the others follow the review if there is one."""
     global _lens
+    if _window is None:
+        return
+    if lens == ALL:
+        _window.show_all()
+        return
     if lens not in {k for k, _, _ in LENSES}:
         return
-    _lens = lens
     card = review_card()
-    if card is not None and _window is not None and _window.following(REVIEW):
-        view = _review_view(card, lens=lens, slow=True)
-        view["topics"] = _topics(view.pop("topic"))
-        _window.show_cards(**view)
+    if card is not None:
+        _lens = lens
+    view = _review_view(card, lens=lens, slow=True)
+    view["topics"] = _topics(view.pop("topic"))
+    _window.show_cards(**view)
 
 
 def on_review_question(card) -> None:

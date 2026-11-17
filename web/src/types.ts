@@ -21,11 +21,15 @@ export interface View {
   select?: number | null;
   /** From a review: the side the reviewer is showing. */
   side?: Side | null;
-  /** From a review: which view is showing (the session, or a Today search). */
+  /** Which of the bar's views is showing: "all" (a search, or Stepwise's
+   *  cards), the review's session, or a Today search. */
   lens?: string;
-  /** From a review: the views, with their labels and card counts. */
-  lenses?: [key: string, label: string, count: number][];
+  /** The bar's views, with their labels and card counts (null until
+   *  counted). */
+  lenses?: Lens[];
 }
+
+export type Lens = [key: string, label: string, count: number | null];
 
 export interface PageConfig {
   startSide: Side;
@@ -126,6 +130,7 @@ export type PushEvent =
   | { type: "changed" }
   | { type: "retag" }
   | { type: "reveal"; cid: number }
+  | { type: "lenses"; seq: number; lenses: Lens[] }
   | { type: "shown"; back: string | null }
   | { type: "hidden" }
   | { type: "settings" };

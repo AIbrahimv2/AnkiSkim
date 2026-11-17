@@ -98,6 +98,14 @@ try:
     api.open(search="tag:Cardio")
     check(api.is_open(), "Tools → Skim shows it")
     check(wait_for(f"{POS} === '1 of 4'"), "on the search's four cards")
+    LENS_ON = "document.querySelector('.lens.on').textContent"
+    LENS_BAR = "[...document.querySelectorAll('.lens')].map(b => b.textContent).join(',')"
+    bar = js(LENS_BAR)
+    check(bar.startswith("All4,This review,Due") and bar.endswith("Overdue"),
+          f"the bar over the table is there outside a review: All, then the review's views ({bar})")
+    check(js(LENS_ON) == "All4", "on All, with the search's count")
+    bar = wait_for(f"/^All4,This review\\d+,Due\\d+/.test({LENS_BAR}) && {LENS_BAR}")
+    check(True, f"and the other views are counted once the window is up ({bar})")
     shown_is(ALL[0])
     check("Four" in js(SHOWN_TEXT), "the first card shows, back side (the default)")
     wait_for("[...document.querySelectorAll('.card-frame')].filter(f => f.contentWindow.skimCid).length >= 4")
@@ -224,8 +232,9 @@ try:
     check(wait_for(f"{POS} === '4 of 6' && document.querySelector('.sides .active').textContent === 'Front'"),
           "the next card shows, front first, while Skim follows the review")
     lenses = js("JSON.stringify([...document.querySelectorAll('.lens')].map(b => [b.textContent, b.classList.contains('on')]))")
-    check(lenses.startswith('[["This review6",true],["Due') and '"Studied3"' in lenses and '"Again0"' in lenses,
-          f"a bar over the table has the review's views, with counts, Anki's Today searches among them ({lenses})")
+    check(lenses.startswith('[["All4",false],["This review6",true],["Due') and '"Studied3"' in lenses
+          and '"Again0"' in lenses,
+          f"the bar has the review's views, with counts, Anki's Today searches among them, on This review ({lenses})")
     press("t")
     check(wait_for("document.querySelector('.lens.on').textContent.startsWith('Due')"), "t goes to the next view")
     api.set_review_lens("studied")
@@ -243,10 +252,19 @@ try:
     api.set_review_lens("session")
     check(wait_for("document.querySelector('.lens.on').textContent.startsWith('This review')"), "and back to the review")
 
-    api._window.run_search("tag:Neuro")
+    js("(() => { const i = document.querySelector('.search input'); i.value = 'tag:Neuro'; "
+       "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
+    wait_for(f"{POS} === '1 of 4'")
     api.on_review_question(nxt)
     pump(0.3)
     check(api._window._view.search == "tag:Neuro", "until you search for something else")
+    check(wait_for(f"{LENS_ON} === 'All4'"), "which is All in the bar")
+    press("L")
+    check(wait_for(f"{LENS_ON}.startsWith('This review')"), "L goes to the view on the right, the review")
+    check(api.following(api.REVIEW), "which Skim follows again")
+    press("H")
+    check(wait_for(f"{LENS_ON} === 'All4'"), "H back to All")
+    check(api._window._view.search == "tag:Neuro" and not api.following(api.REVIEW), "on the search you had")
 
     from skim.tags import Context
 
@@ -264,6 +282,43 @@ try:
     mw.reviewer.card = None
     api.open_from_menu()
     check(api._window._view.search == "tag:Neuro", "outside a review, the shortcut opens what Skim showed last")
+
+    print("the bar outside a review")
+    api.set_review_lens("due")
+    check(wait_for(f"{LENS_ON}.startsWith('Due')"), "the review's views work outside a review too")
+    v = api._window._view
+    check(v.ids == api._lens_ids("due") and v.title.startswith("Topics: ") and v.source is None,
+          f"on the deck selected in Anki, following nothing ({v.title})")
+    api.set_review_lens("session")
+    check(wait_for(f"{LENS_ON}.startsWith('This review')"), "This review too")
+    studied_now, upcoming, _ = api._session(None)
+    v = api._window._view
+    check(v.ids == studied_now + upcoming and v.select == (upcoming[0] if upcoming else None),
+          f"today's studied cards and the deck's queue, on the next one to study ({v.title})")
+    check(set(upcoming) <= v.hidden, "the cards to come keep their answers hidden")
+    press("q")
+    pump(0.3)
+    api.open_from_menu()
+    check(wait_for(f"{LENS_ON} === 'All4'") and api._window._view.search == "tag:Neuro",
+          "closed on another view, the shortcut opens Skim on All")
+    mw.state = "review"
+    mw.reviewer.card = col.sched.getCard() or nxt
+    press("q")
+    pump(0.3)
+    api.open_from_menu()
+    check(wait_for(f"{LENS_ON}.startsWith('This review')"), "and in a review, on This review")
+    press("t", "t")
+    pump(0.3)
+    api.open_from_menu()
+    check(wait_for(f"{LENS_ON}.startsWith('Added')"), "pressed again while Skim follows the review, it keeps your view")
+    press("q")
+    pump(0.3)
+    api.open_from_menu()
+    check(wait_for(f"{LENS_ON}.startsWith('This review')"), "but reopened, it starts on This review again")
+    mw.state = "deckBrowser"
+    mw.reviewer.card = None
+    api.set_review_lens("all")
+    check(wait_for(f"{LENS_ON} === 'All4'") and api._window._view.search == "tag:Neuro", "All, from the bar")
 
     print("close")
     press("q")
