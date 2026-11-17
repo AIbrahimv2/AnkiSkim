@@ -31,7 +31,10 @@ This repo:
   notice after updates). Don't edit them here: change the kit and run its
   `sync.py`; `build.sh` warns when they're behind. `build.sh` puts
   `CHANGELOG.md` in the package, where What's new shows it to users, so
-  write it in their terms.
+  write it in their terms. Every change users will notice gets a line
+  under `## [Unreleased]` in the session that makes it: that's what the
+  next release is cut from. The release skill's `release_status.py` shows
+  what's waiting in every add-on.
 - **Tests:** `./tests/run.sh` (Anki's Python, a made-up collection) and
   `cd web && npm test` (the vim keys).
 - **Building:** `./build.sh` builds the page into `src/web/` and the package
