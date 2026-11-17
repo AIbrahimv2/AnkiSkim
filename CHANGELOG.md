@@ -21,6 +21,10 @@ All notable changes to this project are documented here. The format is based on
   (new, learning, review, suspended, buried) and flag.
 - `e` or `B` opens the card in Anki's browser to edit it (`B`, as in
   Stepwise); `r` plays its audio.
+- **The keys you press show on screen**, in a frosted pill over the table's
+  corner, and fade once you stop, so a screen recording shows what was
+  pressed: a short trail of quick presses (`1 0 j`), a key pressed again with
+  a count (`j ×5`), and a number typed before a move until it's used.
 - Settings for the side shown first, playing audio by itself, the first
   search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in the window.
 - **Laid out like Anki's browser:** the card table on the left, the card and

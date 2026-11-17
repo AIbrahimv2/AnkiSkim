@@ -260,18 +260,39 @@ html, body {
 .ag.s-later { background: var(--l-soft); border-color: transparent; color: var(--l); }
 
 /* A number typed before a move, shown until it's used. */
-.typed {
+/* The keys you press (keycast.ts), over the table's corner: a frosted pill
+   the rows show through, fading out once you stop. Same as Stepwise's. */
+.keycast {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
-  padding: 4px 8px;
-  border-radius: 7px;
-  background: var(--text);
-  color: var(--surface);
-  font-size: 12px;
-  font-weight: 650;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 30px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  backdrop-filter: blur(12px) saturate(1.5);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.1);
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  justify-content: center;
+  white-space: nowrap;
   pointer-events: none;
+  transition: opacity 0.3s ease;
 }
+.keycast[hidden] { display: none; }
+.keycast.fading { opacity: 0; }
+/* The key just pressed reads strongest; the trail before it is quieter. */
+.keycast .kc-key { color: var(--text-3); }
+.keycast .kc-key:last-child { color: var(--text); }
+.keycast .kc-key[data-n]::after { content: attr(data-n); margin-left: 3px; font-size: 11px; font-weight: 500; color: var(--text-3); }
+:root.night-mode .keycast { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 18px rgb(0 0 0 / 0.35); }
 
 /* --- Skim: the card ------------------------------------------------------------- */
 

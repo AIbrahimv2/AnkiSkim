@@ -13,6 +13,7 @@
 import { call } from "./bridge.ts";
 import { Cache } from "./cache.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
+import { KeyCast } from "./keycast.ts";
 import { type Command, Keys } from "./keys.ts";
 import { CardList, type SortKey } from "./list.ts";
 import { TagsPane, tagCount } from "./pane.ts";
@@ -120,7 +121,8 @@ export class App {
   private pos: HTMLElement;
   private chips: HTMLElement;
   private lensBar: HTMLElement;
-  private typed: HTMLElement;
+  /** The keys you press, shown over the table's corner. */
+  private cast: KeyCast;
   private message: HTMLElement;
   private hints: HTMLElement;
   private appEl: HTMLElement;
@@ -164,7 +166,6 @@ export class App {
     this.lensBar = el("div", "lenses");
     this.chips = el("div", "chips");
     listPanel.append(this.lensBar, this.chips);
-    this.typed = el("div", "typed num");
     const splitter = el("div", "splitter");
     splitter.title = "Drag to resize";
     const right = el("div", "side");
@@ -186,7 +187,7 @@ export class App {
       pick: (i) => this.go(i, true),
       sort: (key) => this.sortBy(key),
     });
-    listPanel.append(this.typed);
+    this.cast = new KeyCast(listPanel);
     this.pane = new TagsPane(tagsPanel);
     this.stage = new Stage(stageEl, boot.frame, {
       fetch: (ids) => call<{ cards: Record<string, CardHtml | null> }>("cards", { ids }).then((r) => r.cards),
@@ -319,7 +320,7 @@ export class App {
     const page = this.list.pageRows();
     this.appEl.classList.add("switching");
     this.keys.reset();
-    this.showTyped();
+    this.holdCast();
     this.shown = [];
     this.cursor = 0;
     this.list.skeleton(count === null ? page : Math.min(count, page));
@@ -428,7 +429,7 @@ export class App {
 
   private update(input: boolean): void {
     const ids = this.shown;
-    this.showTyped();
+    this.holdCast();
     if (!ids.length) {
       this.stage.clear();
       this.pane.show(null);
@@ -572,8 +573,9 @@ export class App {
     if (this.chrome?.isOpen()) return; // a dialog or menu has the keys
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    this.cast.press(e);
     const cmd = this.keys.feed(e);
-    this.showTyped();
+    this.holdCast();
     if (cmd === undefined) return;
     e.preventDefault();
     e.stopPropagation();
@@ -632,10 +634,9 @@ export class App {
     }
   }
 
-  private showTyped(): void {
-    const t = this.keys.typed;
-    this.typed.textContent = t;
-    this.typed.hidden = !t;
+  /** The keys stay up while a command is half typed (a number, a first g). */
+  private holdCast(): void {
+    this.cast.hold(this.keys.typed !== "");
   }
 
   // --- list rows -----------------------------------------------------------------
