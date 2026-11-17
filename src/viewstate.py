@@ -37,13 +37,13 @@ class ViewState:
             ordered: bool = False, side: str | None = None, hidden: Iterable[int] | None = None,
             extra: dict | None = None) -> None:
         """Show `ids` (sorted, as a search would), or else what `search`
-        finds. A bad search shows Anki's message and no cards. `topics` are
-        the tags the cards are read against; a search for one tag names
-        its own."""
+        finds; an empty search finds every card. A bad search shows Anki's
+        message and no cards. `topics` are the tags the cards are read
+        against; a search for one tag names its own."""
         error = None
         if ids is None:
             try:
-                found = cards.search(col, search) if search.strip() else []
+                found = cards.search(col, search.strip() or "deck:*")
             except Exception as exc:
                 found, error = [], str(exc)
         elif ordered:  # a review: studied, on screen, to come

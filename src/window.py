@@ -233,7 +233,8 @@ class SkimWindow(QDialog):
         (or, the first time, the last search typed here or the default)."""
         if search is None and card_ids is None and not self._view.seq:
             saved = _profile().get(SEARCH_KEY)
-            search = saved if isinstance(saved, str) and saved else get_config()["default_search"]
+            # An empty search typed here is kept: it shows every card.
+            search = saved if isinstance(saved, str) else get_config()["default_search"]
         if search is not None or card_ids is not None:
             self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source,
                            topics=topics, select=select, ordered=ordered, side=side, hidden=hidden, extra=extra)

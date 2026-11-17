@@ -149,6 +149,14 @@ try:
     check(wait_for(f"{POS} === '1 of 4'"), "a search in the box shows what it finds")
     check(js("document.activeElement === document.body"), "and the keys go back to the cards")
     check(mw.pm.profile.get("skim.search") == "tag:Neuro", "it's remembered for next time")
+    every = len(col.find_cards("deck:*"))
+    js("(() => { const i = document.querySelector('.search input'); i.value = ''; "
+       "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
+    check(wait_for(f"{POS} === '1 of {every}'"), f"Enter in an empty box shows every card ({every})")
+    check(mw.pm.profile.get("skim.search") == "", "and that's remembered too")
+    js("(() => { const i = document.querySelector('.search input'); i.value = 'tag:Neuro'; "
+       "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
+    check(wait_for(f"{POS} === '1 of 4'"), "back to tag:Neuro")
 
     print("opened from Stepwise")
     stepwise = QDialog()
