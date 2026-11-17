@@ -8,6 +8,8 @@ export const ROW_H = 30;
 const OVERSCAN = 10;
 /** Rows kept between the cursor and the list's edge (vim's 'scrolloff'). */
 const SCROLLOFF = 3;
+/** Placeholder text widths (%), so rows still loading read as rows. */
+const SKELETON = [62, 47, 71, 55, 66, 42, 58, 74, 51, 63, 45, 69];
 
 const STATES: Record<number, [label: string, cls: string]> = {
   [-1]: ["Suspended", "susp"],
@@ -58,6 +60,8 @@ export class CardList {
   private ids: number[] = [];
   private cursorIndex = 0;
   private queued = 0;
+  /** Placeholder rows (see skeleton): nothing to fetch or fill. */
+  private placeholder = false;
   private opts: ListOptions;
 
   constructor(host: HTMLElement, opts: ListOptions) {
@@ -113,7 +117,8 @@ export class CardList {
     }
   }
 
-  setIds(ids: number[], cursor: number): void {
+  setIds(ids: number[], cursor: number, placeholder = false): void {
+    this.placeholder = placeholder;
     this.ids = ids;
     this.cursorIndex = cursor;
     this.sizer.style.height = `${ids.length * ROW_H}px`;
@@ -121,6 +126,11 @@ export class CardList {
     this.live.clear();
     this.scroller.scrollTop = Math.max(0, cursor * ROW_H - SCROLLOFF * ROW_H);
     this.render();
+  }
+
+  /** `n` placeholder rows, while the next view's cards are on their way. */
+  skeleton(n: number): void {
+    this.setIds(new Array<number>(n).fill(0), -1, true);
   }
 
   setCursor(index: number): void {
@@ -177,12 +187,13 @@ export class CardList {
         r.index = i;
         r.el.dataset.i = String(i);
         r.el.style.transform = `translateY(${i * ROW_H}px)`;
-        r.cells[0].textContent = String(i + 1);
+        r.cells[0].textContent = this.placeholder ? "" : String(i + 1);
+        r.el.style.setProperty("--sk", `${SKELETON[i % SKELETON.length]}%`);
         this.live.set(i, r);
         this.fill(r);
         this.sizer.append(r.el);
       }
-      if (!r.filled) missing.push(this.ids[i]);
+      if (!r.filled && !this.placeholder) missing.push(this.ids[i]);
     }
     if (missing.length) this.opts.need(missing);
   }
@@ -206,7 +217,7 @@ export class CardList {
   }
 
   private fill(r: RowEl): void {
-    const row = this.opts.row(this.ids[r.index]);
+    const row = this.placeholder ? undefined : this.opts.row(this.ids[r.index]);
     const [, text, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");

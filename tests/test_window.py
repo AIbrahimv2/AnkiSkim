@@ -301,6 +301,30 @@ try:
     api.open_from_menu()
     check(wait_for(f"{LENS_ON} === 'All4'") and api._window._view.search == "tag:Neuro",
           "closed on another view, the shortcut opens Skim on All")
+
+    print("switching views doesn't wait for the cards")
+    asked: list[str] = []
+    real_switch = api._window.review_lens
+    api._window.review_lens = lambda lens: (asked.append(lens), real_switch(lens))[1]
+    # The key and a look at the page in one go, before Python can answer.
+    seen = json.loads(js("(() => { window.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
+                         "return JSON.stringify([document.querySelector('.lens.on').textContent, "
+                         "document.querySelectorAll('.row.loading').length, "
+                         "document.querySelectorAll('.row:not(.loading)').length, "
+                         "document.querySelector('.pos').textContent]); })()"))
+    check(seen[0].startswith("This review") and seen[1] > 0 and seen[2] == 0 and seen[3] == "",
+          f"L moves the bar at once, with placeholder rows until the cards come ({seen})")
+    check(wait_for(f"{LENS_ON}.startsWith('This review') && !document.querySelector('.row.loading') && "
+                   f"/ of \\d/.test({POS})"), "then the view's rows and card")
+    check(asked == ["session"], f"one request ({asked})")
+    asked.clear()
+    seen = js("(() => { for (let i = 0; i < 3; i++) window.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
+              "return document.querySelector('.lens.on').textContent; })()")
+    check(seen.startswith("Edited"), f"three Ls in a row: the bar is on the third view straight away ({seen})")
+    check(wait_for("!document.querySelector('.app.switching')") and api._window._view.extra.get("lens") == "edited"
+          and js(LENS_ON).startswith("Edited"), "and that's the view that shows")
+    check(len(asked) <= 2 and asked[-1] == "edited", f"without asking for each one on the way ({asked})")
+    del api._window.review_lens
     mw.state = "review"
     mw.reviewer.card = col.sched.getCard() or nxt
     press("q")

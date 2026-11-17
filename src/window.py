@@ -36,8 +36,9 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 # Stepwise moving its cursor sends a new topic per key; show the latest at
 # most this often.
 FOLLOW_EVERY = 0.04
-# Count the bar's views this long after the window opens, once its first
-# cards are in (moving between them never waits on Python).
+# Count the bar's views this long after the window opens or you switch
+# views, once the first cards are in (moving between them never waits on
+# Python).
 RECOUNT_DELAY_MS = 300
 
 def asset_url(name: str) -> str:
@@ -115,16 +116,16 @@ class SkimWindow(QDialog):
 
     def view(self) -> dict:
         """The view for the page, with the bar's views: All, then the
-        review's (counted with it) or the last counts."""
+        review's and the Today searches, with their last counts."""
         from . import api
 
         back = (self._back_label or self._opener.windowTitle()) if _alive(self._opener) else None
         out = self._view.as_dict(back)
         if "lens" in out:
-            today, n = out.get("lenses") or api.lens_counts(), self._all_count
+            n = self._all_count
         else:
-            out["lens"], today, n = api.ALL, api.lens_counts(), len(self._view.ids)
-        out["lenses"] = [[api.ALL, "All", n], *today]
+            out["lens"], n = api.ALL, len(self._view.ids)
+        out["lenses"] = [[api.ALL, "All", n], *api.lens_counts()]
         return out
 
     def analyzer(self) -> Analyzer:
@@ -158,10 +159,12 @@ class SkimWindow(QDialog):
     def hidden(self) -> set[int]:
         return self._view.hidden
 
-    def review_lens(self, lens: str) -> None:
+    def review_lens(self, lens: str) -> dict:
+        """The page switched views: the new view, for the bridge's reply."""
         from . import api
 
-        api.set_review_lens(lens)
+        api.set_review_lens(lens, push=False)
+        return self.view()
 
     def reveal(self, cid: int) -> None:
         """The reviewer showed a card's answer: so does Skim."""
@@ -249,9 +252,10 @@ class SkimWindow(QDialog):
     def show_cards(self, *, search: str | None = None, card_ids=None, title: str | None = None,
                    source: str | None = None, topics=None, select: int | None = None,
                    ordered: bool = False, side: str | None = None, hidden=None, extra: dict | None = None,
-                   opener=None, back_label: str | None = None) -> None:
+                   opener=None, back_label: str | None = None, push: bool = True) -> None:
         """Show these cards; with neither a search nor ids, what showed last
-        (or, the first time, the last search typed here or the default)."""
+        (or, the first time, the last search typed here or the default).
+        Without `push`, the caller hands the view to the page."""
         if search is None and card_ids is None and not self._view.seq:
             search = self._saved_search()
         if search is not None or card_ids is not None:
@@ -263,7 +267,8 @@ class SkimWindow(QDialog):
         if opener is not None and opener is not self:
             self._opener = opener
             self._back_label = back_label
-        self.push({"type": "view", "view": self.view()})
+        if push:
+            self.push({"type": "view", "view": self.view()})
 
     @staticmethod
     def _saved_search() -> str:
@@ -276,23 +281,27 @@ class SkimWindow(QDialog):
         self._all = view
         self._all_count = len(self._view.ids)
 
-    def show_all(self) -> None:
+    def show_all(self, push: bool = True) -> None:
         """All: the last search, or what Stepwise handed over, as it was
         before you picked another view in the bar."""
         if "lens" not in self._view.extra:
-            self.show_cards()
+            self.show_cards(push=push)
         else:
-            self.show_cards(**(self._all or {"search": self._saved_search()}))
+            self.show_cards(**(self._all or {"search": self._saved_search()}), push=push)
+
+    def recount_soon(self) -> None:
+        """Count the bar's views once things settle: RECOUNT_DELAY_MS after
+        the window opens or the last switch."""
+        self._recount_timer.start(RECOUNT_DELAY_MS)
 
     def _recount(self) -> None:
-        """Count the bar's views (see api.recount): the Today views, unless
-        the review just counted them, and All if it hasn't shown yet."""
+        """Count the bar's views (see api.recount), and All if it hasn't
+        shown yet; the page gets the counts on their own."""
         from . import api
 
         if not self.isVisible():
             return
-        if "lens" not in self._view.extra:
-            api.recount()
+        api.recount()
         if self._all_count is None:
             scratch = ViewState()
             scratch.set(mw.col, search=self._saved_search())
@@ -324,7 +333,7 @@ class SkimWindow(QDialog):
         if not self._loaded:
             self.load()
         self.show()
-        self._recount_timer.start(RECOUNT_DELAY_MS)
+        self.recount_soon()
         if focus:
             self.raise_()
             self.activateWindow()

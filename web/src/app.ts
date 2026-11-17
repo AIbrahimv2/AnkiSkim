@@ -6,7 +6,7 @@
 //
 // The table can be filtered (All, Suspended, Now, Wait, ...) and sorted
 // by its columns. Both work from "facets": a few numbers per card for the
-// whole view, fetched in slices right after the view arrives.
+// whole view, fetched in slices once its first card is on screen.
 
 import { call } from "./bridge.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
@@ -21,6 +21,10 @@ const SEARCH_ICON =
 /** The table's share of the width: three quarters, the card the rest. */
 const LIST_SHARE = 0.72;
 const FACET_SLICE = 3000;
+/** Facets (the filter counts) wait for a new view's first card: reading
+ *  them keeps Python busy, which holds up the card's images. At most this
+ *  long, for a card that never comes. */
+const FACETS_AFTER_MS = 400;
 
 export interface Boot {
   view: View;
@@ -83,6 +87,15 @@ export class App {
   private facets: Facets | null = null;
   private facetsSeq = -1;
   private filter: FilterKey = "all";
+  /** The view you've picked in the bar and don't have yet: the bar shows
+   *  it at once, the table shows placeholder rows until its cards come. */
+  private wantLens: string | null = null;
+  private lensBusy = false;
+  /** The card you were on when the switch started, for if it doesn't. */
+  private switchKeep: number | null = null;
+  /** The view whose facets wait for its first card (see FACETS_AFTER_MS). */
+  private facetsAfterCard: number | null = null;
+  private facetsTimer = 0;
   private sort: SortKey = "order";
   private sortDir: 1 | -1 = 1;
   private listShare = LIST_SHARE;
@@ -102,6 +115,7 @@ export class App {
   private typed: HTMLElement;
   private message: HTMLElement;
   private hints: HTMLElement;
+  private appEl: HTMLElement;
   readonly actionsSlot: HTMLElement;
   readonly chromeHost: HTMLElement;
 
@@ -111,6 +125,7 @@ export class App {
     this.side = boot.config.startSide;
 
     const app = el("div", "app");
+    this.appEl = app;
     const bar = el("header", "toolbar");
     const search = el("div", "search");
     search.append(fixed("search-icon", SEARCH_ICON));
@@ -220,7 +235,11 @@ export class App {
   }
 
   setView(view: View, first = false): void {
-    if (!first && view.seq < this.view.seq) return;
+    if (!first && view.seq <= this.view.seq) return;
+    // Mid-switch, only the view you picked shows (a review moving on in
+    // the meantime mustn't take its place).
+    if (!first && this.wantLens !== null && view.lens !== this.wantLens) return;
+    this.endSwitch();
     this.view = view;
     // Rows read the cards against the view's topic: a new topic, new rows.
     this.rows.clear();
@@ -231,7 +250,77 @@ export class App {
     if (view.side) this.side = view.side;
     this.renderChrome();
     this.relist(view.select ?? null);
-    this.loadFacets();
+    // Once its first card is on screen (see FACETS_AFTER_MS).
+    this.facetsAfterCard = view.seq;
+    clearTimeout(this.facetsTimer);
+    this.facetsTimer = window.setTimeout(() => this.startFacets(view.seq), view.ids.length ? FACETS_AFTER_MS : 0);
+  }
+
+  private startFacets(seq: number): void {
+    if (this.facetsAfterCard !== seq) return;
+    this.facetsAfterCard = null;
+    clearTimeout(this.facetsTimer);
+    if (this.view.seq === seq && this.facetsSeq !== seq) this.loadFacets();
+  }
+
+  // --- switching views -----------------------------------------------------------
+
+  /** Go to one of the bar's views. The bar and the table change now; the
+   *  cards follow when Python has found them. Quick presses in a row ask
+   *  only for the last view. */
+  private switchLens(key: string): void {
+    if (key === (this.wantLens ?? this.view.lens)) return;
+    if (this.wantLens === null) this.switchKeep = this.shown[this.cursor] ?? null;
+    this.wantLens = key;
+    this.showSkeleton(key);
+    this.sendLens();
+  }
+
+  private sendLens(): void {
+    const key = this.wantLens;
+    if (this.lensBusy || key === null) return;
+    this.lensBusy = true;
+    call<{ view?: View }>("review_lens", { lens: key })
+      .then((r) => r.view, () => undefined)
+      .then((view) => {
+        this.lensBusy = false;
+        if (this.wantLens === null) return; // already showing
+        if (this.wantLens !== key) return this.sendLens(); // you've moved on
+        if (view && view.lens === key) return this.setView(view);
+        // Python showed something else, or couldn't switch.
+        this.wantLens = null;
+        if (view && view.seq > this.view.seq) this.setView(view);
+        else this.cancelSwitch();
+      });
+  }
+
+  /** The table while a view's cards are on their way: as many placeholder
+   *  rows as the view has cards (a screenful at most). */
+  private showSkeleton(key: string): void {
+    const count = this.view.lenses?.find(([k]) => k === key)?.[2] ?? null;
+    const page = this.list.pageRows();
+    this.appEl.classList.add("switching");
+    this.keys.reset();
+    this.showTyped();
+    this.shown = [];
+    this.cursor = 0;
+    this.list.skeleton(count === null ? page : Math.min(count, page));
+    this.pos.textContent = "";
+    this.message.hidden = true;
+    this.renderLenses();
+    this.renderChips();
+  }
+
+  private endSwitch(): void {
+    this.wantLens = null;
+    this.appEl.classList.remove("switching");
+  }
+
+  /** The switch didn't happen: back to the view you had. */
+  private cancelSwitch(): void {
+    this.endSwitch();
+    this.renderLenses();
+    this.relist(this.switchKeep);
   }
 
   setConfig(config: PageConfig): void {
@@ -299,6 +388,7 @@ export class App {
           for (const k of Object.keys(parts) as (keyof Facets)[]) parts[k].push(...r.facets[k]);
           if (parts.state.length < total) return next(parts.state.length);
           this.facets = parts;
+          if (this.wantLens !== null) return; // the table waits for the next view
           const keep = this.shown[this.cursor] ?? null;
           if (this.filter !== "all" || this.sort !== "order") this.relist(keep);
           else this.renderChips();
@@ -334,6 +424,7 @@ export class App {
   }
 
   private showPane(): void {
+    if (this.wantLens !== null) return; // keeps the card you were on, dimmed
     const cid = this.shown[this.cursor];
     const row = cid !== undefined ? this.rows.get(cid) : undefined;
     this.pane.show(row?.p ?? null, row?.p ? tagCount(row.p) : 0);
@@ -382,6 +473,7 @@ export class App {
   }
 
   private shown_(cid: number, side: Side): void {
+    if (this.facetsAfterCard !== null) this.startFacets(this.facetsAfterCard);
     if (!this.config.autoplay) return;
     clearTimeout(this.autoplayTimer);
     this.autoplayTimer = window.setTimeout(() => {
@@ -401,12 +493,14 @@ export class App {
   }
 
   private setFilter(key: FilterKey): void {
+    if (this.wantLens !== null) return;
     if (!this.facets && key !== "all") return; // counts are on their way
     this.filter = key;
     this.relist(this.shown[this.cursor] ?? null);
   }
 
   private sortBy(key: SortKey): void {
+    if (this.wantLens !== null) return;
     if (!this.facets && key !== "order") return;
     if (this.sort === key && key !== "order") this.sortDir = this.sortDir === 1 ? -1 : 1;
     else {
@@ -427,7 +521,8 @@ export class App {
         b.type = "button";
         b.tabIndex = -1;
         let count = "";
-        if (x.key === "all") count = fmt(n);
+        if (this.wantLens !== null) count = "…";
+        else if (x.key === "all") count = fmt(n);
         else if (f) {
           let c = 0;
           for (let i = 0; i < n; i++) if (x.test(f, i)) c++;
@@ -481,9 +576,9 @@ export class App {
       case "lens": {
         const lenses = this.view.lenses ?? [];
         if (!lenses.length) return;
-        const at = Math.max(0, lenses.findIndex(([k]) => k === this.view.lens));
-        void call("review_lens", { lens: lenses[(at + cmd.by + lenses.length) % lenses.length][0] });
-        return;
+        const on = this.wantLens ?? this.view.lens;
+        const at = Math.max(0, lenses.findIndex(([k]) => k === on));
+        return this.switchLens(lenses[(at + cmd.by + lenses.length) % lenses.length][0]);
       }
       case "search":
         this.input.focus();
@@ -562,13 +657,14 @@ export class App {
     this.lensBar.hidden = !lenses.length;
     this.lensBar.replaceChildren(
       ...lenses.map(([key, label, count]) => {
-        const b = el("button", `lens${key === this.view.lens ? " on" : ""}${count === 0 ? " empty" : ""}`);
+        const on = key === (this.wantLens ?? this.view.lens);
+        const b = el("button", `lens${on ? " on" : ""}${count === 0 ? " empty" : ""}`);
         b.type = "button";
         b.tabIndex = -1;
         b.append(el("span", "", label), el("span", "lens-n num", count === null ? "" : fmt(count)));
         b.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          if (key !== this.view.lens) void call("review_lens", { lens: key });
+          this.switchLens(key);
         });
         return b;
       }),
@@ -608,7 +704,10 @@ export class App {
         e.preventDefault();
         const query = this.input.value;
         this.input.blur();
-        call<{ view: View }>("search", { query }).then((r) => this.setView(r.view), () => {});
+        call<{ view: View }>("search", { query }).then((r) => {
+          this.endSwitch(); // a search wins over a view you were switching to
+          this.setView(r.view);
+        }, () => {});
       } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();

@@ -50,7 +50,8 @@ All notable changes to this project are documented here. The format is based on
   Studied, First review, Rescheduled, Again and Overdue), each with its count,
   on the deck you're reviewing or the one selected in Anki. Skim opens on All,
   or on This review during a review. `t` and `T` (or `H` and `L`, left and
-  right) go through them.
+  right) go through them, and the bar moves the moment you press them, with
+  placeholder rows until the cards are in.
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.

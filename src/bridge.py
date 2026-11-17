@@ -117,11 +117,12 @@ class Bridge:
         return {}
 
     def cmd_review_lens(self, msg: dict) -> dict:
-        """One of a review's views: the session, or a Today search."""
+        """One of the bar's views: All, the review's session, or a Today
+        search. The reply carries the new view, so the page shows it as soon
+        as the call returns."""
         switch = getattr(self.host, "review_lens", None)
-        if switch:
-            switch(str(msg.get("lens") or ""))
-        return {}
+        view = switch(str(msg.get("lens") or "")) if switch else None
+        return {"view": view} if view else {}
 
     def cmd_layout(self, msg: dict) -> dict:
         share = msg.get("share")

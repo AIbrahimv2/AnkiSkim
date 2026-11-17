@@ -226,8 +226,9 @@ _RATED = {"studied", "first", "rescheduled", "again"}
 # The view Skim follows a review on: This review, until you pick another.
 _lens = "session"
 _slow_counts: dict[str, int] = {}
-# The last counts, for views that don't count them (a search, Stepwise's
-# topic): counted again when Skim opens (see recount).
+# The bar's counts (but All's), as last counted: the window shows these for
+# every view and counts them all again once it's open or you've switched
+# (see recount), so a switch never waits on them.
 _last_counts: list[list] = []
 
 
@@ -290,6 +291,16 @@ def lens_counts() -> list[list]:
     return [list(x) for x in _last_counts] or [[k, label, None] for k, label, _ in LENSES]
 
 
+def _note_counts(known: dict[str, int]) -> None:
+    """Counts a view found on its way (its own cards, the session's), so
+    the bar agrees with the table before the next recount."""
+    rows = lens_counts()
+    for row in rows:
+        if row[0] in known:
+            row[2] = known[row[0]]
+    _last_counts[:] = rows
+
+
 def recount() -> None:
     """Count the bar's views again. Each count is a search, and Added and
     Edited read every note, so this runs once Skim is open, not on every
@@ -302,13 +313,15 @@ def recount() -> None:
         pass
 
 
-def _review_view(card, side: str | None = None, lens: str | None = None, slow: bool = False) -> dict:
+def _review_view(card, side: str | None = None, lens: str | None = None, slow: bool = False,
+                 count: bool = True) -> dict:
     """One of the bar's views but All. From a review (`card`): the session
     (or one of the Today views), on the card on screen, showing the side the
     reviewer is on, following the review. With no review, the same views of
     the deck selected in Anki, starting on the next card to study. Answers
     of cards still to come (and the reviewer's, until it's answered) stay
-    hidden in the list."""
+    hidden in the list. Without `count`, the other views keep their last
+    counts (switching views shouldn't wait on counting them all)."""
     lens = lens or _lens
     reviewing = card is not None
     if reviewing and side is None:
@@ -323,17 +336,20 @@ def _review_view(card, side: str | None = None, lens: str | None = None, slow: b
     select = card.id if reviewing else (upcoming[0] if upcoming and lens == "session" else None)
     if not deck:
         ids = list(card.note().card_ids()) if reviewing else []
-        title, extra = "This card's note" if reviewing else None, {"lens": lens, "lenses": []}
+        title, extra = "This card's note" if reviewing else None, {"lens": lens}
     else:
         try:
             ids = session if lens == "session" else _lens_ids(lens)
-            lenses = _counts(len(session), slow)
+            if count:
+                _counts(len(session), slow)
+            else:
+                _note_counts({lens: len(ids), "session": len(session)})
         except Exception:
-            lens, ids, lenses = "session", session, []
+            lens, ids = "session", session
         phrase = next(p for k, _, p in LENSES if k == lens)
         title = (f"{deck}: {len(studied):,} studied, {len(upcoming) + len(here):,} to go" if lens == "session"
                  else f"{deck}: {len(ids):,} {phrase}")
-        extra = {"lens": lens, "lenses": lenses}
+        extra = {"lens": lens}
     # No search: the title says what these are (e still opens the card in
     # Anki's browser).
     return {"search": "", "card_ids": ids, "ordered": True, "select": select, "side": side,
@@ -341,23 +357,27 @@ def _review_view(card, side: str | None = None, lens: str | None = None, slow: b
             "topic": (_review_topics(card) or None) if reviewing else None, "extra": extra}
 
 
-def set_review_lens(lens: str) -> None:
+def set_review_lens(lens: str, push: bool = True) -> None:
     """Switch views (the bar over the table, t/T or H/L). All goes back to
-    Skim's search; the others follow the review if there is one."""
+    Skim's search; the others follow the review if there is one. Only the
+    view's own cards are found now; the bar is counted again a moment later.
+    Without `push`, the caller hands the view to the page (the bridge's
+    reply)."""
     global _lens
     if _window is None:
         return
     if lens == ALL:
-        _window.show_all()
+        _window.show_all(push)
         return
     if lens not in {k for k, _, _ in LENSES}:
         return
     card = review_card()
     if card is not None:
         _lens = lens
-    view = _review_view(card, lens=lens, slow=True)
+    view = _review_view(card, lens=lens, count=False)
     view["topics"] = _topics(view.pop("topic"))
-    _window.show_cards(**view)
+    _window.show_cards(**view, push=push)
+    _window.recount_soon()
 
 
 def on_review_question(card) -> None:

@@ -216,14 +216,24 @@ html, body {
 .r-verdict.v-now { color: var(--d); }
 .r-verdict.v-wait { color: var(--l); }
 .r-verdict.v-call { color: var(--text-2); }
-.row.loading .r-text::before {
+/* A row whose card hasn't come yet (scrolling fast, or switching views). */
+.row.loading .r-text::before,
+.row.loading .r-state::before {
   content: "";
   display: block;
-  width: 55%;
   height: 8px;
   border-radius: 4px;
   background: var(--line);
+  animation: skim-pulse 1.1s ease-in-out infinite;
 }
+.row.loading .r-text::before { width: var(--sk, 55%); }
+.row.loading .r-state::before { width: 44px; }
+@keyframes skim-pulse { 50% { opacity: 0.45; } }
+/* Switching views: what's still from the last view fades, unless the next
+   one comes quickly. */
+.app.switching .card-frame.on,
+.app.switching .tags-panel > *,
+.app.switching .source-title { opacity: 0.4; transition: opacity 0.15s 0.12s; }
 /* Flags, in Anki's colours. */
 .row.flag-1 { border-left-color: #ff4d4f; }
 .row.flag-2 { border-left-color: #ff9a3c; }
