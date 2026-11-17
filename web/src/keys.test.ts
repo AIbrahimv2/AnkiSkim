@@ -34,7 +34,7 @@ test("numbers show while you type them, and Esc cancels them", () => {
   assert.equal(k.typed, "12");
   assert.deepEqual(k.feed(press("Escape")), { kind: "cancel" });
   assert.equal(k.typed, "");
-  assert.deepEqual(k.feed(press("Escape")), { kind: "close" });
+  assert.deepEqual(k.feed(press("Escape")), { kind: "escape" });
 });
 
 test("a leading 0 isn't a number", () => {
@@ -113,4 +113,22 @@ test("sides, scrolling and the rest", () => {
   assert.deepEqual(type(k, "T"), { kind: "lens", by: -1 });
   assert.deepEqual(type(k, "L"), { kind: "lens", by: 1 });
   assert.deepEqual(type(k, "H"), { kind: "lens", by: -1 });
+});
+
+test("v selects as you move; Shift+arrows select too", () => {
+  const k = new Keys();
+  assert.deepEqual(type(k, "v"), { kind: "visual" });
+  assert.deepEqual(type(k, "V"), { kind: "visual" });
+  assert.deepEqual(k.feed(press("ArrowDown", { shiftKey: true })), { kind: "move", by: 1, extend: true });
+  assert.deepEqual(k.feed(press("ArrowUp", { shiftKey: true })), { kind: "move", by: -1, extend: true });
+  assert.deepEqual(k.feed(press("ArrowUp")), { kind: "move", by: -1 });
+  type(k, "3");
+  assert.deepEqual(k.feed(press("ArrowDown", { shiftKey: true })), { kind: "move", by: 3, extend: true });
+});
+
+test("Cmd+J (Ctrl+J) suspends or unsuspends, as in Anki's browser", () => {
+  const k = new Keys();
+  assert.deepEqual(k.feed(press("j", { metaKey: true })), { kind: "suspend" });
+  assert.deepEqual(k.feed(press("j", { ctrlKey: true })), { kind: "suspend" });
+  assert.deepEqual(k.feed(press("\x0a", { ctrlKey: true })), { kind: "suspend" }); // Control+J as a control character
 });

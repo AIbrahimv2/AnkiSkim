@@ -11,7 +11,8 @@ The host is the Skim window in Anki, or tools/devserver.py while working on
 the page in a browser. It provides `col`, `view()`, `run_search(query)`,
 `frame_html()`, `analyzer()`, `ids()`, `prepare`, `hook`, `body_class`,
 `layout`, and the actions
-below (`edit`, `back`, `close_window`, `replay`, `play`, `save_layout`, `settings_saved`).
+below (`edit`, `back`, `close_window`, `replay`, `play`, `save_layout`, `settings_saved`,
+and optionally `toggle_suspend` and `review_lens`).
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ from .config import check_settings, get_config, update_config
 MAX_BATCH = 400
 # Facets are a few numbers a card: the page asks for a few thousand at once.
 MAX_FACETS = 5000
+# A selection can run to the end of a big view (v, then G).
+MAX_SELECTED = 100_000
 
 
 def page_config(cfg: dict) -> dict:
@@ -120,6 +123,12 @@ class Bridge:
         """A play button on a card (the card frame's pycmd("play:a:0"))."""
         self.host.play(int(msg.get("cid") or 0), str(msg.get("tag") or ""))
         return {}
+
+    def cmd_suspend(self, msg: dict) -> dict:
+        """Cmd+J: suspend these cards, or unsuspend them if they all are.
+        Says which it did, and to how many."""
+        toggle = getattr(self.host, "toggle_suspend", None)
+        return toggle(self._ids(msg, MAX_SELECTED)) if toggle else {}
 
     def cmd_review_lens(self, msg: dict) -> dict:
         """One of the bar's views: All, the review's session, or a Today

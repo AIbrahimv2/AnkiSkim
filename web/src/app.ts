@@ -54,6 +54,8 @@ const FILTERS: Filter[] = [
   { key: "high", label: "High yield", test: (f, i) => f.yield[i] === 1 || f.yield[i] === 3 },
   { key: "qbank", label: "Q-bank", test: (f, i) => f.banks[i] > 0 },
 ];
+/** Suspend / unsuspend, as Anki's browser has it. */
+const SUSPEND_KEY = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘J" : "Ctrl+J";
 /** First direction when you sort by a column. */
 const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1 };
 
@@ -100,6 +102,12 @@ export class App {
    *  it at once, the table shows placeholder rows until its cards come. */
   private wantLens: string | null = null;
   private lensBusy = false;
+  /** Selecting: v keeps selecting as you move until v or Esc; Shift with
+   *  an arrow or a click selects once, until a move without it. The
+   *  selection runs from the anchor (an index in `shown`) to the cursor. */
+  private visual = false;
+  private anchor: number | null = null;
+  private rangeShown = "";
   /** The card you were on when the switch started, for if it doesn't. */
   private switchKeep: number | null = null;
   /** The view whose facets wait for its first card (see FACETS_AFTER_MS). */
@@ -184,7 +192,7 @@ export class App {
     this.list = new CardList(listPanel, {
       row: (cid) => this.rowFor(cid),
       need: (cids) => this.needRows(cids),
-      pick: (i) => this.go(i, true),
+      pick: (i, extend) => this.go(i, true, extend),
       sort: (key) => this.sortBy(key),
     });
     this.cast = new KeyCast(listPanel);
@@ -270,6 +278,49 @@ export class App {
     this.facetsTimer = window.setTimeout(() => this.startFacets(view.seq), view.ids.length ? FACETS_AFTER_MS : 0);
   }
 
+  // --- selecting ---------------------------------------------------------------
+
+  /** The selected rows of `shown`, first and last, or null. */
+  private range(): [number, number] | null {
+    if (this.anchor === null || !this.shown.length) return null;
+    return [Math.min(this.anchor, this.cursor), Math.max(this.anchor, this.cursor)];
+  }
+
+  private endSelection(): void {
+    this.visual = false;
+    this.anchor = null;
+    this.renderSelection();
+  }
+
+  /** The selection on the rows, its size beside the position, and the
+   *  hints for it. Cheap when nothing changed (it runs on every move). */
+  private renderSelection(): void {
+    const r = this.range();
+    const n = this.shown.length;
+    this.pos.textContent = n
+      ? `${fmt(this.cursor + 1)} of ${fmt(n)}${r ? ` · ${fmt(r[1] - r[0] + 1)} selected` : ""}`
+      : "";
+    const key = r ? r.join(":") : "";
+    if (key === this.rangeShown) return;
+    const was = this.rangeShown !== "";
+    this.rangeShown = key;
+    this.list.setRange(r);
+    if (was !== !!r) this.renderHints();
+  }
+
+  /** Cmd+J: suspend the selected cards (or the one you're on), or unsuspend
+   *  them if they all are. */
+  private toggleSuspend(): void {
+    const r = this.range();
+    const ids = r ? this.shown.slice(r[0], r[1] + 1) : this.shown.slice(this.cursor, this.cursor + 1);
+    if (!ids.length) return;
+    call<{ suspended?: boolean; count?: number }>("suspend", { ids }).then((res) => {
+      if (!res.count) return;
+      const what = `${fmt(res.count)} card${res.count === 1 ? "" : "s"}`;
+      this.chrome?.toast(`${res.suspended ? "Suspended" : "Unsuspended"} ${what}`, "ok");
+    }, () => {});
+  }
+
   /** A card's row as it should show in this view, if it's kept. */
   private rowFor(cid: number): Row | undefined {
     return this.cache.row(this.view.reading, cid, this.hidden.has(cid));
@@ -323,6 +374,7 @@ export class App {
     this.holdCast();
     this.shown = [];
     this.cursor = 0;
+    this.endSelection();
     this.list.skeleton(count === null ? page : Math.min(count, page));
     this.pos.textContent = "";
     this.message.hidden = true;
@@ -363,6 +415,7 @@ export class App {
   /** Fill the table from the view, filtered and sorted, keeping the card
    *  you're on if it's still there. */
   private relist(keep: number | null): void {
+    this.endSelection(); // the rows are about to move
     const ids = this.view.ids;
     let order = ids.map((_, i) => i);
     const f = this.facets;
@@ -447,7 +500,7 @@ export class App {
     }
     this.message.hidden = true;
     this.list.setCursor(this.cursor);
-    this.pos.textContent = `${fmt(this.cursor + 1)} of ${fmt(ids.length)}`;
+    this.renderSelection();
     this.stage.want(this.wanted(), this.prefetch(), input);
     this.showPane();
   }
@@ -486,9 +539,13 @@ export class App {
     return out;
   }
 
-  private go(index: number, input: boolean): void {
+  private go(index: number, input: boolean, extend = false): void {
     const n = this.shown.length;
     if (!n) return;
+    // Moves select while v is on, or with Shift; a move without either
+    // ends a Shift selection.
+    if (extend || this.visual) this.anchor ??= this.cursor;
+    else this.anchor = null;
     const i = Math.max(0, Math.min(n - 1, index));
     if (i !== this.cursor) this.dir = i > this.cursor ? 1 : -1;
     this.cursor = i;
@@ -587,7 +644,7 @@ export class App {
     const cid = this.shown[this.cursor];
     switch (cmd.kind) {
       case "move":
-        return this.go(this.cursor + cmd.by, true);
+        return this.go(this.cursor + cmd.by, true, cmd.extend);
       case "goto":
         return this.go(cmd.row === -1 ? n - 1 : cmd.row - 1, true);
       case "half":
@@ -626,6 +683,17 @@ export class App {
       case "close":
         void call("close");
         return;
+      case "escape":
+        if (this.visual || this.anchor !== null) return this.endSelection();
+        void call("close");
+        return;
+      case "visual":
+        if (!n) return;
+        this.visual = !this.visual;
+        this.anchor = this.visual ? this.cursor : null;
+        return this.renderSelection();
+      case "suspend":
+        return this.toggleSuspend();
       case "help":
         this.chrome?.toggleHelp();
         return;
@@ -715,15 +783,22 @@ export class App {
   }
 
   private renderHints(): void {
-    const groups: [string[], string][] = [
-      [["j", "k"], "move"],
-      [["h", "l"], "front, back"],
-      [["f"], "filter"],
-      [["/"], "search"],
-      [["e"], "edit"],
-    ];
-    if (this.view.lenses?.length) groups.push([["t"], "view"]);
-    if (this.view.back) groups.push([["p"], `back to ${this.view.back}`]);
+    const groups: [string[], string][] = this.range()
+      ? [
+          [["j", "k"], "select"],
+          [[SUSPEND_KEY], "suspend / unsuspend"],
+          [["Esc"], "done selecting"],
+        ]
+      : [
+          [["j", "k"], "move"],
+          [["h", "l"], "front, back"],
+          [["v"], "select"],
+          [["f"], "filter"],
+          [["/"], "search"],
+          [["e"], "edit"],
+        ];
+    if (!this.range() && this.view.lenses?.length) groups.push([["t"], "view"]);
+    if (!this.range() && this.view.back) groups.push([["p"], `back to ${this.view.back}`]);
     groups.push([["?"], "all keys"]);
     this.hints.replaceChildren(
       ...groups.map(([keys, label]) => {

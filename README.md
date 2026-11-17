@@ -91,6 +91,9 @@ through topics.
 | `h` / `l` | Show the front / the back |
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
+| `v` | Select cards as you move (`j`, `k`, `10j`, `G`, ...); `v` or `Esc` stops |
+| `Shift-↓` / `Shift-↑` | Select as you move, as in Anki's browser (Shift-click too) |
+| `Cmd-J` (`Ctrl-J`) | Suspend the selected cards, or the one you're on; unsuspend them if they all are |
 | `f` / `F` | Next / previous filter |
 | `t` / `T` | Next / previous view (All, This review, Due, Studied, ...) |
 | `H` / `L` | The view to the left / right |
@@ -98,7 +101,7 @@ through topics.
 | `e` or `B` | Open the card in Anki's browser, to edit it |
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
-| `q` or `Esc` | Close Skim (Esc first cancels a number you've typed) |
+| `q` or `Esc` | Close Skim (Esc first cancels a number you've typed, or ends a selection) |
 | `?` | Show these keys |
 
 ### Settings

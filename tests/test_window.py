@@ -161,6 +161,51 @@ try:
     check(True, "Space flips to the back")
     check(js("document.querySelector('.row.cur .r-state').textContent") == "Suspended", "the list marks suspended cards")
 
+    print("selecting and suspending")
+    from skim import window as skim_window
+
+    ran: list[tuple[str, list[int]]] = []
+
+    class Op:  # Anki's operation runner needs the whole app: do what it does
+        def __init__(self, name, fn, ids):
+            self.name, self.fn, self.ids = name, fn, list(ids)
+
+        def run_in_background(self):
+            ran.append((self.name, self.ids))
+            self.fn(self.ids)
+            api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+
+    real_ops = skim_window.suspend_cards, skim_window.unsuspend_cards
+    skim_window.suspend_cards = lambda parent, card_ids: Op("suspend", col.sched.suspend_cards, card_ids)
+    skim_window.unsuspend_cards = lambda parent, card_ids: Op("unsuspend", col.sched.unsuspend_cards, card_ids)
+    CMD_J = "window.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', metaKey: true, bubbles: true}))"
+    STATES = "[...document.querySelectorAll('.row')].sort((a, b) => a.dataset.i - b.dataset.i).map(r => r.querySelector('.r-state').textContent).join(',')"
+    press("g", "g", "v", "j")
+    check(js(POS) == "2 of 4 · 2 selected", f"v, then j, selects two cards ({js(POS)})")
+    check(js("document.querySelectorAll('.row.sel').length") == 2, "the selected rows are marked")
+    check("suspend" in js("document.querySelector('.hints').textContent"), "and the hints say what's next")
+    js(CMD_J)
+    check(wait_for(f"{STATES} === 'Suspended,Suspended,Suspended,Suspended'"), "Cmd+J suspends them")
+    check(ran[-1] == ("suspend", ALL[:2]), f"through Anki's operation, for just those cards ({ran[-1]})")
+    check(wait_for("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('Suspended 2 cards'))"), "and says so")
+    check(js(POS) == "2 of 4 · 2 selected", "the selection stays")
+    js(CMD_J)
+    check(wait_for(f"{STATES} === 'New,New,Suspended,Suspended'") and ran[-1] == ("unsuspend", ALL[:2]),
+          "Cmd+J again: all suspended, so it unsuspends them")
+    press("Escape")
+    check(js(POS) == "2 of 4" and not js("document.querySelector('.row.sel')") and api.is_open(),
+          "Esc ends the selection, and leaves Skim open")
+    js("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', shiftKey: true, bubbles: true}))")
+    check(js(POS) == "3 of 4 · 2 selected", "Shift+↓ selects too")
+    press("j")
+    check(js(POS) == "4 of 4", "and a move without Shift ends it")
+    js(CMD_J)
+    check(wait_for(f"{STATES} === 'New,New,Suspended,New'") and ran[-1] == ("unsuspend", [ALL[3]]),
+          "with nothing selected, Cmd+J is for the card you're on")
+    js(CMD_J)
+    check(wait_for(f"{STATES} === 'New,New,Suspended,Suspended'"), "and back")
+    skim_window.suspend_cards, skim_window.unsuspend_cards = real_ops
+
     print("search")
     js("(() => { const i = document.querySelector('.search input'); i.value = 'tag:Neuro'; "
        "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")

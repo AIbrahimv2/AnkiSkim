@@ -21,6 +21,10 @@ All notable changes to this project are documented here. The format is based on
   (new, learning, review, suspended, buried) and flag.
 - `e` or `B` opens the card in Anki's browser to edit it (`B`, as in
   Stepwise); `r` plays its audio.
+- **Select and suspend.** `v` selects cards as you move (`v`, then `G`,
+  selects to the end), and so do Shift+↓/↑ and Shift-click. Cmd+J (Ctrl+J)
+  suspends the selected cards, or the one you're on, or unsuspends them if
+  they all are, as Anki's browser does; Edit → Undo in Anki takes it back.
 - **The keys you press show on screen**, in a frosted pill over the table's
   corner, and fade once you stop, so a screen recording shows what was
   pressed: a short trail of quick presses (`1 0 j`), a key pressed again with

@@ -40,7 +40,8 @@ export interface ListOptions {
   row(cid: number): Row | undefined;
   /** Rows the list is about to show and doesn't have yet. */
   need(cids: number[]): void;
-  pick(index: number): void;
+  /** A row clicked; `extend` with Shift held. */
+  pick(index: number, extend: boolean): void;
   sort(key: SortKey): void;
 }
 
@@ -62,6 +63,8 @@ export class CardList {
   private queued = 0;
   /** Placeholder rows (see skeleton): nothing to fetch or fill. */
   private placeholder = false;
+  /** The selected rows, first and last (inclusive). */
+  private range: [number, number] | null = null;
   private opts: ListOptions;
 
   constructor(host: HTMLElement, opts: ListOptions) {
@@ -94,7 +97,7 @@ export class CardList {
       const el = (e.target as HTMLElement).closest<HTMLElement>(".row");
       if (el) {
         e.preventDefault(); // keep the keys on the page, not the row
-        this.opts.pick(Number(el.dataset.i));
+        this.opts.pick(Number(el.dataset.i), e.shiftKey);
       }
     });
   }
@@ -119,6 +122,7 @@ export class CardList {
 
   setIds(ids: number[], cursor: number, placeholder = false): void {
     this.placeholder = placeholder;
+    this.range = null;
     this.ids = ids;
     this.cursorIndex = cursor;
     this.sizer.style.height = `${ids.length * ROW_H}px`;
@@ -131,6 +135,16 @@ export class CardList {
   /** `n` placeholder rows, while the next view's cards are on their way. */
   skeleton(n: number): void {
     this.setIds(new Array<number>(n).fill(0), -1, true);
+  }
+
+  /** Mark the selected rows (null for none). */
+  setRange(range: [number, number] | null): void {
+    this.range = range;
+    for (const [i, r] of this.live) r.el.classList.toggle("sel", this.selected(i));
+  }
+
+  private selected(i: number): boolean {
+    return !!this.range && i >= this.range[0] && i <= this.range[1];
   }
 
   setCursor(index: number): void {
@@ -221,6 +235,7 @@ export class CardList {
     const [, text, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");
+    if (this.selected(r.index)) cls.push("sel");
     if (!row) {
       r.filled = false;
       cls.push("loading");

@@ -16,7 +16,10 @@ import os
 import time
 
 import aqt
+from anki.consts import QUEUE_TYPE_SUSPENDED
+from anki.utils import ids2str
 from aqt import gui_hooks, mw
+from aqt.operations.scheduling import suspend_cards, unsuspend_cards
 from aqt.qt import QDialog, Qt, QTimer, QVBoxLayout, qconnect, sip
 from aqt.sound import av_player, play_clicked_audio
 from aqt.theme import theme_manager
@@ -206,6 +209,21 @@ class SkimWindow(QDialog):
         self._view.set(mw.col, search=query)
         self._remember_all(search=query)
         return self.view()
+
+    def toggle_suspend(self, cids: list[int]) -> dict:
+        """Suspend these cards, or unsuspend them if every one is (Toggle
+        Suspend in Anki's browser, for a selection). Through Anki's own
+        operation, so Edit → Undo takes it back and Anki's other windows hear
+        of it; Skim hears too (on_operation) and reads the cards again."""
+        if not cids:
+            return {}
+        queues = mw.col.db.list(f"select queue from cards where id in {ids2str(cids)}")
+        if not queues:
+            return {}
+        unsuspend = all(q == QUEUE_TYPE_SUSPENDED for q in queues)
+        op = unsuspend_cards if unsuspend else suspend_cards
+        op(parent=self, card_ids=cids).run_in_background()
+        return {"suspended": not unsuspend, "count": len(queues)}
 
     def edit(self, cid: int) -> None:
         if not cid:

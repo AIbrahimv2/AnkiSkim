@@ -4,7 +4,7 @@
 export type Side = "question" | "answer";
 
 export type Command =
-  | { kind: "move"; by: number } // j/k, a number first moves that many
+  | { kind: "move"; by: number; extend?: true } // j/k, a number first moves that many; Shift+↓/↑ select as they go
   | { kind: "goto"; row: number } // gg/G, 1-based; -1 is the last row
   | { kind: "half"; dir: 1 | -1; rows: number | null } // Ctrl-d/Ctrl-u; null = half a page
   | { kind: "page"; by: number } // Ctrl-f/Ctrl-b, PageDown/PageUp
@@ -14,7 +14,10 @@ export type Command =
   | { kind: "edit" }
   | { kind: "replay" }
   | { kind: "back" }
-  | { kind: "close" }
+  | { kind: "close" } // q
+  | { kind: "escape" } // Esc: ends a selection, or else closes
+  | { kind: "visual" } // v: select cards as you move, or stop
+  | { kind: "suspend" } // Cmd+J (Ctrl+J): suspend or unsuspend, as in Anki's browser
   | { kind: "help" }
   | { kind: "filter"; by: 1 | -1 } // f/F: next / previous filter
   | { kind: "lens"; by: 1 | -1 } // t/T, L/H: a review's next / previous view
@@ -83,6 +86,8 @@ export class Keys {
           return { kind: "scroll", by: n ?? 1 };
         case "y":
           return { kind: "scroll", by: -(n ?? 1) };
+        case "j": // Cmd+J on a Mac, Ctrl+J elsewhere (ctrlLetter takes either)
+          return { kind: "suspend" };
       }
       return undefined;
     }
@@ -112,11 +117,17 @@ export class Keys {
     const n = this.take();
     switch (k) {
       case "j":
-      case "ArrowDown":
         return { kind: "move", by: n ?? 1 };
       case "k":
-      case "ArrowUp":
         return { kind: "move", by: -(n ?? 1) };
+      case "ArrowDown":
+      case "ArrowUp": {
+        const by = (k === "ArrowDown" ? 1 : -1) * (n ?? 1);
+        return e.shiftKey ? { kind: "move", by, extend: true } : { kind: "move", by };
+      }
+      case "v":
+      case "V":
+        return { kind: "visual" };
       case "g":
         this.g = n;
         return null;
@@ -167,7 +178,7 @@ export class Keys {
       case "L": // and to the right
         return { kind: "lens", by: 1 };
       case "Escape":
-        return typed ? { kind: "cancel" } : { kind: "close" };
+        return typed ? { kind: "cancel" } : { kind: "escape" };
     }
     return undefined;
   }
