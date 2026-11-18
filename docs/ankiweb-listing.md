@@ -7,6 +7,11 @@ Keep this in step with the live listing
 2026-11-17 (AnkiWeb says 2026-11-18, in UTC), as a new add-on, which got
 the ID 2141626960.
 
+## Package on AnkiWeb
+
+Version 1.0.0, uploaded 2026-11-17. The release script (`release.py --uploaded`
+in the `anki-addon-release` skill) updates this line after each upload.
+
 ## Title
 
 👀 Skim: a fast vim-key card browser that says what to unsuspend
