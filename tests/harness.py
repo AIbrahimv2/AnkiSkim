@@ -6,6 +6,7 @@ The collection is built fresh in tests/fixture/work/ (gitignored) every run: a
 Basic note type with two card types, a Cloze note type, tags in a
 hierarchy, a suspended card, a flagged one. No real cards are needed."""
 
+import importlib.util
 import json
 import os
 import shutil
@@ -15,11 +16,13 @@ import types
 S = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(os.path.dirname(S), "src")
 FIXTURE = os.path.join(S, "fixture", "work")
-APP = "/Applications/Anki.app/Contents/Resources/app_packages"
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu --log-level=3")
-sys.path.insert(0, APP)
+# The installed app's Anki, unless this Python has its own (tests/run_on_anki.sh
+# runs the tests on another Anki version that way).
+if importlib.util.find_spec("aqt") is None:
+    sys.path.insert(0, "/Applications/Anki.app/Contents/Resources/app_packages")
 
 shutil.rmtree(FIXTURE, ignore_errors=True)
 os.makedirs(FIXTURE)
@@ -29,6 +32,8 @@ from aqt.qt import QApplication, QMenu, QTimer, QWidget  # noqa: E402
 app = QApplication.instance() or QApplication(["skim-test"])
 
 import aqt  # noqa: E402
+
+APP = os.path.dirname(os.path.dirname(aqt.__file__))  # this Anki's packages, with _aqt's web files
 from anki.collection import Collection  # noqa: E402
 
 col = Collection(os.path.join(FIXTURE, "collection.anki2"))
