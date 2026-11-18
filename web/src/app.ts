@@ -909,6 +909,21 @@ export class App {
     void call("layout", { tags: this.tagsOpen });
   }
 
+  /** Back to the layout Skim starts with (Reset layout in the ⋯ menu): the
+   *  table at three quarters of the width, the card over its tags at 60%,
+   *  the tags open. What's saved is forgotten, so new defaults apply. */
+  resetLayout(): void {
+    this.setListShare(LIST_SHARE);
+    this.setCardSplit(CARD_SPLIT);
+    this.setTagsOpen(true);
+    void call("layout", { reset: true });
+  }
+
+  /** Whether the layout is other than the one Skim starts with. */
+  layoutChanged(): boolean {
+    return this.listShare !== LIST_SHARE || this.cardSplit !== CARD_SPLIT || !this.tagsOpen;
+  }
+
   /** Drag the edge between the table and the card to resize them, and the
    *  one between the card and its tags; double-click one to put it back. */
   private wireSplitters(cols: HTMLElement, main: HTMLElement, rows: HTMLElement, side: HTMLElement): void {

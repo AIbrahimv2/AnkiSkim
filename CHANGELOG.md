@@ -16,7 +16,8 @@ All notable changes to this project are documented here. The format is based on
   this card lives", or press `i`. Click it or press `i` again to bring them
   back.
 - Skim remembers these sizes, and whether the tags are hidden. Double-click
-  an edge to put it back where it started.
+  an edge to put it back where it started, or choose **⋯ → Reset layout** to
+  put everything back.
 
 ### Fixed
 

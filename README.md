@@ -29,9 +29,10 @@ through topics.
 - **Laid out like Anki's browser.** A table of the cards on the left, the card
   on the right, and where it lives under it. Drag the edge between the table
   and the card, or between the card and its tags, to resize them
-  (double-click one to reset it). A narrow table drops the columns it has
-  least room for (Deck first, then Again in, Q-bank and Yield), so the card
-  can take most of the window. Click a row to jump there.
+  (double-click one to reset it, or choose **⋯ → Reset layout** for all of
+  it). A narrow table drops the columns it has least room for (Deck first,
+  then Again in, Q-bank and Yield), so the card can take most of the window.
+  Click a row to jump there.
 - **Columns that help you decide.** The note's text with clozes filled in, its
   deck (for a card in a filtered deck, its home deck in brackets; hover for
   the full name), its state (new, learning, review, suspended, buried),

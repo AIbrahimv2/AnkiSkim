@@ -77,6 +77,8 @@ call("layout", split=0.45678, tags=False)
 check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "the card's height and the tags pane join it")
 call("layout", share=0.05, split=True, tags="no")
 check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "out of range or the wrong type: kept as it was")
+call("layout", reset=True)
+check(host.saved_layout == {}, "Reset layout forgets it all")
 
 print("settings")
 got = call("settings")

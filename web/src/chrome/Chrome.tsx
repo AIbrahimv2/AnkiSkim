@@ -2,7 +2,7 @@
 // open in the shared add-on kit's window), the list of keys, and toasts.
 // React, like Stepwise's; nothing here runs while you move between cards.
 
-import { CircleCheck, Ellipsis, Info, Keyboard, Settings2, Sparkles, SquarePen, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, Ellipsis, Info, Keyboard, LayoutPanelLeft, Settings2, Sparkles, SquarePen, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -20,6 +20,10 @@ export interface ChromeApi {
 export interface ChromeProps {
   slot: HTMLElement;
   onEdit(): void;
+  /** Reset layout: the panes back to their first sizes, the tags open. */
+  onResetLayout(): void;
+  /** Whether there's a layout to reset (the item is greyed out if not). */
+  layoutChanged(): boolean;
 }
 
 type Tone = "ok" | "info" | "error";
@@ -83,6 +87,12 @@ function Chrome(props: ChromeProps) {
           entries={[
             { label: "Edit in Anki's browser", icon: <SquarePen size={14} />, hint: "e", onSelect: props.onEdit },
             { label: "Keys", icon: <Keyboard size={14} />, hint: "?", onSelect: () => setHelp(true) },
+            {
+              label: "Reset layout",
+              icon: <LayoutPanelLeft size={14} />,
+              disabled: !props.layoutChanged(),
+              onSelect: props.onResetLayout,
+            },
             { separator: true },
             { label: "Settings…", icon: <Settings2 size={14} />, onSelect: () => openKitWindow(kitCall, "settings") },
             { separator: true },

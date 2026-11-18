@@ -158,8 +158,10 @@ class Bridge:
     def cmd_layout(self, msg: dict) -> dict:
         """The window's layout, as you leave it: the table's share of the
         width, the card's share of the height beside it, and whether the
-        tags pane is open. A call can carry any of them; the rest are kept."""
-        layout = dict(self.host.layout())
+        tags pane is open. A call can carry any of them; the rest are kept.
+        `reset` forgets them all first (Reset layout in the ⋯ menu), so the
+        page starts from its defaults, whatever they are by then."""
+        layout = {} if msg.get("reset") is True else dict(self.host.layout())
         for key, low, high in (("share", *SHARE_RANGE), ("split", *SPLIT_RANGE)):
             v = msg.get(key)
             if isinstance(v, (int, float)) and not isinstance(v, bool) and low <= v <= high:

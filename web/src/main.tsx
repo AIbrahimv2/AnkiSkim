@@ -22,6 +22,8 @@ async function start() {
       const cid = a.cardId();
       if (cid) void call("edit", { cid });
     },
+    onResetLayout: () => a.resetLayout(),
+    layoutChanged: () => a.layoutChanged(),
   });
   a.attachChrome(chrome);
   setErrorHandler((message) => chrome.toast(message, "error"));
