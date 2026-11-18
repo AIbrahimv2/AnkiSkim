@@ -113,7 +113,9 @@ try:
 
     print("table, filters and tags")
     check(js("[...document.querySelectorAll('.list-head span')].map(s => s.textContent).join(',')")
-          == "#,Card,State,Yield,Q-bank,Again in,Verdict", "the table has its columns")
+          == "#,Card,Deck,State,Yield,Q-bank,Again in,Verdict", "the table has its columns")
+    check(wait_for("document.querySelector('.row:not(.loading) .r-deck')?.textContent") == "Topics",
+          "a row shows its deck")
     chips = wait_for("[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',').includes('Suspended2') && "
                      "[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',')")
     check("All4" in chips and "Now2" in chips and "Wait0" in chips, f"filter chips count the topic's cards ({chips})")

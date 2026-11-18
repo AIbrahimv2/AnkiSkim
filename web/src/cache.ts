@@ -10,8 +10,8 @@
 
 import type { Facets, Row } from "./types.ts";
 
-/** A card's facets: state, yield, banks, verdict, later (see Facets). */
-type Facet = [number, number, number, number, number];
+/** A card's facets: state, yield, banks, verdict, later, deck (see Facets). */
+type Facet = [number, number, number, number, number, number];
 
 /** Readings kept: the bar's views share one; Stepwise's topics and a
  *  review's cards have their own. */
@@ -33,10 +33,13 @@ export class Cache {
   /** Bumped by clear(): answers to anything asked before are dropped. */
   gen = 0;
   private readings = new Map<string, Reading>();
+  /** Deck names by id, for sorting by deck. */
+  private decks = new Map<number, string>();
 
   /** Forget everything: the cards, or what they're read against, changed. */
   clear(): void {
     this.readings.clear();
+    this.decks.clear();
     this.gen++;
   }
 
@@ -63,7 +66,10 @@ export class Cache {
     const kept = this.reading(key)?.facets;
     if (!kept && ids.length) return null;
     const n = ids.length;
-    const out: Facets = { state: new Array(n), yield: new Array(n), banks: new Array(n), verdict: new Array(n), later: new Array(n) };
+    const out: Facets = {
+      state: new Array(n), yield: new Array(n), banks: new Array(n), verdict: new Array(n), later: new Array(n),
+      deck: new Array(n),
+    };
     for (let i = 0; i < n; i++) {
       const f = kept!.get(ids[i]);
       if (!f) return null;
@@ -72,6 +78,7 @@ export class Cache {
       out.banks[i] = f[2];
       out.verdict[i] = f[3];
       out.later[i] = f[4];
+      out.deck[i] = f[5];
     }
     return out;
   }
@@ -85,7 +92,21 @@ export class Cache {
   /** Facets as Python sends them: for `ids`, in their order. */
   putFacets(key: string, ids: number[], f: Facets): void {
     const kept = this.reading(key, true).facets;
-    ids.forEach((c, i) => kept.set(c, [f.state[i], f.yield[i], f.banks[i], f.verdict[i], f.later[i]]));
+    ids.forEach((c, i) => kept.set(c, [f.state[i], f.yield[i], f.banks[i], f.verdict[i], f.later[i], f.deck[i]]));
+  }
+
+  /** Deck names as Python sends them with facets: by id. */
+  putDecks(names: Record<string, string> | undefined): void {
+    for (const [id, name] of Object.entries(names ?? {})) this.decks.set(Number(id), name);
+  }
+
+  /** Each of these decks' place in Anki's deck list (by name, a deck's
+   *  subdecks straight after it), for sorting by deck. */
+  deckRanks(ids: number[]): Map<number, number> {
+    const key = (id: number) => (this.decks.get(id) ?? "").toLowerCase().replaceAll("::", "\u0001");
+    const order = [...new Set(ids)].map((id) => [key(id), id] as const);
+    order.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
+    return new Map(order.map(([, id], i) => [id, i]));
   }
 
   // --- rows ----------------------------------------------------------------------

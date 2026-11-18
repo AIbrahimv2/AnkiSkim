@@ -28,7 +28,9 @@ through topics.
   on the right, and where it lives under it. Drag the edge between them to
   resize; click a row to jump there.
 - **Columns that help you decide.** The note's text with clozes filled in, its
-  state (new, learning, review, suspended, buried), AnKing's yield tag, the
+  deck (for a card in a filtered deck, its home deck in brackets; hover for
+  the full name), its state (new, learning, review, suspended, buried),
+  AnKing's yield tag, the
   UWorld, AMBOSS and NBME questions tagged on it, the other systems it comes up
   in ("Again in", coloured by what you've done in Stepwise), and a verdict.
   Click a column's title to sort by it (again to reverse it).

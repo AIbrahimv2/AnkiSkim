@@ -91,7 +91,8 @@ class Bridge:
         if msg.get("seq") != view["seq"]:
             return {"stale": True}
         ids = self._ids(msg, MAX_FACETS)
-        return {"ids": ids, "facets": cards.facets(self.host.col, ids, self.host.analyzer()),
+        facets = cards.facets(self.host.col, ids, self.host.analyzer())
+        return {"ids": ids, "facets": facets, "decks": cards.deck_names(self.host.col, facets["deck"]),
                 "reading": view["reading"]}
 
     def cmd_cards(self, msg: dict) -> dict:

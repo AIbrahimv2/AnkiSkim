@@ -17,8 +17,9 @@ All notable changes to this project are documented here. The format is based on
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise to see its cards;
   while Skim is open, moving through topics in Stepwise shows each one's
   cards, and `p` in Skim goes back.
-- A list of the cards beside the card, with each one's type, state
-  (new, learning, review, suspended, buried) and flag.
+- A list of the cards beside the card, with each one's type, deck, state
+  (new, learning, review, suspended, buried) and flag. A card in a filtered
+  deck shows its home deck too, and you can sort by deck.
 - `e` or `B` opens the card in Anki's browser to edit it (`B`, as in
   Stepwise); `r` plays its audio.
 - **Select and suspend.** `v` selects cards as you move (`v`, then `G`,

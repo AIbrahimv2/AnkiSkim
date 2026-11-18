@@ -25,10 +25,11 @@ const VERDICTS: Record<string, string> = { now: "Now", call: "Your call", wait: 
 const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "saved for later" };
 
 /** Columns you can sort by (the facets the page has for every card). */
-export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict";
+export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict" | "deck";
 const HEADS: [label: string, key: SortKey | null, title: string][] = [
   ["#", "order", "Original order"],
   ["Card", null, "The note's text, clozes filled in"],
+  ["Deck", "deck", "The card's deck (for a filtered deck, its home deck in brackets)"],
   ["State", "state", "New, learning, review, suspended or buried"],
   ["Yield", "yield", "AnKing's yield tag"],
   ["Q-bank", "banks", "UWorld (UW), AMBOSS (AM) and NBME (NB) questions tagged on the card"],
@@ -215,7 +216,7 @@ export class CardList {
   private make(): RowEl {
     const el = document.createElement("div");
     el.className = "row";
-    const cells = ["r-num num", "r-text", "r-state", "r-yield", "r-bank num", "r-again", "r-verdict"].map((cls) => {
+    const cells = ["r-num num", "r-text", "r-deck", "r-state", "r-yield", "r-bank num", "r-again", "r-verdict"].map((cls) => {
       const c = document.createElement("span");
       c.className = cls;
       el.append(c);
@@ -232,7 +233,7 @@ export class CardList {
 
   private fill(r: RowEl): void {
     const row = this.placeholder ? undefined : this.opts.row(this.ids[r.index]);
-    const [, text, state, yld, bank, again, verdict] = r.cells;
+    const [, text, deck, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");
     if (this.selected(r.index)) cls.push("sel");
@@ -247,6 +248,8 @@ export class CardList {
     if (row.f) cls.push(`flag-${row.f}`);
     text.textContent = row.t || "(empty)";
     text.title = row.k ? `${row.t}\n${row.k}` : row.t;
+    deck.textContent = row.o ? `${leaf(row.d)} (${leaf(row.o)})` : leaf(row.d);
+    deck.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
     state.textContent = label;
     state.className = `r-state ${stateCls}`;
     yld.textContent = row.y ?? "";
@@ -260,6 +263,13 @@ export class CardList {
     r.el.className = cls.join(" ");
     r.filled = true;
   }
+}
+
+/** A deck's own name, without its parents': "AnKing::Step 1" -> "Step 1". */
+function leaf(name: string | undefined): string {
+  if (!name) return "";
+  const i = name.lastIndexOf("::");
+  return i < 0 ? name : name.slice(i + 2);
 }
 
 /** A system the card is also in, coloured by Stepwise's status there;

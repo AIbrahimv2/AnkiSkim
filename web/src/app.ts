@@ -57,7 +57,7 @@ const FILTERS: Filter[] = [
 /** Suspend / unsuspend, as Anki's browser has it. */
 const SUSPEND_KEY = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘J" : "Ctrl+J";
 /** First direction when you sort by a column. */
-const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1 };
+const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1, deck: 1 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const other = (s: Side): Side => (s === "answer" ? "question" : "answer");
@@ -434,6 +434,7 @@ export class App {
       if (filter && filter.key !== "all") order = order.filter((i) => filter.test(f, i));
       if (this.sort !== "order") {
         const d = this.sortDir;
+        const decks = this.sort === "deck" ? this.cache.deckRanks(f.deck) : null;
         const value = (i: number): number => {
           switch (this.sort) {
             case "state": return f.state[i];
@@ -441,6 +442,7 @@ export class App {
             case "banks": return f.banks[i];
             case "later": return f.later[i];
             case "verdict": return f.verdict[i];
+            case "deck": return decks!.get(f.deck[i]) ?? 0;
             default: return i;
           }
         };
@@ -469,10 +471,12 @@ export class App {
     const next = (start: number): void => {
       if (start < missing.length) {
         const slice = missing.slice(start, start + FACET_SLICE);
-        call<{ ids?: number[]; facets?: Facets; reading?: string; stale?: boolean }>("facets", { seq, ids: slice })
+        call<{ ids?: number[]; facets?: Facets; decks?: Record<string, string>; reading?: string; stale?: boolean }>(
+          "facets", { seq, ids: slice })
           .then((r) => {
             if (r.stale || !r.ids || !r.facets || this.cache.gen !== gen) return;
             this.cache.putFacets(r.reading ?? "", r.ids, r.facets);
+            this.cache.putDecks(r.decks);
             if (live() && r.reading === reading) next(start + FACET_SLICE);
           })
           .catch(() => {});

@@ -93,6 +93,10 @@ export interface Row {
   q: number;
   /** Flag, 0 for none. */
   f: number;
+  /** Its deck's full name ("AnKing::Step 1"). */
+  d?: string;
+  /** Its home deck's full name, for a card in a filtered deck. */
+  o?: string;
   /** 1 if the card's answer was kept back (a card still to come). */
   h?: 1;
   y?: string | null;
@@ -114,6 +118,8 @@ export interface Facets {
   verdict: number[];
   /** Systems it comes up in that you haven't done. */
   later: number[];
+  /** Its deck's id (names come with the facets, see Cache.putDecks). */
+  deck: number[];
 }
 
 /** Both sides of a card, ready for the reviewer page, and its body class. */

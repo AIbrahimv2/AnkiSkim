@@ -61,6 +61,20 @@ check(len(fac["state"]) == len(ALL) and fac["state"].count(-1) == 2, "facets cov
 check(fac["verdict"].count(1) == 2, "suspended cards' verdicts are in the facets")
 check(cards.rows(col, [123]) == {}, "a card that doesn't exist is left out")
 
+print("decks")
+topics = col.decks.id("Topics")
+check(heart["d"] == "Topics" and "o" not in heart, "a row has its deck's name")
+check(fac["deck"] == [topics] * len(ALL), "and the facets its deck, to sort by")
+check(cards.deck_names(col, fac["deck"]) == {str(topics): "Topics"}, "with the decks' names, once each")
+neuro = list(col.find_cards(f"nid:{notes['parkinson']}"))
+cram = col.decks.new_filtered("Cram")
+conf = col.sched.get_or_create_filtered_deck(cram)
+conf.config.search_terms[0].search = f"nid:{notes['parkinson']}"
+col.sched.add_or_update_filtered_deck(conf)
+moved = cards.rows(col, neuro)[str(neuro[0])]
+check(moved["d"] == "Cram" and moved["o"] == "Topics", f"a card in a filtered deck has its home deck too ({moved})")
+col.sched.empty_filtered_deck(cram)
+
 print("render")
 seen = []
 
