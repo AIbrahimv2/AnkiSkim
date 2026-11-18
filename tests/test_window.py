@@ -427,6 +427,15 @@ try:
     check(not api.is_open(), "q closes Skim")
     api.open()
     check(wait_for(f"{POS} === '1 of 4'"), "and it reopens on what it showed")
+    press("q")
+    pump(0.3)
+    # Cards changed while it was closed (a review, a sync): it opens on new
+    # cards and hears of the change at once, while their rows are on their
+    # way. Those answers are dropped, and the rows asked for again.
+    api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+    api.open(search="tag:Cardio::Anatomy")
+    check(wait_for(f"{POS} === '1 of 4' && !document.querySelector('.row.loading')", 4),
+          "opened on new cards after a change, their rows fill in")
     api.close()
     check(api._window is None, "closing the profile disposes of it")
     print("all passed")

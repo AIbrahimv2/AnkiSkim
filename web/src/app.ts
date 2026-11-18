@@ -91,6 +91,9 @@ export class App {
   /** The view's cards whose answers the list keeps back. */
   private hidden = new Set<number>();
   private rowsWanted = new Set<number>();
+  /** Rows asked for and not back yet. A new set when the cards change (see
+   *  retag), so they're asked for again at once: the answers on their way
+   *  are for the cards as they were, and are dropped. */
   private rowsInFlight = new Set<number>();
   private rowsQueued = false;
   private facets: Facets | null = null;
@@ -406,9 +409,12 @@ export class App {
    *  forgetting the ones kept for other views too. */
   private retag(): void {
     this.cache.clear();
+    this.rowsInFlight = new Set();
     this.list.refresh(true);
     this.facets = null;
-    this.loadFacets();
+    // A view whose first card isn't on screen yet gets its facets once it
+    // is (see FACETS_AFTER_MS): the cards changing doesn't hurry them.
+    if (this.facetsAfterCard === null) this.loadFacets();
     this.showPane();
   }
 
@@ -719,10 +725,14 @@ export class App {
       this.rowsWanted.clear();
       const gen = this.cache.gen;
       const asked = this.view.reading;
-      ids.forEach((c) => this.rowsInFlight.add(c));
+      const flight = this.rowsInFlight;
+      ids.forEach((c) => flight.add(c));
+      // Before anything asks again (below, for another reading).
+      const back = () => ids.forEach((c) => flight.delete(c));
       call<{ rows: Record<string, Row>; reading?: string }>("rows", { ids })
         .then((r) => {
-          if (this.cache.gen !== gen) return; // the cards changed meanwhile
+          back();
+          if (this.cache.gen !== gen) return; // the cards changed meanwhile: asked again already
           // Kept under what Python read them against, which a switch may
           // have changed since they were asked for.
           const reading = r.reading ?? asked;
@@ -735,7 +745,7 @@ export class App {
           this.showPane();
         })
         .catch(() => {})
-        .finally(() => ids.forEach((c) => this.rowsInFlight.delete(c)));
+        .finally(back);
     });
   }
 
