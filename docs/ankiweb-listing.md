@@ -70,5 +70,5 @@ Open it from **Tools → Skim** (Cmd/Ctrl+Shift+B). Press `?` in the window for 
 
 Source, changelog and issues: [github.com/AIbrahimv2/AnkiSkim](https://github.com/AIbrahimv2/AnkiSkim)
 
-<p><a href="https://abdelrahmanibrahim.com/anki/"><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiAddonKit/main/assets/signature.png" alt="AIbrahimv2's Anki add-ons" width="180"></a></p>
+<p><a href="https://abdelrahmanibrahim.com/anki/"><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiAddonKit/main/assets/signature.png" alt="AIbrahimv2's Anki add-ons" width="260"></a></p>
 ```
