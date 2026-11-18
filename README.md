@@ -11,6 +11,8 @@ It pairs with [Stepwise](https://github.com/AIbrahimv2/AnkiStepwise): press
 `b` on a topic there to see its cards here, and Skim follows as you move
 through topics.
 
+<img src="docs/screenshot.png" width="100%" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks, the other systems they come up in and a now or wait verdict, beside the card and where it's tagged">
+
 ## Features
 
 - **Instant moves.** While you read a card, Skim draws the next ones (and the
