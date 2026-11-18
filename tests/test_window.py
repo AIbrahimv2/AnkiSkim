@@ -75,7 +75,7 @@ def wait_for(expr: str, timeout: float = 20.0):
 
 def press(*keys: str) -> None:
     for k in keys:
-        js(f"window.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(k)}, bubbles: true}}))")
+        js(f"document.body.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(k)}, bubbles: true}}))")
 
 
 SHOWN = "(() => { const f = document.querySelector('.card-frame.on'); return f && f.contentWindow.skimCid; })()"
@@ -152,6 +152,7 @@ try:
     check(js(CAST).endswith("1 2"), f"a number waiting for its key stays up ({js(CAST)!r})")
     press("Escape")
     check(js(CAST).endswith("Esc") and wait_for(f"{CAST} === ''", 4), "until it's used or cancelled")
+    check(api.is_open(), "and the Esc that cancels it leaves Skim open (Anki's own Esc would close it)")
     press("k")  # card 3: the mitral note's forward card ("Valve between LA and LV?")
     press("h")
     wait_for(f"{SHOWN_TEXT} && !{SHOWN_TEXT}.includes('Mitral') && document.querySelector('.sides .active').textContent === 'Front'")
@@ -178,7 +179,7 @@ try:
     real_ops = skim_window.suspend_cards, skim_window.unsuspend_cards
     skim_window.suspend_cards = lambda parent, card_ids: Op("suspend", col.sched.suspend_cards, card_ids)
     skim_window.unsuspend_cards = lambda parent, card_ids: Op("unsuspend", col.sched.unsuspend_cards, card_ids)
-    CMD_J = "window.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', metaKey: true, bubbles: true}))"
+    CMD_J = "document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', metaKey: true, bubbles: true}))"
     STATES = "[...document.querySelectorAll('.row')].sort((a, b) => a.dataset.i - b.dataset.i).map(r => r.querySelector('.r-state').textContent).join(',')"
     press("g", "g", "v", "j")
     check(js(POS) == "2 of 4 · 2 selected", f"v, then j, selects two cards ({js(POS)})")
@@ -195,7 +196,7 @@ try:
     press("Escape")
     check(js(POS) == "2 of 4" and not js("document.querySelector('.row.sel')") and api.is_open(),
           "Esc ends the selection, and leaves Skim open")
-    js("window.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', shiftKey: true, bubbles: true}))")
+    js("document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', shiftKey: true, bubbles: true}))")
     check(js(POS) == "3 of 4 · 2 selected", "Shift+↓ selects too")
     press("j")
     check(js(POS) == "4 of 4", "and a move without Shift ends it")
@@ -362,7 +363,7 @@ try:
     real_switch = api._window.review_lens
     api._window.review_lens = lambda lens: (asked.append(lens), real_switch(lens))[1]
     # The key and a look at the page in one go, before Python can answer.
-    seen = json.loads(js("(() => { window.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
+    seen = json.loads(js("(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
                          "return JSON.stringify([document.querySelector('.lens.on').textContent, "
                          "document.querySelectorAll('.row.loading').length, "
                          "document.querySelectorAll('.row:not(.loading)').length, "
@@ -373,7 +374,7 @@ try:
                    f"/ of \\d/.test({POS})"), "then the view's rows and card")
     check(asked == ["session"], f"one request ({asked})")
     asked.clear()
-    seen = js("(() => { for (let i = 0; i < 3; i++) window.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
+    seen = js("(() => { for (let i = 0; i < 3; i++) document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'L', bubbles: true})); "
               "return document.querySelector('.lens.on').textContent; })()")
     check(seen.startswith("Edited"), f"three Ls in a row: the bar is on the third view straight away ({seen})")
     check(wait_for("!document.querySelector('.app.switching')") and api._window._view.extra.get("lens") == "edited"
@@ -427,8 +428,9 @@ try:
     check(not api.is_open(), "q closes Skim")
     api.open()
     check(wait_for(f"{POS} === '1 of 4'"), "and it reopens on what it showed")
-    press("q")
+    press("Escape")
     pump(0.3)
+    check(not api.is_open(), "Esc, with nothing to cancel, closes it too")
     # Cards changed while it was closed (a review, a sync): it opens on new
     # cards and hears of the change at once, while their rows are on their
     # way. Those answers are dropped, and the rows asked for again.

@@ -209,7 +209,10 @@ export class App {
     this.setListShare(boot.layout.share ?? LIST_SHARE);
     this.dragToResize(splitter, main);
     this.wireSearch();
-    window.addEventListener("keydown", (e) => this.onKey(e));
+    // On <html>, not the window: Anki listens on the document and closes
+    // the whole window on Esc, and a key reaches <html> first. A key Skim
+    // takes stops here (Esc ends a selection or a count before it closes).
+    document.documentElement.addEventListener("keydown", (e) => this.onKey(e));
     this.setView(boot.view, true);
   }
 
