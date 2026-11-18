@@ -32,6 +32,7 @@ All notable changes to this project are documented here. The format is based on
   a count (`j ×5`), and a number typed before a move until it's used.
 - Settings for the side shown first, playing audio by itself, the first
   search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in ⋯ → Settings….
+  ⌘S saves them (Ctrl+S on Windows and Linux).
 - On a Mac, ⌘, opens Skim's settings while its window is in front, instead
   of Anki's Preferences. Anywhere else it still opens Anki's.
 - **Laid out like Anki's browser:** the card table on the left, the card and
