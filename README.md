@@ -129,8 +129,11 @@ resources are pinned and what you've done.
 
 ## Installation
 
-Not on AnkiWeb yet. Run `./build.sh` and double-click the file it writes to
-`dist/`, or link `src/` into Anki's add-ons folder (below).
+From [AnkiWeb](https://ankiweb.net/shared/info/2141626960): in Anki, open
+**Tools → Add-ons → Get Add-ons** and paste the code `2141626960`. It needs
+Anki 24.04 or newer. Or download `skim.ankiaddon` from the
+[latest release](https://github.com/AIbrahimv2/AnkiSkim/releases/latest) and
+double-click it.
 
 ## Development
 

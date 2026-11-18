@@ -1,12 +1,11 @@
 # AnkiWeb listing
 
-What's in the AnkiWeb add-on form. Skim isn't on AnkiWeb yet: the first
-upload is a new add-on, at https://ankiweb.net/shared/upload. Once it has an
-ID, the listing is at `https://ankiweb.net/shared/info/<ID>`, edits go
-through `https://ankiweb.net/shared/upload?id=<ID>`, and this file is updated
-in the same session as any change there. After the first upload,
-`release.py --uploaded` (in the `anki-addon-release` skill) adds a "Package
-on AnkiWeb" section here with the version and date.
+What's in the AnkiWeb add-on form (https://ankiweb.net/shared/upload?id=2141626960).
+Keep this in step with the live listing
+(https://ankiweb.net/shared/info/2141626960); the release steps are in the
+`anki-addon-release` skill (see CLAUDE.md). Skim was first uploaded on
+2026-11-17 (AnkiWeb says 2026-11-18, in UTC), as a new add-on, which got
+the ID 2141626960.
 
 ## Title
 
@@ -43,14 +42,14 @@ with Stepwise's pinned resources. Rerun it after the window changes.
 
 Paste as is. AnkiWeb takes Markdown and basic HTML. It follows the layout in
 the `anki-addon-release` skill's listing conventions: what it does, the code
-line and the screenshot first, the signature last. The code line needs the
-ID, which AnkiWeb gives on the first save, so the first upload goes without
-it and a second save adds it.
+line and the screenshot first, the signature last. The first upload went
+without the code line, since AnkiWeb gives the ID on the first save, and a
+second save added it.
 
 ```markdown
 A card browser for Anki that keeps up with your keys, and helps you decide what to unsuspend. Search with Anki's own syntax, then move through the cards with vim keys. Each card looks the way it does when you review it, and the next ones are drawn before you get there, so moving is instant. On a topic, each suspended card says whether to unsuspend it now or wait for the system it mostly belongs to, and why.
 
-**Code: <ID>.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
+**Code: 2141626960.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
 <p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks, the other systems they come up in and a now or wait verdict, beside the card and where it's tagged" width="100%"></p>
 
