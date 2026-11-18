@@ -419,3 +419,11 @@ kbd {
 #root .set-input.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
 #root .set-input.num { width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
 .pct-field { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+
+/* --- with AnkiGlass's glass behind the window (kit/glass.css) ----------------- */
+
+/* A chosen chip's text, on its --text fill. */
+:root.kit-glass #root .chip.on { color: var(--solid); }
+/* The keys you press, over the rows: all but opaque, as nothing blurs on
+   the glass. */
+:root.kit-glass .keycast { background: var(--float); }

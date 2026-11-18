@@ -83,3 +83,8 @@ All notable changes to this project are documented here. The format is based on
 - **One notice after updates.** When any of AIbrahimv2's add-ons is updated, a
   card at the bottom of Anki's main window says so once, with a link to
   what's new.
+- **Liquid Glass with AnkiGlass.** On a Mac with AnkiGlass installed, Skim's
+  window and its Settings, What's new and About window get the same glass
+  as Anki's main window. The card is glass too, the way it is in review,
+  while AnkiGlass's **Glass behind the card** is on. **Glass on add-on
+  windows** in AnkiGlass's Settings turns it all off.

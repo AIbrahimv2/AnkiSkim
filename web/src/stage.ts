@@ -27,6 +27,9 @@ interface Frame {
   token: number;
 }
 
+/** This page, when AnkiGlass's glass is behind the window. */
+const glassWindow = window as Window & { kitGlassCard?: (w: Window) => void };
+
 /** A card and side, in the order they're wanted (the first shows). */
 export type Want = [cid: number, side: Side];
 
@@ -244,6 +247,10 @@ export class Stage {
     } catch (e) {
       console.error(e);
     }
+    // On AnkiGlass's glass, with "Glass behind the card" on, the card's own
+    // background goes, as in the reviewer: AnkiGlass puts kitGlassCard on
+    // this page (see the kit's glass.css).
+    glassWindow.kitGlassCard?.(win);
     // Draws are one at a time, so this one is done either way; it only
     // counts if nothing reset the frame meanwhile (see invalidate).
     f.drawing = false;

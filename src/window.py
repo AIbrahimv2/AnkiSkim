@@ -26,7 +26,7 @@ from aqt.theme import theme_manager
 from aqt.utils import disable_help_button, restoreGeom, saveGeom, setWindowIcon
 from aqt.webview import AnkiWebView
 
-from . import frame
+from . import frame, kit
 from .bridge import Bridge
 from .config import ADDON, get_config
 from .tags import Analyzer
@@ -80,6 +80,7 @@ class SkimWindow(QDialog):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(self.web)
+        kit.glass(self)  # AnkiGlass's glass behind the window, if it's there
 
         self._loaded = False
         self._dirty = False
