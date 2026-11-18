@@ -39,9 +39,14 @@ before each release.
 ## Screenshot
 
 `docs/screenshot.png`, made by `tools/screenshots.py` with the add-ons'
-shared screenshot tools: Skim's window on the B&B gluconeogenesis topic from
-the Default profile's collection (a copy), at a card it would unsuspend now,
-with Stepwise's pinned resources. Rerun it after the window changes.
+shared screenshot tools: Skim's window on the B&B Translation topic from the
+Default profile's collection (a copy), with Stepwise's pinned resources, at
+the tRNA card (a clover-leaf diagram, OpenStax, CC BY 4.0, credited on the
+card), which it says to unsuspend now. The window is 1180x930, taller than
+its default, so the diagram and its credit show whole. Chosen on 2026-11-17
+from the B&B cards with openly licensed images: most cards' large text
+pushes their picture out of the card pane, and many topics have no
+suspended cards left to show verdicts. Rerun it after the window changes.
 
 ## Description
 
@@ -56,7 +61,7 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 
 **Code: 2141626960.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
-<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks, the other systems they come up in and a now or wait verdict, beside the card and where it's tagged" width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks and verdicts, beside a card with a tRNA diagram that Skim says to unsuspend now, and where it's tagged" width="100%"></p>
 
 **Features**
 

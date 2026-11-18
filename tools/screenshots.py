@@ -3,9 +3,13 @@
 
     python3 tools/screenshots.py [--collection PATH] [--stepwise PATH] [--capture-wallpaper | --wallpaper PATH]
 
-Writes docs/screenshot.png: Skim's window at its default size, on a B&B
-topic (TOPIC) with its now/wait verdicts, at a card it would unsuspend now
-(CARD). The page comes from tools/devserver.py, run with Anki's own Python
+Writes docs/screenshot.png: Skim's window on a B&B topic (TOPIC) full of
+suspended cards and their verdicts, at one with a picture that Skim says to
+unsuspend now (CARD, found by its text): "tRNAs are the smallest RNAs and
+have a clover-leaf structure", a real AnKing card (note 1467927195193, so
+anyone's copy of the deck has it) whose diagram is OpenStax's, CC BY 4.0,
+credited on the card. The window is taller than its default 1180x780, so
+the diagram and its credit show whole. The page comes from tools/devserver.py, run with Anki's own Python
 (ANKI_PYTHON, or the launcher's) on a copy of a collection: the Default
 profile's unless --collection names another, with the media folder beside
 it. The collection itself is never touched. Verdicts follow Stepwise's
@@ -31,9 +35,9 @@ KIT = os.environ.get("ANKI_ADDON_KIT", os.path.join(os.path.dirname(ROOT), "anki
 sys.path.insert(0, os.path.join(KIT, "screenshots"))
 import shots  # noqa: E402
 
-SIZE = (1180, 780)  # the window's default size (src/window.py)
-TOPIC = "#AK_Step1_v12::#B&B::04_Biochem::02_Metabolism::03_Gluconeogenesis"
-CARD = 10  # its row: glucagon raising blood glucose, which Skim says to unsuspend now
+SIZE = (1180, 930)  # the default width (src/window.py), taller so the card's diagram shows whole
+TOPIC = "#AK_Step1_v12::#B&B::07_Cell_Bio::01_Molecular::05_Translation"
+CARD = "tRNAs are the smallest RNAs"  # its row's text
 STEPWISE = os.path.join(os.path.dirname(ROOT), "anki-stepwise", "src", "meta.json")
 SETUP = """(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -41,13 +45,15 @@ SETUP = """(async () => {
     e.children.length === 0 && /^\\d+ of \\d+$/.test(e.textContent.trim()));
   for (let i = 0; i < 100 && !counter(); i++) await sleep(100);
   if (!counter()) throw new Error('no card counter: did the page load?');
-  for (const key of [...String(%(card)d), 'G'])
-    document.documentElement.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
-  await sleep(600);
-  const at = counter().textContent.trim();
-  if (!at.startsWith('%(card)d of ')) throw new Error('not at card %(card)d: ' + at);
+  // Down the list with j until the current row is the card.
+  const here = () => (document.querySelector('.row.cur')?.textContent ?? '').includes(%(card)s);
+  for (let i = 0; i < 500 && !here(); i++) {
+    document.documentElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', bubbles: true}));
+    await sleep(40);
+  }
+  if (!here()) throw new Error('no row with ' + %(card)s);
   await sleep(2500);  // the keys pressed fade from the corner, and the card's frame settles
-  return at;
+  return counter().textContent.trim() + ': ' + document.querySelector('.row.cur').textContent;
 })()"""
 
 
@@ -71,7 +77,7 @@ def main() -> None:
         try:
             shots.wait_for(f"http://127.0.0.1:{port}/", timeout=90)
             s.capture([{"url": f"http://127.0.0.1:{port}/?theme=dark", "width": SIZE[0], "height": SIZE[1],
-                        "setup": SETUP % {"card": CARD}, "wait": 300, "out": "skim.png",
+                        "setup": SETUP % {"card": json.dumps(CARD)}, "wait": 300, "out": "skim.png",
                         "result": s.path("skim.json")}])
         finally:
             dev.terminate()
