@@ -47,8 +47,10 @@ through topics.
 - **Where this card lives.** Under the card, its tags grouped by resource: the
   one you're on first, then your pinned resources in Stepwise's order, each
   place with its Stepwise status. Places in other systems are marked with
-  theirs, so you can see where you'll meet the card again. Other resources and
-  AnKing's own tags fold into "Show more"; a card can have 60 of them.
+  theirs, so you can see where you'll meet the card again. Its other tags
+  (other resources, AnKing's own) follow, grouped the same way with readable
+  names, and fold into "Show more" only when they don't fit; a card can have
+  60 of them. The groups spread into columns when the pane is wide.
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.

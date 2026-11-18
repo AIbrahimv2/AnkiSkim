@@ -313,18 +313,25 @@ class Analyzer:
     def pane(self, facts: dict) -> dict:
         """The tags pane: the card's places grouped by resource, the one
         you're on first, then pinned ones in Stepwise's order; the rest
-        (other resources, AnKing's own tags) folded into `more`."""
+        (other resources, AnKing's own tags) in `more`, also by resource,
+        each tag as [path, tag]. Tags with no path inside a resource
+        (`leech`) share one group with no label, last."""
         groups: dict[str, dict] = {}
-        more: list[str] = []
+        more: dict[str, dict] = {}
         for t in facts["places"]:
             if t.kind in ("yield", "bank"):
                 continue
             shown = self.counts(t)
             if not shown:
-                more.append(t.tag)
+                if t.resource and t.path:
+                    o = more.setdefault(t.resource, {"label": pretty(t.label), "tags": []})
+                    o["tags"].append([" › ".join(pretty(s) for s in t.path), t.tag])
+                else:
+                    o = more.setdefault("", {"label": "", "tags": []})
+                    o["tags"].append([" › ".join(pretty(s) for s in t.tag.split(SEP)), t.tag])
                 continue
             g = groups.setdefault(t.resource, {
-                "label": t.label, "pinned": t.pin is not None,
+                "label": t.label.replace("_", " "), "pinned": t.pin is not None,
                 "here": t.resource in self.here_resources, "rank": t.pin, "topics": [],
             })
             g["here"] = g["here"] or t.here
@@ -338,18 +345,15 @@ class Analyzer:
                 "again": bool(t.unit in SYSTEMS and not t.here and t.unit not in self.here_units),
                 "extra": t.extra,
             })
-        # Step 1's B&B and Step 2's B&B: say which is which.
-        names = Counter(g["label"] for g in groups.values())
-        for key, g in groups.items():
-            if names[g["label"]] > 1 and SEP in key:
-                root = key.split(SEP)[0]
-                step = re.search(r"step_?(\d)", root)
-                g["label"] += f" (Step {step.group(1)})" if step else f" ({root.lstrip('#')})"
+        _tell_apart([*groups.items(), *more.items()])
         ordered = sorted(groups.values(), key=lambda g: (
             not g["here"], g["rank"] is None, g["rank"] if g["rank"] is not None else 0, g["label"].lower()))
         for g in ordered:
             g["topics"].sort(key=lambda x: (not x["here"], not x["again"], x["path"].lower()))
             del g["rank"]
+        others = sorted(more.values(), key=lambda o: (not o["label"], o["label"].lower()))
+        for o in others:
+            o["tags"].sort(key=lambda x: x[0].lower())
         level = facts["level"]
         return {
             "verdict": facts["verdict"],
@@ -357,8 +361,18 @@ class Analyzer:
             "yield": YIELD_LABELS.get(level) if level else None,
             "banks": sorted(facts["banks"].items(), key=lambda kv: -kv[1]),
             "groups": ordered,
-            "more": sorted(more, key=str.lower),
+            "more": others,
         }
+
+
+def _tell_apart(groups: list[tuple[str, dict]]) -> None:
+    """Step 1's B&B and Step 2's B&B: say which is which."""
+    names = Counter(g["label"] for _, g in groups)
+    for key, g in groups:
+        if names[g["label"]] > 1 and SEP in key:
+            root = key.split(SEP)[0]
+            step = re.search(r"step_?(\d)", root)
+            g["label"] += f" (Step {step.group(1)})" if step else f" ({pretty(root)})"
 
 
 def banks_text(banks: dict) -> str:

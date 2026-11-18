@@ -66,8 +66,9 @@ All notable changes to this project are documented here. The format is based on
   right) go through them, and the bar moves the moment you press them, with
   placeholder rows until the cards are in.
 - **Where this card lives:** its tags by resource, the one you're on and your
-  pinned ones first, with Stepwise's status and the other systems marked; the
-  rest folded away.
+  pinned ones first, with Stepwise's status and the other systems marked; then
+  its other tags, with readable names, folded away only when there are too
+  many to fit. They spread into columns when there's room.
 - **Settings, What's new and About share one window**, a tab each: Settings;
   What's new (this list of changes, with the ones since you last looked marked
   New); and About (links to the code and to report a problem, whether AnkiWeb

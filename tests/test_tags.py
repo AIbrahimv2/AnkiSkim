@@ -81,9 +81,21 @@ check(labels[1:] == ["B&B", "Bootcamp", "FirstAid", "^Systems"], f"then your pin
 bb = p["groups"][1]["topics"]
 check(bb[0]["again"] and bb[0]["unit"] in ("Endocrine", "Repro"), "a resource's places in other systems come first")
 check(any(t["extra"] and not t["again"] for t in bb), "Infectious Disease (Micro, as here) isn't an 'again', and shows Extra")
-check(any("Pixorize" in t for t in p["more"]) and any("AK_Other" in t for t in p["more"]),
-      "unpinned resources and AnKing's own tags fold into 'more'")
+others = {o["label"]: o["tags"] for o in p["more"]}
+check(list(others) == ["AK Other", "Pixorize"], f"unpinned resources and AnKing's own tags go in 'more', by resource ({list(others)})")
+check(others["Pixorize"] == [["Microbiology › Antifungals › Azoles", f"{S1}::#Pixorize::04_Microbiology::02_Antifungals::04_Azoles"]],
+      "each with a readable path and its tag")
 check(p["yield"] == "Lower" and p["banks"][0] == ("UWorld", 2), "the pane has its yield and banks")
+lone = an.pane(an.card(["#AK_Brand_Name_Drugs::Cardiology::Other", "leech"]))
+check(lone["groups"] == [] and lone["more"] == [
+    {"label": "AK Brand Name Drugs", "tags": [["Cardiology › Other", "#AK_Brand_Name_Drugs::Cardiology::Other"]]},
+    {"label": "", "tags": [["leech", "leech"]]},
+], f"a tag outside your resources, and one with no path, last ({lone['more']})")
+drugs = Analyzer(["#AK_Brand_Name_Drugs::Cardiology"], Plan(), 0.5)
+check(drugs.pane(drugs.card(["#AK_Brand_Name_Drugs::Cardiology::Other"]))["groups"][0]["label"] == "AK Brand Name Drugs",
+      "the one you're on reads without underscores too")
+two_more = an.pane(an.card(KETO + ["#AK_Step2_v12::#Pixorize::03_Micro::Azoles"]))["more"]
+check({"Pixorize (Step 1)", "Pixorize (Step 2)"} <= {o["label"] for o in two_more}, "other resources say which step too")
 
 print("statuses change it")
 done = Analyzer([TOPIC], Plan({f"{S1}::#B&B::09_Endocrinology": "completed", f"{S1}::#FirstAid::08_Endocrine": "completed",

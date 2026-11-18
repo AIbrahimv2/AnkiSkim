@@ -73,14 +73,22 @@ export interface PaneGroup {
   topics: PaneTopic[];
 }
 
+/** A resource the card is in that isn't one of yours, or AnKing's own tags.
+ * The label is "" for tags with no path (`leech`), which come last. */
+export interface PaneOther {
+  label: string;
+  /** [readable path, the tag] */
+  tags: [string, string][];
+}
+
 export interface Pane {
   verdict: Verdict | null;
   reason: string | null;
   yield: string | null;
   banks: [string, number][];
   groups: PaneGroup[];
-  /** Tags not worth showing up front (other resources, AnKing's own). */
-  more: string[];
+  /** Tags not worth showing first (other resources, AnKing's own). */
+  more: PaneOther[];
 }
 
 /** A list row (see cards.rows in Python). */
