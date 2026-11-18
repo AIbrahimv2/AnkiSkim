@@ -50,7 +50,7 @@ it and a second save adds it.
 ```markdown
 A card browser for Anki that keeps up with your keys, and helps you decide what to unsuspend. Search with Anki's own syntax, then move through the cards with vim keys. Each card looks the way it does when you review it, and the next ones are drawn before you get there, so moving is instant. On a topic, each suspended card says whether to unsuspend it now or wait for the system it mostly belongs to, and why.
 
-**Code: <ID>.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**. Needs Anki 24.04 or newer.
+**Code: <ID>.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
 <p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks, the other systems they come up in and a now or wait verdict, beside the card and where it's tagged" width="100%"></p>
 
