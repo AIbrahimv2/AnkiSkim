@@ -27,8 +27,11 @@ through topics.
   Space for the front and back, `/` to search. Arrow keys, Home and End work
   too.
 - **Laid out like Anki's browser.** A table of the cards on the left, the card
-  on the right, and where it lives under it. Drag the edge between them to
-  resize; click a row to jump there.
+  on the right, and where it lives under it. Drag the edge between the table
+  and the card, or between the card and its tags, to resize them
+  (double-click one to reset it). A narrow table drops the columns it has
+  least room for (Deck first, then Again in, Q-bank and Yield), so the card
+  can take most of the window. Click a row to jump there.
 - **Columns that help you decide.** The note's text with clozes filled in, its
   deck (for a card in a filtered deck, its home deck in brackets; hover for
   the full name), its state (new, learning, review, suspended, buried),
@@ -52,7 +55,8 @@ through topics.
   theirs, so you can see where you'll meet the card again. Its other tags
   (other resources, AnKing's own) follow, grouped the same way with readable
   names, and fold into "Show more" only when they don't fit; a card can have
-  60 of them. The groups spread into columns when the pane is wide.
+  60 of them. The groups spread into columns when the pane is wide. Click
+  its title, or press `i`, to hide it and give the card its room.
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
@@ -97,6 +101,7 @@ through topics.
 | `h` / `l` | Show the front / the back |
 | `Space` | Flip the card |
 | `J` / `K` | Scroll a long card down / up |
+| `i` | Hide or show the tags under the card |
 | `v` | Select cards as you move (`j`, `k`, `10j`, `G`, ...); `v` or `Esc` stops |
 | `Shift-↓` / `Shift-↑` | Select as you move, as in Anki's browser (Shift-click too) |
 | `Cmd-J` (`Ctrl-J`) | Suspend the selected cards, or the one you're on; unsuspend them if they all are |

@@ -22,8 +22,23 @@ import type { CardHtml, Facets, Layout, PageConfig, PushEvent, Row, Side, View }
 
 const SEARCH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
-/** The table's share of the width: three quarters, the card the rest. */
+/** The table's share of the width: three quarters, the card the rest.
+ *  Dragged, it stays in SHARE_RANGE (bridge.py's too), with the table at
+ *  least LIST_MIN wide (what its last columns need) and the card at least
+ *  SIDE_MIN (--list-min and --side-min in the stylesheet). */
 const LIST_SHARE = 0.72;
+const SHARE_RANGE = [0.2, 0.9] as const;
+const LIST_MIN = 440;
+const SIDE_MIN = 280;
+/** The card's share of the height beside the table, over its tags, and
+ *  how far a drag can take it (bridge.py's SPLIT_RANGE): the card at least
+ *  CARD_MIN high, the tags TAGS_MIN (the rows in the stylesheet's .side). */
+const CARD_SPLIT = 0.6;
+const SPLIT_RANGE = [0.15, 0.9] as const;
+const CARD_MIN = 140;
+const TAGS_MIN = 90;
+/** The splitters' thickness (.main's and .side's 12px tracks). */
+const GUTTER = 12;
 const FACET_SLICE = 3000;
 /** Facets (the filter counts) wait for a new view's first card: reading
  *  them keeps Python busy, which holds up the card's images. At most this
@@ -60,6 +75,8 @@ const SUSPEND_KEY = typeof navigator !== "undefined" && /Mac/.test(navigator.pla
 const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1, deck: 1 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
+const clamp = (x: number, low: number, high: number) => Math.max(low, Math.min(high, x));
+const pct = (share: number) => `${(share * 100).toFixed(1)}%`;
 const other = (s: Side): Side => (s === "answer" ? "question" : "answer");
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -119,6 +136,9 @@ export class App {
   private sort: SortKey = "order";
   private sortDir: 1 | -1 = 1;
   private listShare = LIST_SHARE;
+  private cardSplit = CARD_SPLIT;
+  private tagsOpen = true;
+  private sideEl: HTMLElement;
   private autoplayTimer = 0;
   private lastPlayed = "";
   private chrome!: ChromeApi;
@@ -178,14 +198,17 @@ export class App {
     this.chips = el("div", "chips");
     listPanel.append(this.lensBar, this.chips);
     const splitter = el("div", "splitter");
-    splitter.title = "Drag to resize";
+    splitter.title = "Drag to resize; double-click to reset";
     const right = el("div", "side");
+    this.sideEl = right;
     const cardPanel = el("section", "panel card-panel");
     const stageEl = el("div", "stage");
     this.message = el("div", "stage-msg");
     cardPanel.append(stageEl, this.message);
+    const rowSplitter = el("div", "row-splitter");
+    rowSplitter.title = "Drag to resize; double-click to reset";
     const tagsPanel = el("section", "panel tags-panel");
-    right.append(cardPanel, tagsPanel);
+    right.append(cardPanel, rowSplitter, tagsPanel);
     main.append(listPanel, splitter, right);
     this.hints = el("footer", "hints");
     this.chromeHost = el("div", "chrome");
@@ -199,7 +222,7 @@ export class App {
       sort: (key) => this.sortBy(key),
     });
     this.cast = new KeyCast(listPanel);
-    this.pane = new TagsPane(tagsPanel);
+    this.pane = new TagsPane(tagsPanel, () => this.toggleTags());
     this.stage = new Stage(stageEl, boot.frame, {
       fetch: (ids) => call<{ cards: Record<string, CardHtml | null> }>("cards", { ids }).then((r) => r.cards),
       onKey: (e) => this.onKey(e),
@@ -207,7 +230,9 @@ export class App {
     });
 
     this.setListShare(boot.layout.share ?? LIST_SHARE);
-    this.dragToResize(splitter, main);
+    this.setCardSplit(boot.layout.split ?? CARD_SPLIT);
+    this.setTagsOpen(boot.layout.tags ?? true);
+    this.wireSplitters(splitter, main, rowSplitter, right);
     this.wireSearch();
     // On <html>, not the window: Anki listens on the document and closes
     // the whole window on Esc, and a key reaches <html> first. A key Skim
@@ -719,6 +744,8 @@ export class App {
       case "help":
         this.chrome?.toggleHelp();
         return;
+      case "tags":
+        return this.toggleTags();
       case "cancel":
         return;
     }
@@ -855,27 +882,85 @@ export class App {
     });
   }
 
+  // --- layout ----------------------------------------------------------------
+
   /** The table's share of the width; it never gets narrower than its
-   *  columns need (--list-min in the stylesheet), whatever the share. */
+   *  last columns need (--list-min in the stylesheet), whatever the share. */
   private setListShare(share: number): void {
-    this.listShare = Math.max(0.4, Math.min(0.9, share || LIST_SHARE));
-    document.documentElement.style.setProperty("--list-share", `${(this.listShare * 100).toFixed(1)}%`);
+    this.listShare = clamp(share || LIST_SHARE, ...SHARE_RANGE);
+    document.documentElement.style.setProperty("--list-share", pct(this.listShare));
   }
 
-  private dragToResize(splitter: HTMLElement, main: HTMLElement): void {
-    splitter.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      splitter.setPointerCapture(e.pointerId);
+  /** The card's share of the height beside the table; the tags get the rest. */
+  private setCardSplit(split: number): void {
+    this.cardSplit = clamp(split || CARD_SPLIT, ...SPLIT_RANGE);
+    document.documentElement.style.setProperty("--card-split", pct(this.cardSplit));
+  }
+
+  /** Fold the tags pane to its title (the card takes its room), or open it. */
+  private setTagsOpen(open: boolean): void {
+    this.tagsOpen = open;
+    this.sideEl.classList.toggle("tags-closed", !open);
+    this.pane.setOpen(open);
+  }
+
+  private toggleTags(): void {
+    this.setTagsOpen(!this.tagsOpen);
+    void call("layout", { tags: this.tagsOpen });
+  }
+
+  /** Drag the edge between the table and the card to resize them, and the
+   *  one between the card and its tags; double-click one to put it back. */
+  private wireSplitters(cols: HTMLElement, main: HTMLElement, rows: HTMLElement, side: HTMLElement): void {
+    this.dragSplitter(cols, "drag-cols", () => {
       const box = main.getBoundingClientRect();
       const inner = box.width - 32; // .main's side padding
-      const move = (ev: PointerEvent) => this.setListShare((ev.clientX - box.left - 16 - 6) / inner);
+      const low = LIST_MIN / inner;
+      const high = (inner - GUTTER - SIDE_MIN) / inner;
+      return (e) => this.setListShare(clamp((e.clientX - box.left - 16 - GUTTER / 2) / inner, low, high));
+    }, () => {
+      this.setListShare(LIST_SHARE);
+    }, () => void call("layout", { share: this.listShare }));
+    this.dragSplitter(rows, "drag-rows", () => {
+      const box = side.getBoundingClientRect();
+      const low = CARD_MIN / box.height;
+      const high = (box.height - GUTTER - TAGS_MIN) / box.height;
+      return (e) => this.setCardSplit(clamp((e.clientY - box.top - GUTTER / 2) / box.height, low, high));
+    }, () => {
+      this.setCardSplit(CARD_SPLIT);
+    }, () => void call("layout", { split: this.cardSplit }));
+  }
+
+  /** `start` reads the layout when a drag starts and returns what each move
+   *  does; `reset` is for a double-click; `save` runs when either is done. */
+  private dragSplitter(
+    handle: HTMLElement,
+    cls: string,
+    start: () => (e: PointerEvent) => void,
+    reset: () => void,
+    save: () => void,
+  ): void {
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      // The card frames would take the pointer as it crosses them.
+      this.appEl.classList.add("dragging", cls);
+      const move = start();
       const up = () => {
-        splitter.removeEventListener("pointermove", move);
-        splitter.removeEventListener("pointerup", up);
-        void call("layout", { share: this.listShare });
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", up);
+        handle.removeEventListener("pointercancel", up);
+        this.appEl.classList.remove("dragging", cls);
+        save();
       };
-      splitter.addEventListener("pointermove", move);
-      splitter.addEventListener("pointerup", up);
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", up);
+      handle.addEventListener("pointercancel", up);
+    });
+    handle.addEventListener("dblclick", () => {
+      reset();
+      save();
     });
   }
 

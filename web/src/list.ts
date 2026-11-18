@@ -42,6 +42,30 @@ const HEADS: [label: string, key: SortKey | null, title: string][] = [
   ["Verdict", "verdict", "Unsuspend now, or wait for the system it mostly belongs to"],
 ];
 
+/** The columns' widths, in HEADS' order; Card and Deck share what the
+ *  fixed ones leave, Deck a third as much. `min` is the least each needs. */
+type ColKey = "num" | "text" | "deck" | "state" | "yield" | "bank" | "again" | "verdict";
+const COLS: [key: ColKey, track: string, min: number][] = [
+  ["num", "34px", 34],
+  ["text", "minmax(200px, 1fr)", 200],
+  ["deck", "minmax(72px, 0.35fr)", 72],
+  ["state", "74px", 74],
+  ["yield", "74px", 74],
+  ["bank", "112px", 112],
+  ["again", "150px", 150],
+  ["verdict", "66px", 66],
+];
+/** Without a Verdict column, Again in gets its room. */
+const AGAIN_WIDE = 224;
+/** The columns a narrow table gives up, first to last, so the card beside
+ *  it can be wider: the tags pane under the card shows all but Deck, and
+ *  Deck is mostly the same for every card. #, Card, State and Verdict stay
+ *  (--list-min in the stylesheet is what they need). */
+const DROP: ColKey[] = ["deck", "again", "bank", "yield"];
+/** Space between columns, and a row's padding and flag edge (.row). */
+const COL_GAP = 8;
+const ROW_PAD = 19;
+
 export interface ListOptions {
   row(cid: number): Row | undefined;
   /** Rows the list is about to show and doesn't have yet. */
@@ -80,6 +104,9 @@ export class CardList {
   private againWidth = 0;
   private chipWidths = new Map<string, number>();
   private measureBox: HTMLDivElement;
+  /** The columns the table is too narrow for (see fitColumns). */
+  private cut = new Set<ColKey>();
+  private tracks = "";
 
   constructor(host: HTMLElement, opts: ListOptions) {
     this.opts = opts;
@@ -113,6 +140,7 @@ export class CardList {
     host.append(this.head, this.scroller, this.measureBox);
     this.scroller.addEventListener("scroll", () => this.schedule(), { passive: true });
     new ResizeObserver(() => {
+      this.fitColumns();
       this.refit();
       this.render();
     }).observe(this.scroller);
@@ -138,7 +166,34 @@ export class CardList {
   setVerdicts(show: boolean): void {
     if (this.host.classList.contains("no-verdict") !== show) return;
     this.host.classList.toggle("no-verdict", !show);
+    this.fitColumns();
     this.refit();
+  }
+
+  /** As many columns as the table is wide enough for: the ones in DROP
+   *  go, first to last, until the rest fit. Runs when the table's width
+   *  changes, not as you move. */
+  private fitColumns(): void {
+    const room = this.scroller.clientWidth;
+    if (!room) return; // the page is hidden, or the table is
+    const verdict = !this.host.classList.contains("no-verdict");
+    let cols = COLS.filter(([key]) => verdict || key !== "verdict");
+    const width = (key: ColKey, min: number) => (key === "again" && !verdict ? AGAIN_WIDE : min);
+    const need = () => cols.reduce((s, [key, , min]) => s + width(key, min), 0) + COL_GAP * (cols.length - 1) + ROW_PAD;
+    const cut = new Set<ColKey>();
+    for (const key of DROP) {
+      if (need() <= room) break;
+      cols = cols.filter(([k]) => k !== key);
+      cut.add(key);
+    }
+    const tracks = cols.map(([key, track]) => (key === "again" && !verdict ? `${AGAIN_WIDE}px` : track)).join(" ");
+    if (tracks === this.tracks) return;
+    this.tracks = tracks;
+    this.host.style.setProperty("--cols", tracks);
+    // Again in's chips aren't drawn while it's gone; refit, after this,
+    // draws them when it comes back (its width changes).
+    this.cut = cut;
+    for (const key of DROP) this.host.classList.toggle(`cut-${key}`, cut.has(key));
   }
 
   /** Again in changed width (the Verdict column came or went, or the
@@ -329,7 +384,7 @@ export class CardList {
     yld.className = `r-yield${row.y === "High" ? " high" : ""}`;
     bank.textContent = row.b ?? "";
     bank.title = row.b ?? "";
-    again.replaceChildren(...this.fitChips(row.a ?? []));
+    again.replaceChildren(...(this.cut.has("again") ? [] : this.fitChips(row.a ?? [])));
     verdict.textContent = row.v ? VERDICTS[row.v] : "";
     verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
     verdict.title = row.r ?? "";

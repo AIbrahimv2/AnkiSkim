@@ -132,3 +132,10 @@ test("Cmd+J (Ctrl+J) suspends or unsuspends, as in Anki's browser", () => {
   assert.deepEqual(k.feed(press("j", { ctrlKey: true })), { kind: "suspend" });
   assert.deepEqual(k.feed(press("\x0a", { ctrlKey: true })), { kind: "suspend" }); // Control+J as a control character
 });
+
+test("i folds the tags pane, or opens it", () => {
+  const k = new Keys();
+  assert.deepEqual(type(k, "i"), { kind: "tags" });
+  assert.deepEqual(type(k, "3i"), { kind: "tags" }); // a number before it is dropped
+  assert.equal(k.typed, "");
+});

@@ -121,6 +121,7 @@ const KEYS: [string[], string][] = [
   [["h", "l"], "Show the front / the back"],
   [["Space"], "Flip the card"],
   [["J", "K"], "Scroll a long card down / up"],
+  [["i"], "Hide or show the tags under the card"],
   [["v"], "Select cards as you move (j, k, 10j, G, ...); v or Esc stops"],
   [["Shift-↓", "Shift-↑"], "Select as you move, as in Anki's browser (Shift-click too)"],
   [[SUSPEND], "Suspend the selected cards, or the one you're on; unsuspend them if they all are"],

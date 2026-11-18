@@ -41,6 +41,14 @@ class Host:
     def settings_saved(self, cfg, changed):
         self.saved.append(changed)
 
+    saved_layout: dict = {}
+
+    def layout(self):
+        return self.saved_layout
+
+    def save_layout(self, layout):
+        self.saved_layout = layout
+
 
 host = Host()
 b = Bridge(host)
@@ -61,6 +69,14 @@ check(part["ids"] == [cardio["ids"][3], cardio["ids"][1]] and len(part["facets"]
 check(part["reading"] == cardio["reading"] == "Cardio", "named for what they were read against")
 check(call("facets", seq=cardio["seq"] - 1, ids=ALL).get("stale"), "and not for a view that's gone")
 check(call("rows", ids=ALL[:1])["reading"] == "Cardio", "rows say their reading too")
+
+print("layout")
+call("layout", share=0.3)
+check(host.saved_layout == {"share": 0.3}, "the table's width is saved")
+call("layout", split=0.45678, tags=False)
+check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "the card's height and the tags pane join it")
+call("layout", share=0.05, split=True, tags="no")
+check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "out of range or the wrong type: kept as it was")
 
 print("settings")
 got = call("settings")

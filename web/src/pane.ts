@@ -4,11 +4,14 @@
 // marked: that's where you'll meet the card again. Its other tags follow,
 // also by resource, and fold into "Show more" only when they'd push the
 // pane past its height. The groups flow into columns as the pane widens.
+// Its title folds the pane away (i too), so the card gets its room.
 // Plain DOM, drawn from the row the page already has.
 
 import type { Pane, Status } from "./types.ts";
 
 const VERDICT_WORD: Record<string, string> = { now: "Unsuspend now", call: "Your call", wait: "Could wait" };
+const CHEVRON =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "later" };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -27,18 +30,34 @@ function tags(n: number): string {
 }
 
 export class TagsPane {
+  private host: HTMLElement;
+  private head: HTMLDivElement;
   private body: HTMLDivElement;
   private count: HTMLSpanElement;
   private showMore = false;
   private shown: Pane | null = null;
   private total = 0;
   private size = "";
+  /** Folded to its title: the pane isn't drawn until it opens again. */
+  private open = true;
 
-  constructor(host: HTMLElement) {
+  /** `toggle`: the title was clicked (the page folds or opens the pane,
+   *  and remembers it). */
+  constructor(host: HTMLElement, toggle: () => void) {
+    this.host = host;
     const head = el("div", "tp-head");
+    this.head = head;
+    head.title = "Hide the tags (i)";
     head.append(el("span", "tp-title", "Where this card lives"));
     this.count = el("span", "tp-count");
-    head.append(this.count);
+    const chevron = el("span", "tp-chev");
+    chevron.innerHTML = CHEVRON;
+    head.append(this.count, chevron);
+    head.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); // keep the keys on the page
+      toggle();
+    });
     this.body = el("div", "tp-body");
     host.append(head, this.body);
     // Whether the other tags fit depends on the pane's size: look again
@@ -62,11 +81,22 @@ export class TagsPane {
     this.draw();
   }
 
+  /** Fold the pane to its title, or open it again. */
+  setOpen(open: boolean): void {
+    if (open === this.open) return;
+    this.open = open;
+    this.host.classList.toggle("closed", !open);
+    this.head.title = open ? "Hide the tags (i)" : "Show the tags (i)";
+    if (open) this.draw();
+  }
+
   private draw(): void {
     const p = this.shown;
+    this.count.textContent = p && this.total ? tags(this.total) : "";
+    // Folded, only the count shows: the rest is drawn when it opens.
+    if (!this.open) return;
     this.body.replaceChildren();
     this.body.scrollTop = 0;
-    this.count.textContent = p && this.total ? tags(this.total) : "";
     if (!p) {
       this.body.append(el("div", "tp-empty", "No tags."));
       return;

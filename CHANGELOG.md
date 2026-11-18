@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Make the card bigger or the list bigger: drag the edge between them much
+  further either way. As the list narrows it drops the Deck column first,
+  then Again in, Q-bank and Yield, so the card can take most of the window.
+- Drag the edge between the card and its tags to give either one more
+  height.
+- Hide the tags under the card, so the card gets their room: click "Where
+  this card lives", or press `i`. Click it or press `i` again to bring them
+  back.
+- Skim remembers these sizes, and whether the tags are hidden. Double-click
+  an edge to put it back where it started.
+
 ### Fixed
 
 - About checks AnkiWeb for updates to Skim, now that it's there.

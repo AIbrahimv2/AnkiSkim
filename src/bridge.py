@@ -28,6 +28,10 @@ MAX_BATCH = 400
 MAX_FACETS = 5000
 # A selection can run to the end of a big view (v, then G).
 MAX_SELECTED = 100_000
+# The layout the page may save (app.ts keeps to the same ranges): the
+# table's share of the width, and the card's share of the height.
+SHARE_RANGE = (0.2, 0.9)
+SPLIT_RANGE = (0.15, 0.9)
 
 
 def settings_of(cfg: dict) -> dict:
@@ -152,9 +156,17 @@ class Bridge:
         return {"view": view} if view else {}
 
     def cmd_layout(self, msg: dict) -> dict:
-        share = msg.get("share")
-        if isinstance(share, (int, float)) and 0.4 <= share <= 0.9:
-            self.host.save_layout({"share": round(float(share), 3)})
+        """The window's layout, as you leave it: the table's share of the
+        width, the card's share of the height beside it, and whether the
+        tags pane is open. A call can carry any of them; the rest are kept."""
+        layout = dict(self.host.layout())
+        for key, low, high in (("share", *SHARE_RANGE), ("split", *SPLIT_RANGE)):
+            v = msg.get(key)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and low <= v <= high:
+                layout[key] = round(float(v), 3)
+        if isinstance(msg.get("tags"), bool):
+            layout["tags"] = msg["tags"]
+        self.host.save_layout(layout)
         return {}
 
     # --- settings ----------------------------------------------------------

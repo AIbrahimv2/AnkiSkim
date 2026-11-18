@@ -19,6 +19,7 @@ export type Command =
   | { kind: "visual" } // v: select cards as you move, or stop
   | { kind: "suspend" } // Cmd+J (Ctrl+J): suspend or unsuspend, as in Anki's browser
   | { kind: "help" }
+  | { kind: "tags" } // i: fold the tags pane under the card, or open it
   | { kind: "filter"; by: 1 | -1 } // f/F: next / previous filter
   | { kind: "lens"; by: 1 | -1 } // t/T, L/H: a review's next / previous view
   | { kind: "cancel" };
@@ -166,6 +167,8 @@ export class Keys {
         return { kind: "close" };
       case "?":
         return { kind: "help" };
+      case "i":
+        return { kind: "tags" };
       case "f":
         return { kind: "filter", by: 1 };
       case "F":

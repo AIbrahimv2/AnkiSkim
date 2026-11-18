@@ -44,8 +44,12 @@ export interface PageConfig {
 }
 
 export interface Layout {
-  /** The table's share of the window's width (0.4 to 0.9). */
+  /** The table's share of the window's width (0.2 to 0.9). */
   share?: number;
+  /** The card's share of the height beside the table, over its tags (0.15 to 0.9). */
+  split?: number;
+  /** Whether the tags pane is open (false: folded to its title). */
+  tags?: boolean;
 }
 
 export type Verdict = "now" | "call" | "wait";
