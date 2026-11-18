@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- About checks AnkiWeb for updates to Skim, now that it's there.
+
 ## [1.0.0] - 2026-11-17
 
 ### Added
