@@ -609,7 +609,16 @@ export class App {
     this.relist(this.shown[this.cursor] ?? null);
   }
 
+  /** The Verdict column only where a card can have one: on a topic, with
+   *  a suspended card (a review's cards and the Today views have none).
+   *  It stays as it was while the counts are on their way. */
+  private showVerdicts(): void {
+    if (!this.view.topics.length) this.list.setVerdicts(false);
+    else if (this.facets && this.wantLens === null) this.list.setVerdicts(this.facets.verdict.some((v) => v > 0));
+  }
+
   private renderChips(): void {
+    this.showVerdicts();
     const f = this.facets;
     const n = this.view.ids.length;
     const filters = this.filters();

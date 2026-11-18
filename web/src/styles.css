@@ -187,6 +187,10 @@ html, body {
 .list-head .sorted[data-dir="up"]::after { content: " ↑"; }
 .list-head .sorted[data-dir="down"]::after { content: " ↓"; }
 .list-head span:first-child { text-align: right; }
+/* No card in the view can have a verdict (no topic, or none suspended):
+   the column goes, and Again in gets its room. */
+.no-verdict { --cols: 34px minmax(200px, 1fr) minmax(72px, 0.35fr) 74px 74px 112px 224px; }
+.no-verdict [data-sort="verdict"], .no-verdict .r-verdict { display: none; }
 .list-scroll { flex: 1; overflow-y: auto; position: relative; scrollbar-width: thin; }
 .list-sizer { position: relative; }
 .row {
@@ -261,6 +265,10 @@ html, body {
 .ag.s-completed { background: var(--d-soft); border-color: transparent; color: var(--d); }
 .ag.s-queued { background: var(--q-soft); border-color: transparent; color: var(--q); }
 .ag.s-later { background: var(--l-soft); border-color: transparent; color: var(--l); }
+/* The ones that don't fit: hover it for the rest. */
+.ag.more { background: none; color: var(--text-3); cursor: help; }
+/* Where list.ts measures chips (fitChips), out of sight. */
+.measure { position: absolute; display: flex; visibility: hidden; pointer-events: none; white-space: nowrap; }
 
 /* A number typed before a move, shown until it's used. */
 /* The keys you press (keycast.ts), over the table's corner: a frosted pill

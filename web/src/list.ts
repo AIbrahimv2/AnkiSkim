@@ -23,6 +23,11 @@ const STATES: Record<number, [label: string, cls: string]> = {
 };
 const VERDICTS: Record<string, string> = { now: "Now", call: "Your call", wait: "Wait" };
 const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "saved for later" };
+/** Again in's chips, the systems a card will wait for first. */
+const STATUS_ORDER: Record<string, number> = { none: 0, later: 1, queued: 2, completed: 3 };
+/** Space between chips (.r-again's gap). */
+const CHIP_GAP = 3;
+type Again = [unit: string, status: Status, part: number | null];
 
 /** Columns you can sort by (the facets the page has for every card). */
 export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict" | "deck";
@@ -67,15 +72,29 @@ export class CardList {
   /** The selected rows, first and last (inclusive). */
   private range: [number, number] | null = null;
   private opts: ListOptions;
+  private host: HTMLElement;
+  /** Again in's heading, its width (0 until read) and the width of each
+   *  chip by its text, so a row's chips are fitted without reading its
+   *  layout (see fitChips). */
+  private againHead!: HTMLSpanElement;
+  private againWidth = 0;
+  private chipWidths = new Map<string, number>();
+  private measureBox: HTMLDivElement;
 
   constructor(host: HTMLElement, opts: ListOptions) {
     this.opts = opts;
+    this.host = host;
+    // No Verdict column until the page knows a card here can have one.
+    host.classList.add("no-verdict");
+    this.measureBox = document.createElement("div");
+    this.measureBox.className = "measure";
     this.head = document.createElement("div");
     this.head.className = "list-head";
     for (const [label, key, title] of HEADS) {
       const h = document.createElement("span");
       h.textContent = label;
       h.title = title;
+      if (key === "later") this.againHead = h;
       if (key) {
         h.className = "sortable";
         h.dataset.sort = key;
@@ -91,9 +110,12 @@ export class CardList {
     this.sizer = document.createElement("div");
     this.sizer.className = "list-sizer";
     this.scroller.append(this.sizer);
-    host.append(this.head, this.scroller);
+    host.append(this.head, this.scroller, this.measureBox);
     this.scroller.addEventListener("scroll", () => this.schedule(), { passive: true });
-    new ResizeObserver(() => this.render()).observe(this.scroller);
+    new ResizeObserver(() => {
+      this.refit();
+      this.render();
+    }).observe(this.scroller);
     this.scroller.addEventListener("mousedown", (e) => {
       const el = (e.target as HTMLElement).closest<HTMLElement>(".row");
       if (el) {
@@ -110,6 +132,57 @@ export class CardList {
   /** Rows that fit on screen. */
   pageRows(): number {
     return Math.max(1, Math.floor(this.scroller.clientHeight / ROW_H));
+  }
+
+  /** Show the Verdict column, or give its room to Again in. */
+  setVerdicts(show: boolean): void {
+    if (this.host.classList.contains("no-verdict") !== show) return;
+    this.host.classList.toggle("no-verdict", !show);
+    this.refit();
+  }
+
+  /** Again in changed width (the Verdict column came or went, or the
+   *  page was shown): fit the rows' chips again. */
+  private refit(): void {
+    const w = this.againHead.clientWidth;
+    if (w === this.againWidth) return;
+    this.againWidth = w;
+    for (const r of this.live.values()) if (r.filled) this.fill(r);
+  }
+
+  /** A chip's width, measured once for each text. */
+  private chipWidth(cls: string, text: string): number {
+    const key = `${cls}|${text}`;
+    let w = this.chipWidths.get(key);
+    if (w === undefined) {
+      const c = document.createElement("span");
+      c.className = cls;
+      c.textContent = text;
+      this.measureBox.append(c);
+      w = c.getBoundingClientRect().width;
+      c.remove();
+      if (w) this.chipWidths.set(key, w); // 0 while the page is hidden
+    }
+    return w;
+  }
+
+  /** The systems a card is also in, the ones you haven't done first, as
+   *  many whole chips as fit; the rest go in a "+N" that names them. */
+  private fitChips(again: Again[]): HTMLSpanElement[] {
+    const sorted = [...again].sort((x, y) => STATUS_ORDER[x[1] ?? "none"] - STATUS_ORDER[y[1] ?? "none"]);
+    const chips = sorted.map(([unit, status, part]) => chip(unit, status, part));
+    const room = this.againWidth || (this.againWidth = this.againHead.clientWidth);
+    if (!room) return chips;
+    const widths = sorted.map(([unit]) => this.chipWidth("ag", unit));
+    const span = (n: number) => widths.slice(0, n).reduce((s, w) => s + w + CHIP_GAP, -CHIP_GAP);
+    if (span(chips.length) <= room) return chips;
+    let n = chips.length - 1;
+    while (n > 0 && span(n) + CHIP_GAP + this.chipWidth("ag more", `+${chips.length - n}`) > room) n--;
+    const more = document.createElement("span");
+    more.className = "ag more";
+    more.textContent = `+${chips.length - n}`;
+    more.title = chips.slice(n).map((c) => c.title).join("\n");
+    return [...chips.slice(0, n), more];
   }
 
   /** Show which column the list is sorted by. */
@@ -256,7 +329,7 @@ export class CardList {
     yld.className = `r-yield${row.y === "High" ? " high" : ""}`;
     bank.textContent = row.b ?? "";
     bank.title = row.b ?? "";
-    again.replaceChildren(...(row.a ?? []).map(([unit, status, part]) => chip(unit, status, part)));
+    again.replaceChildren(...this.fitChips(row.a ?? []));
     verdict.textContent = row.v ? VERDICTS[row.v] : "";
     verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
     verdict.title = row.r ?? "";

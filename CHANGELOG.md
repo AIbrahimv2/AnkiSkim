@@ -38,7 +38,11 @@ All notable changes to this project are documented here. The format is based on
   where it lives on the right.
 - **Columns to decide by:** state, AnKing yield, question banks (UWorld,
   AMBOSS, NBME), the other systems a card comes up in ("Again in", coloured by
-  your Stepwise progress) and a verdict. Click a column to sort by it.
+  your Stepwise progress) and a verdict. Click a column to sort by it. The
+  Verdict column shows only on a topic with suspended cards; elsewhere,
+  Again in gets its room. Again in lists the systems you haven't done
+  first, and any that don't fit go in a "+2" that names them when you
+  hover it.
 - **Now or wait.** On a topic, each suspended card says whether to unsuspend
   it now or wait for the system it mostly belongs to, and why ("43% here;
   comes up again in Endocrine, Repro"), from where it's tagged in your pinned
