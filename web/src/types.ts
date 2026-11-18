@@ -146,4 +146,5 @@ export type PushEvent =
   | { type: "lenses"; seq: number; lenses: Lens[] }
   | { type: "shown"; back: string | null }
   | { type: "hidden" }
-  | { type: "settings" };
+  /** Settings were saved, in the kit's window. */
+  | { type: "config"; config: PageConfig };

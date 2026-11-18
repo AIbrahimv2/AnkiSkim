@@ -18,7 +18,6 @@ async function start() {
   const a = new App(root, boot);
   const chrome = mountChrome(a.chromeHost, {
     slot: a.actionsSlot,
-    onConfig: (config) => a.setConfig(config),
     onEdit: () => {
       const cid = a.cardId();
       if (cid) void call("edit", { cid });

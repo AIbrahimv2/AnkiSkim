@@ -31,7 +31,9 @@ All notable changes to this project are documented here. The format is based on
   pressed: a short trail of quick presses (`1 0 j`), a key pressed again with
   a count (`j ×5`), and a number typed before a move until it's used.
 - Settings for the side shown first, playing audio by itself, the first
-  search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in the window.
+  search and the keyboard shortcut (Cmd/Ctrl+Shift+B), in ⋯ → Settings….
+- On a Mac, ⌘, opens Skim's settings while its window is in front, instead
+  of Anki's Preferences. Anywhere else it still opens Anki's.
 - **Laid out like Anki's browser:** the card table on the left, the card and
   where it lives on the right.
 - **Columns to decide by:** state, AnKing yield, question banks (UWorld,
@@ -66,12 +68,13 @@ All notable changes to this project are documented here. The format is based on
 - **Where this card lives:** its tags by resource, the one you're on and your
   pinned ones first, with Stepwise's status and the other systems marked; the
   rest folded away.
-- **What's new and About, beside Settings.** Settings now share a window with
+- **Settings, What's new and About share one window**, a tab each: Settings;
   What's new (this list of changes, with the ones since you last looked marked
-  New) and About (links to the code and to report a problem, whether AnkiWeb
-  has an update, and AIbrahimv2's other Anki add-ons, with an Install button).
-  Open them from ⋯ → What's new or About. A dot on ⋯ says there's an update
-  you haven't read about.
+  New); and About (links to the code and to report a problem, whether AnkiWeb
+  has an update, AIbrahimv2's other Anki add-ons with an Install button, and a
+  signature that opens AIbrahimv2's website).
+  Open them from ⋯ → Settings…, What's new or About. A dot on ⋯ says there's
+  an update you haven't read about.
 - **One notice after updates.** When any of AIbrahimv2's add-ons is updated, a
   card at the bottom of Anki's main window says so once, with a link to
   what's new.

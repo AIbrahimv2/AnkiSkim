@@ -251,8 +251,8 @@ export class App {
         this.view = { ...this.view, back: e.back };
         this.renderChrome();
         break;
-      case "settings":
-        this.chrome?.openSettings();
+      case "config":
+        this.setConfig(e.config);
         break;
     }
   }

@@ -40,6 +40,7 @@ from aqt import mw
 from anki.utils import ids2str
 from aqt.qt import QAction, QApplication, QKeySequence, QTimer
 
+from . import kit
 from .tags import Context
 from .window import SkimWindow
 
@@ -410,10 +411,15 @@ def set_shortcut(shortcut: str) -> None:
         _action.setShortcut(QKeySequence(shortcut) if shortcut else QKeySequence())
 
 
+def window() -> SkimWindow | None:
+    """The Skim window, if it's been made (shown or not)."""
+    return _window
+
+
 def open_settings() -> None:
-    open()
-    if _window is not None:
-        _window.push({"type": "settings"})
+    """Anki's Config button, ⋯ → Settings… and ⌘, (from the Skim window):
+    Settings, a tab of the add-on kit's window (settings_page.py)."""
+    kit.open_page("skim", "settings")
 
 
 def on_operation(changes, handler) -> None:

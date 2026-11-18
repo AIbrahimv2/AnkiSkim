@@ -13,7 +13,7 @@ from __future__ import annotations
 from aqt import gui_hooks, mw
 from aqt.qt import QAction, QKeySequence, QTimer, qconnect
 
-from . import api, kit
+from . import api, kit, settings_page
 from .config import ADDON, get_config
 
 
@@ -43,6 +43,6 @@ mw.addonManager.setConfigAction(ADDON, api.open_settings)
 mw.addonManager.setWebExports(ADDON, r"web/.*\.(js|css)")
 # For other add-ons (Stepwise): see api.py.
 mw.skim = api
-# The add-on kit shared with AIbrahimv2's other add-ons (src/kit/): What's
-# new and About beside Settings, and one notice after updates.
-kit.register("skim", open_settings=api.open_settings)
+# The add-on kit shared with AIbrahimv2's other add-ons (src/kit/): one window
+# for Settings, What's new and About, and one notice after updates.
+kit.register("skim", open_settings=api.open_settings, settings_page=settings_page.PAGE)

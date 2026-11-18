@@ -21,13 +21,25 @@ import json
 import traceback
 
 from . import cards, kit
-from .config import check_settings, get_config, update_config
+from .config import DEFAULTS, check_settings, get_config, update_config
 
 MAX_BATCH = 400
 # Facets are a few numbers a card: the page asks for a few thousand at once.
 MAX_FACETS = 5000
 # A selection can run to the end of a big view (v, then G).
 MAX_SELECTED = 100_000
+
+
+def settings_of(cfg: dict) -> dict:
+    """What Settings (a tab of the kit's window, settings_page.py) edits."""
+    return {
+        "shortcut": cfg["shortcut"],
+        "defaultSearch": cfg["default_search"],
+        "startSide": cfg["start_side"],
+        "autoplay": cfg["autoplay_audio"],
+        "waitBelow": cfg["wait_below_percent"],
+        "systemDone": cfg["system_done_percent"],
+    }
 
 
 def page_config(cfg: dict) -> dict:
@@ -152,15 +164,7 @@ class Bridge:
         return kit.command(msg)
 
     def cmd_settings(self, msg: dict) -> dict:
-        cfg = get_config()
-        return {"settings": {
-            "shortcut": cfg["shortcut"],
-            "defaultSearch": cfg["default_search"],
-            "startSide": cfg["start_side"],
-            "autoplay": cfg["autoplay_audio"],
-            "waitBelow": cfg["wait_below_percent"],
-            "systemDone": cfg["system_done_percent"],
-        }}
+        return {"settings": settings_of(get_config()), "defaults": settings_of(DEFAULTS)}
 
     def cmd_save_settings(self, msg: dict) -> dict:
         old = get_config()
@@ -171,4 +175,4 @@ class Bridge:
         cfg = update_config(**changes) if changed else old
         if changed:
             self.host.settings_saved(cfg, changed)
-        return {"config": page_config(cfg), "saved": bool(changed)}
+        return {"config": page_config(cfg), "settings": settings_of(cfg), "saved": bool(changed)}

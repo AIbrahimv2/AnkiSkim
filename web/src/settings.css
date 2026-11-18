@@ -1,0 +1,8 @@
+/* Skim's Settings, a tab of the add-on kit's window (settings-main.tsx).
+   The window brings the kit's theme and controls; this adds Skim's own
+   rows. */
+
+#root .set-input.wide { width: 100%; margin-top: 8px; }
+#root .set-input.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+#root .set-input.num { width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+.pct-field { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }

@@ -1,0 +1,160 @@
+// Skim's Settings, a tab of the add-on kit's window beside What's new and
+// About (settings-main.tsx), rather than a dialog over the Skim window. Its
+// calls go to src/settings_page.py; an open Skim window hears of a save
+// from Python ("config").
+
+import { useEffect, useMemo, useState } from "react";
+import { call } from "../bridge.ts";
+import { Row, SettingsFoot, ShortcutField } from "../kit/settings.tsx";
+import type { Settings, Side } from "../types.ts";
+import { Switch } from "./ui.tsx";
+
+const SIDES: { value: Side; label: string }[] = [
+  { value: "question", label: "Front" },
+  { value: "answer", label: "Back" },
+];
+
+export function SettingsPanel(props: { onClose: () => void }) {
+  const [loaded, setLoaded] = useState<{ settings: Settings; defaults: Settings } | null>(null);
+  const [v, setV] = useState<Settings | null>(null);
+  const [problems, setProblems] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    call<{ settings: Settings; defaults: Settings }>("settings").then(
+      (r) => {
+        setLoaded(r);
+        setV(r.settings);
+      },
+      () => {},
+    );
+  }, []);
+
+  const dirty = useMemo(() => !!loaded && !!v && JSON.stringify(v) !== JSON.stringify(loaded.settings), [loaded, v]);
+  const isDefault = useMemo(
+    () => !!loaded && !!v && JSON.stringify(v) === JSON.stringify(loaded.defaults),
+    [loaded, v],
+  );
+
+  if (!loaded || !v) return <div className="skeleton" style={{ height: 300, marginTop: 28, borderRadius: 12 }} />;
+
+  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    setV((s) => (s ? { ...s, [key]: value } : s));
+    setProblems(({ [key]: _gone, ...rest }) => rest);
+    setSaved(false);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await call<{ problems?: Record<string, string>; settings?: Settings }>("save_settings", { settings: v });
+      if (r.problems) setProblems(r.problems);
+      else {
+        // What's saved is the new starting point (Python cleaned it up).
+        const now = r.settings ?? v;
+        setLoaded({ ...loaded, settings: now });
+        setV(now);
+        setSaved(true);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="settings">
+        <section className="set-section">
+          <h3>Cards</h3>
+          <div className="set-card">
+            <Row label="Show first" hint="The side each card opens on. h and l switch while you browse.">
+              <div className="mini-seg">
+                {SIDES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    className={v.startSide === s.value ? "active" : ""}
+                    onClick={() => set("startSide", s.value)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row label="Play audio by itself" hint="Plays a card's sound when you stop on it. r plays it any time.">
+              <Switch checked={v.autoplay} label="" onChange={(x) => set("autoplay", x)} />
+            </Row>
+            <Row
+              label="Wait when a card is mostly elsewhere"
+              hint="On a topic, a suspended card could wait when less than this share of its places is in the topic's system, and a system you haven't done also has it."
+              problem={problems.waitBelow}
+            >
+              <span className="pct-field">
+                <input
+                  className={`set-input num${problems.waitBelow ? " bad" : ""}`}
+                  inputMode="numeric"
+                  value={String(v.waitBelow)}
+                  onChange={(e) => set("waitBelow", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                  aria-label="Percentage"
+                />
+                %
+              </span>
+            </Row>
+            <Row
+              label="Count a system as done at"
+              hint="Once this share of a system's topics in your pinned Stepwise resources is done, it shows as done on every card, and cards stop waiting for it. Hover a system to see its share."
+              problem={problems.systemDone}
+            >
+              <span className="pct-field">
+                <input
+                  className={`set-input num${problems.systemDone ? " bad" : ""}`}
+                  inputMode="numeric"
+                  value={String(v.systemDone)}
+                  onChange={(e) => set("systemDone", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                  aria-label="Percentage"
+                />
+                %
+              </span>
+            </Row>
+          </div>
+        </section>
+        <section className="set-section">
+          <h3>Opening Skim</h3>
+          <div className="set-card">
+            <div className="set-row set-block">
+              <div className="set-text">
+                <div className="set-label">First search</div>
+                <div className="set-hint">
+                  What Skim shows the first time you open it, in Anki's search syntax. After that it opens on your last search.
+                </div>
+                <input
+                  className="set-input mono wide"
+                  value={v.defaultSearch}
+                  placeholder="deck:current"
+                  spellCheck={false}
+                  onChange={(e) => set("defaultSearch", e.target.value)}
+                />
+              </div>
+            </div>
+            <Row label="Shortcut" hint="Opens Skim from Anki's main window." problem={problems.shortcut}>
+              <ShortcutField value={v.shortcut} onChange={(s) => set("shortcut", s)} />
+            </Row>
+          </div>
+        </section>
+      </div>
+      <SettingsFoot
+        onRestore={() => {
+          setV(loaded.defaults);
+          setProblems({});
+          setSaved(false);
+        }}
+        restoreDisabled={isDefault}
+        saved={saved && !dirty}
+        onClose={props.onClose}
+        onSave={save}
+        saveDisabled={!dirty || saving}
+      />
+    </>
+  );
+}

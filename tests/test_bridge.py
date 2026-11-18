@@ -4,6 +4,7 @@ what happens with bad input."""
 import json
 
 from harness import ALL, check, col, mw
+from skim import api, settings_page
 from skim.bridge import MAX_BATCH, Bridge
 from skim.tags import Analyzer
 from skim.viewstate import ViewState
@@ -62,9 +63,11 @@ check(call("facets", seq=cardio["seq"] - 1, ids=ALL).get("stale"), "and not for 
 check(call("rows", ids=ALL[:1])["reading"] == "Cardio", "rows say their reading too")
 
 print("settings")
-s = call("settings")["settings"]
+got = call("settings")
+s = got["settings"]
 check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False,
            "waitBelow": 50, "systemDone": 50}, "the defaults")
+check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 check(call("save_settings", settings={"systemDone": 0}).get("problems", {}).get("systemDone"), "so is a system done at 0%")
 r = call("save_settings", settings={"shortcut": "Ctrl+Shift+Nope"})
@@ -73,7 +76,40 @@ check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50, "systemDone": 50},
       "a change is saved and sent back")
+check(r["settings"]["startSide"] == "question", "with Settings as saved")
 check(host.saved == [{"start_side", "autoplay_audio"}], "the window hears what changed")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(not r["saved"] and len(host.saved) == 1, "saving the same again changes nothing")
+
+print("settings in the kit's window")
+real_window = api._window
+api._window = None
+check(settings_page.handle({"cmd": "settings"})["settings"]["startSide"] == "question", "read without a Skim window")
+check("error" in settings_page.handle({"cmd": "rows", "ids": ALL}), "only Settings' commands")
+r = settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K"}})
+check(r["saved"] and mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+K", "saved without a Skim window")
+
+
+class Window:
+    def __init__(self):
+        self.pushed, self.saved = [], []
+
+    def push(self, e):
+        self.pushed.append(e)
+
+    def settings_saved(self, cfg, changed):
+        self.saved.append(changed)
+
+
+w = Window()
+api._window = w
+settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
+check(w.saved == [{"autoplay_audio"}], "an open window applies what changed")
+check(w.pushed == [{"type": "config", "config": {"startSide": "answer", "autoplay": True, "waitBelow": 50,
+                                                 "systemDone": 50}}], w.pushed)
+settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
+check(len(w.pushed) == 1, "and hears nothing when nothing changed")
+check(settings_page.PAGE["bridge"] is settings_page.handle and settings_page.PAGE["script"] == "web/settings.js",
+      "kit.register gets the panel")
+api._window = real_window
 print("all passed")
