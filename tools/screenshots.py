@@ -35,7 +35,7 @@ KIT = os.environ.get("ANKI_ADDON_KIT", os.path.join(os.path.dirname(ROOT), "anki
 sys.path.insert(0, os.path.join(KIT, "screenshots"))
 import shots  # noqa: E402
 
-SIZE = (1180, 930)  # the default width (src/window.py), taller so the card's diagram shows whole
+SIZE = (1180, 970)  # the default width (src/window.py), taller so the card's diagram and its credit show whole
 TOPIC = "#AK_Step1_v12::#B&B::07_Cell_Bio::01_Molecular::05_Translation"
 CARD = "tRNAs are the smallest RNAs"  # its row's text
 STEPWISE = os.path.join(os.path.dirname(ROOT), "anki-stepwise", "src", "meta.json")

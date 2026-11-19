@@ -42,7 +42,7 @@ before each release.
 shared screenshot tools: Skim's window on the B&B Translation topic from the
 Default profile's collection (a copy), with Stepwise's pinned resources, at
 the tRNA card (a clover-leaf diagram, OpenStax, CC BY 4.0, credited on the
-card), which it says to unsuspend now. The window is 1180x930, taller than
+card), which it says to unsuspend now. The window is 1180x970, taller than
 its default, so the diagram and its credit show whole. Chosen on 2026-11-17
 from the B&B cards with openly licensed images: most cards' large text
 pushes their picture out of the card pane, and many topics have no
