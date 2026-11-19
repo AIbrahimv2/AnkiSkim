@@ -148,6 +148,8 @@ export interface Settings {
   autoplay: boolean;
   waitBelow: number;
   systemDone: number;
+  /** How big the window draws, in percent (Cmd+= / Cmd+-). */
+  size: number;
 }
 
 export type PushEvent =

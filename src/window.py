@@ -28,7 +28,7 @@ from aqt.webview import AnkiWebView
 
 from . import frame, kit
 from .bridge import Bridge
-from .config import ADDON, get_config
+from .config import ADDON, get_config, update_config
 from .tags import Analyzer
 from .viewstate import ViewState
 
@@ -81,6 +81,9 @@ class SkimWindow(QDialog):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(self.web)
         kit.glass(self)  # AnkiGlass's glass behind the window, if it's there
+        # Cmd+= / Cmd+- / Cmd+0: the window's size, kept in the config.
+        self._zoom = kit.zoom(self, self.web, read=lambda: get_config()["zoom_percent"],
+                              write=lambda p: update_config(zoom_percent=p))
 
         self._loaded = False
         self._dirty = False
@@ -278,6 +281,8 @@ class SkimWindow(QDialog):
             api.set_shortcut(cfg["shortcut"])
         if "autoplay_audio" in changed:
             self.web.setPlaybackRequiresGesture(not cfg["autoplay_audio"])
+        if "zoom_percent" in changed:
+            self._zoom(cfg["zoom_percent"])
         # The reply carries the page's config, and the page reads the rows
         # again if either threshold changed.
 

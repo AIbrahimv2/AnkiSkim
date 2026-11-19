@@ -120,6 +120,8 @@ function Chrome(props: ChromeProps) {
 
 /** Suspend / unsuspend, as Anki's browser has it. */
 const SUSPEND = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "Cmd-J" : "Ctrl-J";
+/** The size keys' modifier, written as SUSPEND's is. */
+const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "Cmd-" : "Ctrl-";
 
 const KEYS: [string[], string][] = [
   [["j", "k"], "Next / previous card (arrow keys too)"],
@@ -143,6 +145,7 @@ const KEYS: [string[], string][] = [
   [["r"], "Play the card's audio"],
   [["p"], "Back to the window that opened Skim (Stepwise)"],
   [["q", "Esc"], "Close Skim (Esc first ends a selection)"],
+  [[`${MOD}=`, `${MOD}-`], `Make everything bigger / smaller (${MOD}0: back to 100%)`],
 ];
 
 function KeysDialog(props: { onClose: () => void }) {

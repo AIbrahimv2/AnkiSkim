@@ -84,10 +84,11 @@ print("settings")
 got = call("settings")
 s = got["settings"]
 check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False,
-           "waitBelow": 50, "systemDone": 50}, "the defaults")
+           "waitBelow": 50, "systemDone": 50, "size": 100}, "the defaults")
 check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 check(call("save_settings", settings={"systemDone": 0}).get("problems", {}).get("systemDone"), "so is a system done at 0%")
+check(call("save_settings", settings={"size": 300}).get("problems", {}).get("size"), "and a size over 200%")
 r = call("save_settings", settings={"shortcut": "Ctrl+Shift+Nope"})
 check(r.get("problems", {}).get("shortcut"), "a shortcut Qt can't read is refused")
 check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")

@@ -114,6 +114,7 @@ through topics.
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
 | `q` or `Esc` | Close Skim (Esc first cancels a number you've typed, or ends a selection) |
+| `Cmd-=` / `Cmd--` (`Ctrl` elsewhere) | Make everything in the window bigger / smaller; `Cmd-0` back to 100% |
 | `?` | Show these keys |
 
 ### Settings
@@ -122,7 +123,8 @@ through topics.
 opens the same thing): the side each card opens on (the back, by default,
 which for most note types includes the front), playing audio by itself, when
 a card could wait (less than half its places in the topic's system, by
-default), the search Skim opens on the first time, and the keyboard shortcut.
+default), the window's size, the search Skim opens on the first time, and the
+keyboard shortcut.
 
 ### For other add-ons
 

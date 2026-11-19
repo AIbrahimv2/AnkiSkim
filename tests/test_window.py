@@ -108,6 +108,20 @@ try:
     check(True, f"and the other views are counted once the window is up ({bar})")
     shown_is(ALL[0])
     check("Four" in js(SHOWN_TEXT), "the first card shows, back side (the default)")
+
+    print("size")
+    from aqt.qt import QKeySequence, QShortcut
+    win = api._window
+    keys = {s.key().toString(QKeySequence.SequenceFormat.PortableText): s for s in win.findChildren(QShortcut)}
+    check({"Ctrl+=", "Ctrl++", "Ctrl+-", "Ctrl+0"} <= set(keys), f"Cmd+= / Cmd+- / Cmd+0 are on the window ({sorted(keys)})")
+    keys["Ctrl+="].activated.emit()
+    check(abs(win.web.zoomFactor() - 1.1) < 0.01 and mw.addonManager.cfg["zoom_percent"] == 110,
+          "Cmd+= draws it a step bigger (110%), and it's kept")
+    keys["Ctrl+-"].activated.emit()
+    keys["Ctrl+-"].activated.emit()
+    check(abs(win.web.zoomFactor() - 0.9) < 0.01, "Cmd+- twice: 90%")
+    keys["Ctrl+0"].activated.emit()
+    check(abs(win.web.zoomFactor() - 1.0) < 0.01 and mw.addonManager.cfg["zoom_percent"] == 100, "Cmd+0: back to 100%")
     wait_for("[...document.querySelectorAll('.card-frame')].filter(f => f.contentWindow.skimCid).length >= 4")
     check(True, "the cards around it are drawn ahead")
 

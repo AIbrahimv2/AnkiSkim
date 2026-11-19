@@ -18,6 +18,9 @@ All notable changes to this project are documented here. The format is based on
 - Skim remembers these sizes, and whether the tags are hidden. Double-click
   an edge to put it back where it started, or choose **⋯ → Reset layout** to
   put everything back.
+- Make everything in the window bigger or smaller: Cmd+= and Cmd+− (Ctrl on
+  Windows and Linux) zoom it in steps, Cmd+0 puts it back to 100%, and
+  Skim opens at the size you leave it. It's in Settings too, as Size.
 
 ### Fixed
 

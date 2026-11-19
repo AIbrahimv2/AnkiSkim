@@ -43,6 +43,7 @@ def settings_of(cfg: dict) -> dict:
         "autoplay": cfg["autoplay_audio"],
         "waitBelow": cfg["wait_below_percent"],
         "systemDone": cfg["system_done_percent"],
+        "size": cfg["zoom_percent"],
     }
 
 

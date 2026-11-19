@@ -22,9 +22,13 @@ DEFAULTS: dict = {
     # A system counts as done on every card once this share of its topics
     # in your pinned resources is done (see tags.py).
     "system_done_percent": 50,
+    # How big the window draws (Cmd+= / Cmd+-, the kit's zoom.py).
+    "zoom_percent": 100,
 }
 
 SIDES = ("question", "answer")
+# The sizes the window can take (the kit's zoom.py: MIN, MAX).
+ZOOM_RANGE = (50, 200)
 
 
 def get_config() -> dict:
@@ -36,6 +40,7 @@ def get_config() -> dict:
         cfg["start_side"] = DEFAULTS["start_side"]
     cfg["wait_below_percent"] = max(5, min(95, cfg["wait_below_percent"]))
     cfg["system_done_percent"] = max(5, min(100, cfg["system_done_percent"]))
+    cfg["zoom_percent"] = max(ZOOM_RANGE[0], min(ZOOM_RANGE[1], cfg["zoom_percent"]))
     return cfg
 
 
@@ -85,4 +90,12 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             changes["system_done_percent"] = pct
         except (TypeError, ValueError):
             problems["systemDone"] = "Enter a percentage from 5 to 100."
+    if "size" in values:
+        try:
+            pct = int(values["size"])
+            if not ZOOM_RANGE[0] <= pct <= ZOOM_RANGE[1]:
+                raise ValueError
+            changes["zoom_percent"] = pct
+        except (TypeError, ValueError):
+            problems["size"] = f"Enter a percentage from {ZOOM_RANGE[0]} to {ZOOM_RANGE[1]}."
     return changes, problems

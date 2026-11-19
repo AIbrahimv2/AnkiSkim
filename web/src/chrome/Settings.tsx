@@ -9,6 +9,9 @@ import { Row, SettingsFoot, ShortcutField } from "../kit/settings.tsx";
 import type { Settings, Side } from "../types.ts";
 import { Switch } from "./ui.tsx";
 
+/** Cmd on a Mac, Ctrl elsewhere, as the size keys are. */
+const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
 const SIDES: { value: Side; label: string }[] = [
   { value: "question", label: "Front" },
   { value: "answer", label: "Back" },
@@ -112,6 +115,27 @@ export function SettingsPanel(props: { onClose: () => void }) {
                   inputMode="numeric"
                   value={String(v.systemDone)}
                   onChange={(e) => set("systemDone", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                  aria-label="Percentage"
+                />
+                %
+              </span>
+            </Row>
+          </div>
+        </section>
+        <section className="set-section">
+          <h3>Window</h3>
+          <div className="set-card">
+            <Row
+              label="Size"
+              hint={`How big everything in the window draws. ${MOD}= and ${MOD}− change it in steps as you browse; ${MOD}0 puts it back to 100%.`}
+              problem={problems.size}
+            >
+              <span className="pct-field">
+                <input
+                  className={`set-input num${problems.size ? " bad" : ""}`}
+                  inputMode="numeric"
+                  value={String(v.size)}
+                  onChange={(e) => set("size", Number(e.target.value.replace(/\D/g, "")) || 0)}
                   aria-label="Percentage"
                 />
                 %
