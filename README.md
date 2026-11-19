@@ -47,17 +47,23 @@ through topics.
   system, unsuspend it now; if not, and a system you haven't started also has
   it, it could wait, since you'll meet it there. High-yield cards that would
   wait are "Your Call", and a card tagged here only as `::Extra` leans to
-  waiting. The reason shows beside it ("43% here; comes up again in Endocrine,
-  Repro"). The threshold is a setting.
+  waiting. The tags under the card show why: their places by system, under a
+  bar of how many of your resources put the card in each. The threshold is a
+  setting.
 - **Filters.** All, Suspended, Now, Wait, Your Call, High Yield and Q-bank, each
   with its count. Click one, or press `f` / `F` to go through them.
-- **Where this card lives.** Under the card, its tags grouped by resource: the
-  one you're on first, then your pinned resources in Stepwise's order, each
-  place with its Stepwise status. Places in other systems are marked with
-  theirs, so you can see where you'll meet the card again. Its other tags
-  (other resources, AnKing's own) follow, grouped the same way with readable
+- **Where this card lives.** Under the card, its verdict, then its places
+  (in your pinned resources and the one you're on) by system: the topic's
+  first, then the systems you haven't done, then the ones you have, so you
+  can see where you'll meet the card again. When there's more than one
+  system, a bar over them shows how many resources put the card in each, the
+  topic's in blue and the others in Stepwise's colours (done, queued, saved
+  for later) or grey. Each place shows its resource, with its logo where it
+  has one, and the end of its path, with a check once it's done in Stepwise;
+  hover for the whole tag. The yield (with its bars) and question banks are
+  pills. Its other tags (other resources, AnKing's own) follow with readable
   names, and fold into "Show more" only when they don't fit; a card can have
-  60 of them. The groups spread into columns when the pane is wide. Click
+  60 of them. The systems spread into columns when the pane is wide. Click
   its title, or press `i`, to hide it and give the card its room.
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
@@ -189,4 +195,6 @@ ended up drawing ahead.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE).
+[AGPL-3.0-or-later](LICENSE). The logos of the resources (Bootcamp, Sketchy,
+UWorld, AMBOSS and the others) belong to their owners, who aren't affiliated
+with Skim; they're there only to show which resource is which.

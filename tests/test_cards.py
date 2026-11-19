@@ -55,7 +55,7 @@ read = cards.rows(col, ALL, an)
 m = read[str(col.find_cards(f"nid:{notes['mitral']}")[0])]
 check(m["v"] == "now" and m["r"] == "Only here", f"a suspended card under the topic gets a verdict ({m['r']})")
 check(read[str(ALL[0])]["v"] is None, "a card that isn't suspended doesn't")
-check(m["p"]["groups"] and m["p"]["groups"][0]["here"], "and a tags pane, the topic's resource first")
+check(m["p"]["systems"] and m["p"]["systems"][0]["state"] == "here", "and a tags pane, the topic's system first")
 fac = cards.facets(col, ALL, an)
 check(len(fac["state"]) == len(ALL) and fac["state"].count(-1) == 2, "facets cover every card, in order")
 check(fac["verdict"].count(1) == 2, "suspended cards' verdicts are in the facets")

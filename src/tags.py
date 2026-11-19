@@ -85,6 +85,8 @@ _PREFIX = re.compile(r"^[^a-z0-9]*\d+[_\-.]*")
 
 NOW, CALL, WAIT = "now", "call", "wait"
 VERDICT_CODES = {None: 0, NOW: 1, CALL: 2, WAIT: 3}
+# The pane's systems after the topic's: the ones you haven't done first.
+_STATE_ORDER = {None: 0, "later": 1, "queued": 2, "completed": 3}
 
 
 def _clean(segment: str) -> str:
@@ -174,10 +176,14 @@ class Analyzer:
             pins, roots = [], []
         self.pins = {p: i for i, p in enumerate(pins)}
         self.roots = set(roots)
-        self.topics = [t.lower().rstrip(":*") for t in topics if t]
+        named = [t.rstrip(":*") for t in topics if t]
+        self.topics = [t.lower() for t in named]
         self._tags: dict[str, Tag] = {}
         self.here_resources = {self._place(t)[0] for t in self.topics} - {None}
         self.here_units = {unit_of(list(self._place(t)[1])) for t in self.topics} - {None}
+        # What the pane calls the topic's system: its unit, or else the topic.
+        self.here_name = ", ".join(sorted(self.here_units)) or next(
+            (pretty(t.rsplit(SEP, 1)[-1]) for t in named), "")
 
     # --- one tag -----------------------------------------------------------
 
@@ -245,6 +251,11 @@ class Analyzer:
                 done[t.unit] += self._status(tag) == "completed"
         return {unit: done[unit] / n for unit, n in total.items()}
 
+    def _unit(self, t: Tag) -> str | None:
+        """The unit a place counts toward in the verdict: "here" for the
+        topic's (a place under the topic is here, whatever its unit)."""
+        return "here" if t.here or t.unit in self.here_units else t.unit
+
     def counts(self, t: Tag) -> bool:
         """Places in your pinned resources (or every resource, without
         Stepwise) and in the one you're on count toward the verdict."""
@@ -266,7 +277,7 @@ class Analyzer:
         by_unit: dict[str, set[str]] = defaultdict(set)
         statuses: dict[str, list[str | None]] = defaultdict(list)
         for t in places:
-            unit = "here" if t.here or t.unit in self.here_units else t.unit
+            unit = self._unit(t)
             if unit:
                 by_unit[unit].add(t.resource)
                 statuses[unit].append(t.status)
@@ -312,18 +323,27 @@ class Analyzer:
         }
 
     def pane(self, facts: dict) -> dict:
-        """The tags pane: the card's places grouped by resource, the one
-        you're on first, then pinned ones in Stepwise's order; the rest
-        (other resources, AnKing's own tags) in `more`, also by resource,
-        each tag as [path, tag]. Tags with no path inside a resource
-        (`leech`) share one group with no label, last."""
-        groups: dict[str, dict] = {}
+        """The tags pane: the card's places by system. The topic's comes
+        first, then the systems you haven't done, then the ones you have,
+        then disciplines (Micro, Pharm, ...), then chapters that name
+        neither. A system's `weight` is how many resources put the card
+        there, as the verdict counts them, so the page can draw the
+        verdict's reason as a bar; its `state` is "here", or Stepwise's for
+        the system. In a system, places by resource: the one you're on,
+        then your pinned ones in Stepwise's order. Each place shows the end
+        of its path (`path`), and has all of it (`full`). The rest (other
+        resources, AnKing's own tags) go in `more`, by resource, each tag
+        as [path, tag]; tags with no path inside a resource (`leech`)
+        share one group with no label, last."""
+        states = {unit: state for unit, state, _ in facts["again"]}
+        systems: dict[str, dict] = {}
+        resources: dict[str, set[str]] = defaultdict(set)
+        labels: dict[str, dict] = {}
         more: dict[str, dict] = {}
         for t in facts["places"]:
             if t.kind in ("yield", "bank"):
                 continue
-            shown = self.counts(t)
-            if not shown:
+            if not self.counts(t):
                 if t.resource and t.path:
                     o = more.setdefault(t.resource, {"label": pretty(t.label), "tags": []})
                     o["tags"].append([" › ".join(pretty(s) for s in t.path), t.tag])
@@ -331,27 +351,50 @@ class Analyzer:
                     o = more.setdefault("", {"label": "", "tags": []})
                     o["tags"].append([" › ".join(pretty(s) for s in t.tag.split(SEP)), t.tag])
                 continue
-            g = groups.setdefault(t.resource, {
-                "label": t.label.replace("_", " "), "pinned": t.pin is not None,
-                "here": t.resource in self.here_resources, "rank": t.pin, "topics": [],
-            })
-            g["here"] = g["here"] or t.here
-            path = [s for s in t.path if s.lower() != "extra"]
-            g["topics"].append({
-                "path": " › ".join(pretty(s) for s in path) or t.label,
+            unit = self._unit(t)
+            path = [pretty(s) for s in t.path if s.lower() != "extra"]
+            if unit:
+                key = unit
+                resources[unit].add(t.resource)
+            else:
+                # A chapter that names no unit: on its own, by name.
+                key = f"~{path[0].lower()}" if path else "~"
+            if key not in systems:
+                systems[key] = {
+                    "name": self.here_name if unit == "here" else unit or (path[0] if path else ""),
+                    "state": "here" if unit == "here" else states.get(unit),
+                    "weight": 0,
+                    "places": [],
+                }
+            label = labels.setdefault(t.resource, {"label": t.label.replace("_", " ")})
+            systems[key]["places"].append({
+                "resource": label,
+                "path": " › ".join(path[-2:]) or t.label,
+                "full": " › ".join(path) or t.label,
                 "tag": t.tag,
                 "status": t.status,
-                "here": t.here,
-                "unit": t.unit,
-                "again": bool(t.unit in SYSTEMS and not t.here and t.unit not in self.here_units),
                 "extra": t.extra,
+                "rank": (t.resource not in self.here_resources, t.pin is None, t.pin or 0),
             })
-        _tell_apart([*groups.items(), *more.items()])
-        ordered = sorted(groups.values(), key=lambda g: (
-            not g["here"], g["rank"] is None, g["rank"] if g["rank"] is not None else 0, g["label"].lower()))
-        for g in ordered:
-            g["topics"].sort(key=lambda x: (not x["here"], not x["again"], x["path"].lower()))
-            del g["rank"]
+        # Your places name a resource's step only when two of them share a
+        # name; the other tags, when any tag on the card shares theirs.
+        _tell_apart(list(labels.items()))
+        _tell_apart(list(more.items()), against=[g["label"] for g in labels.values()])
+        for key, sys_ in systems.items():
+            sys_["weight"] = len(resources.get(key, ()))
+            sys_["places"].sort(key=lambda x: (x["rank"], x["resource"]["label"].lower(), x["full"].lower()))
+            for place in sys_["places"]:
+                place["resource"] = place["resource"]["label"]
+                del place["rank"]
+
+        def order(item: tuple[str, dict]) -> tuple:
+            key, sys_ = item
+            if key == "here":
+                return (0,)
+            if key in SYSTEMS:
+                return (1, _STATE_ORDER.get(sys_["state"], 0), -sys_["weight"], key.lower())
+            return (2 if not key.startswith("~") else 3, sys_["name"].lower())
+
         others = sorted(more.values(), key=lambda o: (not o["label"], o["label"].lower()))
         for o in others:
             o["tags"].sort(key=lambda x: x[0].lower())
@@ -361,14 +404,16 @@ class Analyzer:
             "reason": facts["reason"],
             "yield": YIELD_LABELS.get(level) if level else None,
             "banks": sorted(facts["banks"].items(), key=lambda kv: -kv[1]),
-            "groups": ordered,
+            "systems": [sys_ for _, sys_ in sorted(systems.items(), key=order)],
             "more": others,
         }
 
 
-def _tell_apart(groups: list[tuple[str, dict]]) -> None:
-    """Step 1's B&B and Step 2's B&B: say which is which."""
+def _tell_apart(groups: list[tuple[str, dict]], against: Iterable[str] = ()) -> None:
+    """Step 1's B&B and Step 2's B&B: say which is which (among `groups`,
+    and against the labels in `against`, which stay as they are)."""
     names = Counter(g["label"] for _, g in groups)
+    names.update(set(against))
     for key, g in groups:
         if names[g["label"]] > 1 and SEP in key:
             root = key.split(SEP)[0]

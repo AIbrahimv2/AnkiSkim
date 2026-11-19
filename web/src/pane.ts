@@ -1,18 +1,33 @@
-// The tags pane under the card: where the card lives. Its verdict and why,
-// its yield and question banks, then its places by resource (the one
-// you're on first, then your pinned ones), with the places in other systems
-// marked: that's where you'll meet the card again. Its other tags follow,
-// also by resource, and fold into "Show more" only when they'd push the
-// pane past its height. The groups flow into columns as the pane widens.
-// Its title folds the pane away (i too), so the card gets its room.
-// Plain DOM, drawn from the row the page already has.
+// The tags pane under the card: where the card lives. Its title is the
+// verdict (Now, Wait, Your Call), or "Tags" when there's
+// none. Under it, when the card is in more than one system, a bar of its
+// places by system, the reason for the verdict: the topic's system in the accent colour, the others in their
+// Stepwise colours (done, queued, saved for later) or grey. Then its yield
+// (with signal bars) and question banks as pills, then its places, by system in the bar's
+// order, each with the resource that has it and the end of its path. Its
+// other tags follow, by resource, and fold into "Show more" only when
+// they'd push the pane past its height. The systems flow into columns as
+// the pane widens. One size of text throughout; colour, not words, says
+// what a system is to you (hover a dot for it). The title folds the pane
+// away (i too), so the card gets its room. Plain DOM, drawn from the row
+// the page already has.
 
-import type { Pane, Status } from "./types.ts";
+import { resourceIcon, resourceImg } from "./kit/resources.tsx";
+import type { Pane, Status, SystemState } from "./types.ts";
+import { barsOf, yieldBars } from "./yieldbars.ts";
 
-const VERDICT_WORD: Record<string, string> = { now: "Unsuspend now", call: "Your call", wait: "Could wait" };
+/** The verdict, as the pane's title: the list's words, in title case. */
+const VERDICT_WORD: Record<string, string> = { now: "Now", call: "Your Call", wait: "Wait" };
+const STATE_HINT: Record<string, string> = {
+  here: "The topic you're on",
+  completed: "Done in Stepwise",
+  queued: "Queued in Stepwise",
+  later: "Saved for later in Stepwise",
+};
 const CHEVRON =
   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
-const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "later" };
+const CHECK =
+  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -21,18 +36,58 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-function status(s: Status): HTMLSpanElement | null {
-  return s ? el("span", `tp-status s-${s}`, STATUS_WORD[s]) : null;
-}
-
 function tags(n: number): string {
   return `${n} tag${n === 1 ? "" : "s"}`;
+}
+
+const stateClass = (s: SystemState) => `s-${s ?? "none"}`;
+
+/** A place's Stepwise status: a check when it's done, a dot otherwise. */
+function mark(s: Status): HTMLSpanElement | null {
+  if (!s) return null;
+  const m = el("span", `tp-mark s-${s}`);
+  if (s === "completed") m.innerHTML = CHECK;
+  m.title = STATE_HINT[s];
+  return m;
+}
+
+/** The resource column, as wide as the longest name in it (up to a
+ *  point), and its logo: counted, not measured, so drawing a pane reads no
+ *  layout. True when any name has a logo: the rest then keep its room, so
+ *  the names line up. */
+function fitNames(host: HTMLElement, names: string[]): boolean {
+  const longest = names.reduce((n, x) => Math.max(n, x.length), 0);
+  const logos = names.some((x) => resourceIcon(x));
+  host.style.setProperty("--res", `${Math.min(Math.max(longest, 6), 18) + 1 + (logos ? 4 : 0)}ch`);
+  return logos;
+}
+
+/** A row: the resource with its logo (left blank when the row above has
+ *  it), the path, and what's at its end (Extra, its status). */
+function row(resource: string, path: string, title: string, logos: boolean, end: (HTMLElement | null)[] = []): HTMLDivElement {
+  const r = el("div", "tp-row");
+  r.title = title;
+  // The resource's logo before its name (the kit's, when it has one), or
+  // its room when others around it have one.
+  const res = el("span", "tp-res");
+  if (resource) {
+    res.append(logos ? resourceImg(resource, true) : "", el("span", "tp-res-name", resource));
+  }
+  r.append(res, el("span", "tp-path", path));
+  const tail = end.filter((x): x is HTMLElement => !!x);
+  if (tail.length) {
+    const e = el("span", "tp-end");
+    e.append(...tail);
+    r.append(e);
+  }
+  return r;
 }
 
 export class TagsPane {
   private host: HTMLElement;
   private head: HTMLDivElement;
   private body: HTMLDivElement;
+  private title: HTMLSpanElement;
   private count: HTMLSpanElement;
   private showMore = false;
   private shown: Pane | null = null;
@@ -48,7 +103,8 @@ export class TagsPane {
     const head = el("div", "tp-head");
     this.head = head;
     head.title = "Hide the tags (i)";
-    head.append(el("span", "tp-title", "Where this card lives"));
+    this.title = el("span", "tp-title", "Tags");
+    head.append(this.title);
     this.count = el("span", "tp-count");
     const chevron = el("span", "tp-chev");
     chevron.innerHTML = CHEVRON;
@@ -92,8 +148,13 @@ export class TagsPane {
 
   private draw(): void {
     const p = this.shown;
-    this.count.textContent = p && this.total ? tags(this.total) : "";
-    // Folded, only the count shows: the rest is drawn when it opens.
+    // The title, the verdict and its count show folded too.
+    this.title.textContent = p?.verdict ? VERDICT_WORD[p.verdict] : "Tags";
+    this.title.className = `tp-title${p?.verdict ? ` v-${p.verdict}` : ""}`;
+    this.title.title = p?.reason ?? "";
+    this.count.textContent = p && this.total ? String(this.total) : "";
+    this.count.title = p && this.total ? tags(this.total) : "";
+    // Folded, the rest is drawn when it opens.
     if (!this.open) return;
     this.body.replaceChildren();
     this.body.scrollTop = 0;
@@ -101,61 +162,66 @@ export class TagsPane {
       this.body.append(el("div", "tp-empty", "No tags."));
       return;
     }
-    if (p.verdict) {
-      const v = el("div", `tp-verdict v-${p.verdict}`);
-      v.append(el("b", "", VERDICT_WORD[p.verdict]), el("span", "", p.reason ?? ""));
-      this.body.append(v);
+    // The bar, once there are two systems to weigh against each other.
+    const weighed = p.systems.filter((s) => s.weight > 0);
+    if (weighed.length > 1) {
+      const total = weighed.reduce((n, s) => n + s.weight, 0);
+      const bar = el("div", "tp-bar");
+      for (const s of weighed) {
+        const seg = el("span", `tp-seg ${stateClass(s.state)}`);
+        seg.style.flexGrow = String(s.weight);
+        seg.title = `${s.name}: ${s.weight} of ${total}`;
+        bar.append(seg);
+      }
+      this.body.append(bar);
     }
-    const facts: string[] = [];
-    if (p.yield) facts.push(`${p.yield} yield`);
-    for (const [bank, n] of p.banks) facts.push(`${bank} ${n}`);
-    if (facts.length) {
-      const f = el("div", "tp-facts");
-      for (const x of facts) f.append(el("span", "", x));
-      this.body.append(f);
+    const pills = el("div", "tp-pills");
+    if (p.yield) {
+      const y = el("span", "tp-pill tp-yield");
+      y.dataset.y = barsOf(p.yield);
+      y.append(yieldBars(), `${p.yield} Yield`);
+      pills.append(y);
     }
-    if (p.groups.length) {
+    for (const [bank, n] of p.banks) {
+      const pill = el("span", "tp-pill tp-bank");
+      pill.append(resourceImg(bank) ?? "", `${bank} ${n}`);
+      pills.append(pill);
+    }
+    if (pills.childElementCount) this.body.append(pills);
+    if (p.systems.length) {
       const places = el("div", "tp-places");
-      for (const g of p.groups) {
-        const group = el("div", "tp-group");
-        const name = el("div", "tp-res", g.label);
-        if (g.here) name.append(el("span", "tp-note", "you're here"));
-        else if (g.pinned) name.append(el("span", "tp-note", "pinned"));
-        group.append(name);
-        for (const t of g.topics) {
-          const line = el("div", `tp-topic${t.here ? " here" : ""}${t.again ? " again" : ""}`);
-          line.title = t.tag;
-          if (t.again) line.append(el("span", "tp-unit", t.unit ?? ""));
-          line.append(el("span", "tp-path", t.path));
-          if (t.extra) line.append(el("span", "tp-extra", "Extra"));
-          const s = status(t.status);
-          if (s) line.append(s);
-          group.append(line);
+      const logos = fitNames(places, p.systems.flatMap((s) => s.places.map((x) => x.resource)));
+      for (const s of p.systems) {
+        const sys = el("div", "tp-sys");
+        const head = el("div", "tp-sys-head");
+        head.append(el("span", `tp-dot ${stateClass(s.state)}`), el("span", "tp-sys-name", s.name));
+        head.title = s.state ? STATE_HINT[s.state] : "";
+        sys.append(head);
+        let last = "";
+        for (const x of s.places) {
+          const extra = x.extra ? el("span", "tp-extra", "Extra") : null;
+          sys.append(row(x.resource === last ? "" : x.resource, x.path, `${x.full}\n${x.tag}`, logos, [extra, mark(x.status)]));
+          last = x.resource;
         }
-        places.append(group);
+        places.append(sys);
       }
       this.body.append(places);
     }
     if (!p.more.length) return;
     const other = el("div", "tp-other");
-    if (p.groups.length) other.append(el("div", "tp-divider", "Other tags"));
-    const places = el("div", "tp-places");
+    if (p.systems.length) other.append(el("div", "tp-sys-head tp-sys-name", "Other tags"));
+    const groups = el("div", "tp-places");
+    const logos = fitNames(groups, p.more.map((o) => o.label));
     for (const o of p.more) {
-      const group = el("div", o.label ? "tp-group" : "tp-group bare");
-      if (o.label) group.append(el("div", "tp-res", o.label));
-      for (const [path, tag] of o.tags) {
-        const line = el("div", "tp-topic");
-        line.title = tag;
-        line.append(el("span", "tp-path", path));
-        group.append(line);
-      }
-      places.append(group);
+      const group = el("div", "tp-sys");
+      o.tags.forEach(([path, tag], i) => group.append(row(i ? "" : o.label, path, tag, logos)));
+      groups.append(group);
     }
-    other.append(places);
+    other.append(groups);
     this.body.append(other);
     // With places of yours above them, fold the rest when they don't fit.
     // (With none, they're all there is to show.)
-    if (this.showMore || !p.groups.length) return;
+    if (this.showMore || !p.systems.length) return;
     const room = this.body.clientHeight;
     if (room > 0 && this.body.scrollHeight > room) other.replaceWith(this.moreButton(p));
   }
@@ -176,7 +242,7 @@ export class TagsPane {
 
 /** All of a card's tags, for the count in the pane's header. */
 export function tagCount(p: Pane): number {
-  const places = p.groups.reduce((n, g) => n + g.topics.length, 0);
+  const places = p.systems.reduce((n, s) => n + s.places.length, 0);
   const banks = p.banks.reduce((n, [, k]) => n + k, 0);
   const other = p.more.reduce((n, o) => n + o.tags.length, 0);
   return places + banks + other + (p.yield ? 1 : 0);

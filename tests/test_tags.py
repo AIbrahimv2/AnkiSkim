@@ -75,24 +75,32 @@ check("Endocrine" in f["reason"] and "Repro" in f["reason"], "for Endocrine and 
 check([a[0] for a in f["again"]] == ["Endocrine", "Repro"], "Again in: Endocrine, Repro")
 check(f["level"] == 4 and f["banks"] == {"UWorld": 2, "AMBOSS": 1}, "yield and question banks read")
 p = an.pane(f)
-labels = [g["label"] for g in p["groups"]]
-check(labels[0] == "SketchyPharm" and p["groups"][0]["here"], "the resource you're on comes first")
-check(labels[1:] == ["B&B", "Bootcamp", "FirstAid", "^Systems"], f"then your pinned ones, in Stepwise's order ({labels})")
-bb = p["groups"][1]["topics"]
-check(bb[0]["again"] and bb[0]["unit"] in ("Endocrine", "Repro"), "a resource's places in other systems come first")
-check(any(t["extra"] and not t["again"] for t in bb), "Infectious Disease (Micro, as here) isn't an 'again', and shows Extra")
+names = [s["name"] for s in p["systems"]]
+check(names == ["Micro", "Repro", "Endocrine"], f"places by system: the topic's first, then the most resources ({names})")
+here, repro = p["systems"][0], p["systems"][1]
+check(here["state"] == "here" and [s["weight"] for s in p["systems"]] == [3, 4, 2],
+      "each weighed by the resources that put the card there, as the verdict counts them")
+check([x["resource"] for x in here["places"]] == ["SketchyPharm", "B&B", "Bootcamp"],
+      "in a system, the resource you're on first, then Stepwise's order")
+check([x["resource"] for x in repro["places"]] == ["B&B", "Bootcamp", "FirstAid", "^Systems"], "the same in the others")
+check(here["places"][0]["path"] == "Antifungals › Azoles" and here["places"][0]["full"] == "Antimicrobials › Antifungals › Azoles",
+      "a place shows the end of its path, and has all of it")
+check(here["places"][1]["extra"] and here["places"][1]["path"] == "Fungi › Antifungal Drugs",
+      "Infectious Disease counts as Micro, here, and says it's an Extra")
+check(repro["state"] is None, "a system you haven't started has no state")
 others = {o["label"]: o["tags"] for o in p["more"]}
 check(list(others) == ["AK Other", "Pixorize"], f"unpinned resources and AnKing's own tags go in 'more', by resource ({list(others)})")
 check(others["Pixorize"] == [["Microbiology › Antifungals › Azoles", f"{S1}::#Pixorize::04_Microbiology::02_Antifungals::04_Azoles"]],
       "each with a readable path and its tag")
 check(p["yield"] == "Lower" and p["banks"][0] == ("UWorld", 2), "the pane has its yield and banks")
 lone = an.pane(an.card(["#AK_Brand_Name_Drugs::Cardiology::Other", "leech"]))
-check(lone["groups"] == [] and lone["more"] == [
+check(lone["systems"] == [] and lone["more"] == [
     {"label": "AK Brand Name Drugs", "tags": [["Cardiology › Other", "#AK_Brand_Name_Drugs::Cardiology::Other"]]},
     {"label": "", "tags": [["leech", "leech"]]},
 ], f"a tag outside your resources, and one with no path, last ({lone['more']})")
 drugs = Analyzer(["#AK_Brand_Name_Drugs::Cardiology"], Plan(), 0.5)
-check(drugs.pane(drugs.card(["#AK_Brand_Name_Drugs::Cardiology::Other"]))["groups"][0]["label"] == "AK Brand Name Drugs",
+drugs_sys = drugs.pane(drugs.card(["#AK_Brand_Name_Drugs::Cardiology::Other"]))["systems"][0]
+check(drugs_sys["name"] == "Cardio" and drugs_sys["places"][0]["resource"] == "AK Brand Name Drugs",
       "the one you're on reads without underscores too")
 two_more = an.pane(an.card(KETO + ["#AK_Step2_v12::#Pixorize::03_Micro::Azoles"]))["more"]
 check({"Pixorize (Step 1)", "Pixorize (Step 2)"} <= {o["label"] for o in two_more}, "other resources say which step too")
@@ -133,14 +141,14 @@ check(an.card(only, suspended=True)["reason"] == "Only here", "a card nowhere el
 print("the same resource in two steps")
 two = KETO + [f"#AK_Step2_v12::#B&B::08_Infectious_Disease::02_Fungi"]
 bare2 = Analyzer([TOPIC], None, 0.5)
-labels2 = [g["label"] for g in bare2.pane(bare2.card(two))["groups"]]
+labels2 = {x["resource"] for s in bare2.pane(bare2.card(two))["systems"] for x in s["places"]}
 check("B&B (Step 1)" in labels2 and "B&B (Step 2)" in labels2, f"say which step ({labels2})")
 
 print("without Stepwise")
 bare = Analyzer([TOPIC], None, 0.5)
 f5 = bare.card(KETO, suspended=True)
 check(f5["verdict"] == "wait", "still judged, every resource counting")
-check(len(bare.pane(f5)["groups"]) >= 6, "and every resource shows")
+check(len({x["resource"] for s in bare.pane(f5)["systems"] for x in s["places"]}) >= 6, "and every resource shows")
 check(Analyzer([], Plan(), 0.5).card(KETO, suspended=True)["verdict"] is None, "no topic, no verdict")
 check(bare.system_shares(KETO) == {} and all(a[2] is None for a in f5["again"]), "and no system is done")
 

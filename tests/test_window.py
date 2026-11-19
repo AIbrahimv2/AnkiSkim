@@ -133,13 +133,14 @@ try:
     chips = wait_for("[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',').includes('Suspended2') && "
                      "[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',')")
     check("All4" in chips and "Now2" in chips and "Wait0" in chips, f"filter chips count the topic's cards ({chips})")
-    check(js("document.querySelector('.tp-title').textContent") == "Where this card lives", "the tags pane is under the card")
-    wait_for("document.querySelector('.tp-res') && document.querySelector('.tp-res').textContent.includes('you')")
-    check(True, "and shows the card's places, the topic's resource first")
+    check(js("document.querySelector('.tp-title').textContent") == "Tags", "the tags pane is under the card")
+    check(wait_for("document.querySelector('.tp-sys-name')?.textContent") == "Cardio",
+          "and shows the card's places by system, the topic's first")
     js("[...document.querySelectorAll('.chip')].find(c => c.textContent.startsWith('Suspended')).dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")
     check(wait_for(f"{POS} === '1 of 2'"), "a chip filters the table")
-    check(wait_for("document.querySelector('.tp-verdict') && document.querySelector('.tp-verdict').textContent.includes('Only here')"),
-          "a suspended card's verdict and reason show in the pane")
+    check(wait_for("document.querySelector('.tp-title').textContent === 'Now'")
+          and js("document.querySelector('.tp-title').title") == "Only here",
+          "a suspended card's verdict is the pane's title, its reason on hover")
     press("f")
     check(js("document.querySelector('.chip.on').textContent.startsWith('Now')"), "f goes to the next filter")
     press("F", "F")

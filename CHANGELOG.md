@@ -12,18 +12,28 @@ All notable changes to this project are documented here. The format is based on
   then Again in, Q-bank and Yield, so the card can take most of the window.
 - Drag the edge between the card and its tags to give either one more
   height.
-- Hide the tags under the card, so the card gets their room: click "Where
-  this card lives", or press `i`. Click it or press `i` again to bring them
-  back.
+- Hide the tags under the card, so the card gets their room: click their
+  title, or press `i`. Click it or press `i` again to bring them back.
 - Skim remembers these sizes, and whether the tags are hidden. Double-click
   an edge to put it back where it started, or choose **⋯ → Reset layout** to
   put everything back.
 - Make everything in the window bigger or smaller: Cmd+= and Cmd+− (Ctrl on
   Windows and Linux) zoom it in steps, Cmd+0 puts it back to 100%, and
   Skim opens at the size you leave it. It's in Settings too, as Size.
+- Resources show their logos beside their names under the card (Bootcamp,
+  Sketchy, UWorld, AMBOSS, Pixorize and others), so you can tell them apart
+  at a glance.
 
 ### Changed
 
+- The tags under the card are easier to read. A card's places are grouped
+  by system, the topic's first, under a bar (when there's more than one) of
+  how many of your resources put the card in each: blue for the topic
+  you're on, green, orange or purple for systems done, queued or saved for
+  later in Stepwise, and grey for the rest. That bar is why the card could wait or not, so the verdict
+  is now the title of the tags, without a sentence after it (hover it for
+  one). Each place shows the end of its path (hover for the rest), the
+  yield and question banks are pills, and it's all one size of text.
 - A card's yield shows as signal bars, in the list and under the card: four
   for High, three for Fairly High, two for Lower, one for Low.
 - Verdicts and yields are written as names: Your Call, High Yield, Fairly

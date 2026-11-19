@@ -57,28 +57,27 @@ export type Verdict = "now" | "call" | "wait";
 export type Status = "queued" | "completed" | "later" | null;
 
 /** One of a card's places in a resource, for the tags pane. */
-export interface PaneTopic {
+export interface PanePlace {
+  /** The resource that has it (B&B, FirstAid, ...). */
+  resource: string;
+  /** The end of its path, and all of it. */
   path: string;
+  full: string;
   tag: string;
   status: Status;
-  /** Under the topic you're on. */
-  here: boolean;
-  unit: string | null;
-  /** In another system: where you'll meet the card again. */
-  again: boolean;
   /** Tagged as ::Extra (mentioned in passing). */
   extra: boolean;
 }
-
-export interface PaneGroup {
-  label: string;
-  pinned: boolean;
-  here: boolean;
-  topics: PaneTopic[];
+/** What a system is to you: the topic's, Stepwise's status for it, or
+ *  neither (not started, a discipline, or no Stepwise). */
+export type SystemState = "here" | "completed" | "queued" | "later" | null;
+export interface PaneSystem {
+  name: string;
+  state: SystemState;
+  /** How many resources put the card in it, as the verdict counts them. */
+  weight: number;
+  places: PanePlace[];
 }
-
-/** A resource the card is in that isn't one of yours, or AnKing's own tags.
- * The label is "" for tags with no path (`leech`), which come last. */
 export interface PaneOther {
   label: string;
   /** [readable path, the tag] */
@@ -87,10 +86,12 @@ export interface PaneOther {
 
 export interface Pane {
   verdict: Verdict | null;
+  /** The verdict's reason in words, for its tooltip. */
   reason: string | null;
   yield: string | null;
   banks: [string, number][];
-  groups: PaneGroup[];
+  /** The card's places by system, the topic's first. */
+  systems: PaneSystem[];
   /** Tags not worth showing first (other resources, AnKing's own). */
   more: PaneOther[];
 }
