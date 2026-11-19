@@ -3,6 +3,7 @@
 // cards scrolls like one with 50. Moving the cursor changes two rows.
 
 import type { Row, Status } from "./types.ts";
+import { barsOf, yieldBars } from "./yieldbars.ts";
 
 export const ROW_H = 30;
 const OVERSCAN = 10;
@@ -21,7 +22,7 @@ const STATES: Record<number, [label: string, cls: string]> = {
   2: ["Review", "review"],
   4: ["Preview", "learn"],
 };
-const VERDICTS: Record<string, string> = { now: "Now", call: "Your call", wait: "Wait" };
+const VERDICTS: Record<string, string> = { now: "Now", call: "Your Call", wait: "Wait" };
 const STATUS_WORD: Record<string, string> = { completed: "done", queued: "queued", later: "saved for later" };
 /** Again in's chips, the systems a card will wait for first. */
 const STATUS_ORDER: Record<string, number> = { none: 0, later: 1, queued: 2, completed: 3 };
@@ -50,7 +51,7 @@ const COLS: [key: ColKey, track: string, min: number][] = [
   ["text", "minmax(200px, 1fr)", 200],
   ["deck", "minmax(72px, 0.35fr)", 72],
   ["state", "74px", 74],
-  ["yield", "74px", 74],
+  ["yield", "92px", 92],
   ["bank", "112px", 112],
   ["again", "150px", 150],
   ["verdict", "66px", 66],
@@ -78,6 +79,8 @@ export interface ListOptions {
 interface RowEl {
   el: HTMLDivElement;
   cells: HTMLSpanElement[];
+  /** The yield's word, after its bars (made once, in make). */
+  yieldText: HTMLSpanElement;
   index: number;
   filled: boolean;
 }
@@ -350,7 +353,9 @@ export class CardList {
       el.append(c);
       return c;
     });
-    return { el, cells, index: -1, filled: false };
+    const yieldText = document.createElement("span");
+    cells[4].append(yieldBars(), yieldText);
+    return { el, cells, yieldText, index: -1, filled: false };
   }
 
   private recycle(r: RowEl): void {
@@ -368,7 +373,9 @@ export class CardList {
     if (!row) {
       r.filled = false;
       cls.push("loading");
-      for (const c of r.cells.slice(1)) c.replaceChildren();
+      for (const c of r.cells.slice(1)) if (c !== yld) c.replaceChildren();
+      yld.dataset.y = "0";
+      r.yieldText.textContent = "";
       r.el.className = cls.join(" ");
       return;
     }
@@ -380,8 +387,8 @@ export class CardList {
     deck.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
     state.textContent = label;
     state.className = `r-state ${stateCls}`;
-    yld.textContent = row.y ?? "";
-    yld.className = `r-yield${row.y === "High" ? " high" : ""}`;
+    yld.dataset.y = barsOf(row.y);
+    r.yieldText.textContent = row.y ?? "";
     bank.textContent = row.b ?? "";
     bank.title = row.b ?? "";
     again.replaceChildren(...(this.cut.has("again") ? [] : this.fitChips(row.a ?? [])));

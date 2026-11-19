@@ -36,19 +36,20 @@ through topics.
 - **Columns that help you decide.** The note's text with clozes filled in, its
   deck (for a card in a filtered deck, its home deck in brackets; hover for
   the full name), its state (new, learning, review, suspended, buried),
-  AnKing's yield tag, the
-  UWorld, AMBOSS and NBME questions tagged on it, the other systems it comes up
-  in ("Again in", coloured by what you've done in Stepwise), and a verdict.
+  AnKing's yield tag (with signal bars: four for High down to one for Low),
+  the UWorld, AMBOSS and NBME questions tagged on it, the other systems it
+  comes up in ("Again in", coloured by what you've done in Stepwise), and a
+  verdict.
   Click a column's title to sort by it (again to reverse it).
 - **Now or wait.** On a topic (from Stepwise, or a `tag:` search), each
   suspended card gets a verdict. Its places in your pinned resources (and the
   one you're on) are sorted by system: if at least half are in this topic's
   system, unsuspend it now; if not, and a system you haven't started also has
   it, it could wait, since you'll meet it there. High-yield cards that would
-  wait are "your call", and a card tagged here only as `::Extra` leans to
+  wait are "Your Call", and a card tagged here only as `::Extra` leans to
   waiting. The reason shows beside it ("43% here; comes up again in Endocrine,
   Repro"). The threshold is a setting.
-- **Filters.** All, Suspended, Now, Wait, Your call, High yield and Q-bank, each
+- **Filters.** All, Suspended, Now, Wait, Your Call, High Yield and Q-bank, each
   with its count. Click one, or press `f` / `F` to go through them.
 - **Where this card lives.** Under the card, its tags grouped by resource: the
   one you're on first, then your pinned resources in Stepwise's order, each

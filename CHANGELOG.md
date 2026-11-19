@@ -22,6 +22,13 @@ All notable changes to this project are documented here. The format is based on
   Windows and Linux) zoom it in steps, Cmd+0 puts it back to 100%, and
   Skim opens at the size you leave it. It's in Settings too, as Size.
 
+### Changed
+
+- A card's yield shows as signal bars, in the list and under the card: four
+  for High, three for Fairly High, two for Lower, one for Low.
+- Verdicts and yields are written as names: Your Call, High Yield, Fairly
+  High.
+
 ### Fixed
 
 - About checks AnkiWeb for updates to Skim, now that it's there.

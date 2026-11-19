@@ -63,7 +63,7 @@ html, body {
   --list-min: 440px;
   --side-min: 280px;
   --card-split: 60%;
-  --cols: 34px minmax(200px, 1fr) minmax(72px, 0.35fr) 74px 74px 112px 150px 66px;
+  --cols: 34px minmax(200px, 1fr) minmax(72px, 0.35fr) 74px 92px 112px 150px 66px;
 }
 [hidden] { display: none !important; }
 
@@ -241,8 +241,24 @@ html, body {
 .r-state.learn { color: var(--q); }
 .r-state.review { color: var(--d); }
 .r-state.susp { color: color-mix(in srgb, #d4a106 85%, var(--text)); }
-.r-yield { font-weight: 500; color: var(--text-2); }
-.r-yield.high { font-weight: 650; color: var(--text); }
+.r-yield { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.r-yield > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Yield as signal bars (yieldbars.ts), in the list and the tags pane:
+   data-y fills that many of four, and the higher two read darker. */
+.ybars { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; flex: none; }
+.ybars i { width: 3px; border-radius: 1px; background: color-mix(in srgb, currentColor 22%, transparent); }
+.ybars i:nth-child(1) { height: 4px; }
+.ybars i:nth-child(2) { height: 6px; }
+.ybars i:nth-child(3) { height: 8px; }
+.ybars i:nth-child(4) { height: 10px; }
+[data-y="1"] .ybars i:nth-child(-n+1),
+[data-y="2"] .ybars i:nth-child(-n+2),
+[data-y="3"] .ybars i:nth-child(-n+3),
+[data-y="4"] .ybars i { background: currentColor; }
+[data-y="0"] .ybars { visibility: hidden; }
+:is(.r-yield, .tp-yield):is([data-y="3"], [data-y="4"]) { color: var(--text); }
+:is(.r-yield, .tp-yield)[data-y="2"] { color: var(--text-2); }
+:is(.r-yield, .tp-yield)[data-y="1"] { color: var(--text-3); }
 .r-bank { font-size: 11.5px; color: var(--text-2); }
 .r-deck { font-size: 12px; color: var(--text-2); }
 .r-again { display: flex; gap: 3px; }

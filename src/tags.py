@@ -74,7 +74,8 @@ _YIELD = {
     "4-loweryield": 4,
     "5-lowyield": 5,
 }
-YIELD_LABELS = {1: "High", 2: "Fairly high", 3: "High", 4: "Lower", 5: "Low"}
+# Title case: they're names (AnKing's tags), shown as labels.
+YIELD_LABELS = {1: "High", 2: "Fairly High", 3: "High", 4: "Lower", 5: "Low"}
 HIGH_YIELD = {1, 3}
 _BANKS = {"#uworld": "UWorld", "#amboss": "AMBOSS", "#nbme": "NBME"}
 BANK_SHORT = {"UWorld": "UW", "AMBOSS": "AM", "NBME": "NB"}

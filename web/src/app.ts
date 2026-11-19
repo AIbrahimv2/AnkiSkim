@@ -65,8 +65,8 @@ const FILTERS: Filter[] = [
   { key: "susp", label: "Suspended", test: (f, i) => f.state[i] === -1 },
   { key: "now", label: "Now", topic: true, test: (f, i) => f.verdict[i] === 1 },
   { key: "wait", label: "Wait", topic: true, test: (f, i) => f.verdict[i] === 3 },
-  { key: "call", label: "Your call", topic: true, test: (f, i) => f.verdict[i] === 2 },
-  { key: "high", label: "High yield", test: (f, i) => f.yield[i] === 1 || f.yield[i] === 3 },
+  { key: "call", label: "Your Call", topic: true, test: (f, i) => f.verdict[i] === 2 },
+  { key: "high", label: "High Yield", test: (f, i) => f.yield[i] === 1 || f.yield[i] === 3 },
   { key: "qbank", label: "Q-bank", test: (f, i) => f.banks[i] > 0 },
 ];
 /** Suspend / unsuspend, as Anki's browser has it. */
