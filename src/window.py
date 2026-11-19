@@ -227,14 +227,28 @@ class SkimWindow(QDialog):
         return {"suspended": not unsuspend, "count": len(queues)}
 
     def edit(self, cid: int) -> None:
+        """Anki's browser, on Skim's search, with this card selected.
+
+        The browser doesn't search straight away: it waits for its editor to
+        save the note it shows (a beat later, even with none), then selects
+        its first row unless what was selected is still in the list. So the
+        card is selected once the editor has saved too, which is after that
+        search: both wait in one queue."""
         if not cid:
             return
         search = self._view.search or f"cid:{cid}"
         browser = aqt.dialogs.open("Browser", mw, search=(search,))
+
+        def select() -> None:
+            try:
+                browser.table.select_single_card(cid)
+            except Exception:
+                pass
+
         try:
-            browser.table.select_single_card(cid)
-        except Exception:
-            pass
+            browser.editor.call_after_note_saved(select)
+        except Exception:  # an Anki whose browser has no such editor
+            select()
 
     def back(self) -> None:
         if _alive(self._opener):

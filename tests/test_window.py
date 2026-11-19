@@ -224,6 +224,65 @@ try:
        "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
     check(wait_for(f"{POS} === '1 of 4'"), "back to tag:Neuro")
 
+    print("e opens Anki's browser on the card")
+    import aqt
+
+    class Browser:
+        """Anki's browser as far as e goes (aqt/browser, 25.09): a search
+        waits for the editor to save its note (a 10 ms timer with none, a
+        script in its web view with one), then keeps the selection if it's
+        in the list and otherwise selects the first row."""
+
+        def __init__(self):
+            self.rows, self.selected, self.note = [], None, None
+            self.editor = types.SimpleNamespace(call_after_note_saved=self.after_saved)
+            self.table = types.SimpleNamespace(select_single_card=self.select)
+
+        def after_saved(self, fn):
+            if self.note is None:
+                mw.progress.single_shot(10, fn)
+            else:
+                api._window.web.evalWithCallback("0", lambda _: fn())
+
+        def search(self, text):
+            self.rows = list(col.find_cards(text, order="c.id"))
+            if self.selected not in self.rows:
+                self.selected = self.rows[0] if self.rows else None
+            self.note = self.selected
+
+        def select(self, cid):
+            self.selected = cid if cid in self.rows else None
+            self.note = self.selected
+
+    browsers: list = []
+
+    def open_browser(name, _mw, *, search):
+        if not browsers:
+            browsers.append(Browser())
+        browsers[0].editor.call_after_note_saved(lambda: browsers[0].search(search[0]))
+        return browsers[0]
+
+    real_open, aqt.dialogs.open = aqt.dialogs.open, open_browser
+    try:
+        press("G")
+        check(js(POS) == "4 of 4", "on the last card")
+        cid = int(js(SHOWN))
+        press("e")
+        pump(0.3)
+        b = browsers[0]
+        check(b.rows == list(col.find_cards("tag:Neuro", order="c.id")) and cid != b.rows[0],
+              "e opens the browser on Skim's search")
+        check(b.selected == cid, f"with the card on screen selected, not the first ({b.selected} for {cid})")
+        b.search("tag:Cardio")  # the browser left open on another search
+        press("k")
+        cid = int(js(SHOWN))
+        press("e")
+        pump(0.3)
+        check(b.selected == cid and cid != b.rows[0],
+              f"and again with the browser already open, on another search ({b.selected} for {cid})")
+    finally:
+        aqt.dialogs.open = real_open
+
     print("opened from Stepwise")
     stepwise = QDialog()
     stepwise.setWindowTitle("Stepwise")

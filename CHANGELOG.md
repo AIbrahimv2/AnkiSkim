@@ -22,6 +22,8 @@ All notable changes to this project are documented here. The format is based on
 ### Fixed
 
 - About checks AnkiWeb for updates to Skim, now that it's there.
+- `e` (or `B`) opens Anki's browser on the card you're looking at. It used
+  to land on the first card of the search.
 
 ## [1.0.0] - 2026-11-17
 
