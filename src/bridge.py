@@ -11,8 +11,8 @@ The host is the Skim window in Anki, or tools/devserver.py while working on
 the page in a browser. It provides `col`, `view()`, `run_search(query)`,
 `frame_html()`, `analyzer()`, `ids()`, `prepare`, `hook`, `body_class`,
 `layout`, and the actions
-below (`edit`, `back`, `close_window`, `replay`, `play`, `save_layout`, `settings_saved`,
-and optionally `toggle_suspend` and `review_lens`).
+below (`browse`, `changed`, `back`, `close_window`, `replay`, `play`, `save_layout`,
+`settings_saved`, and optionally `toggle_suspend` and `review_lens`).
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import traceback
 
-from . import cards, kit
+from . import cards, kit, notes
 from .config import DEFAULTS, check_settings, get_config, update_config
 
 MAX_BATCH = 400
@@ -32,6 +32,8 @@ MAX_SELECTED = 100_000
 # table's share of the width, and the card's share of the height.
 SHARE_RANGE = (0.2, 0.9)
 SPLIT_RANGE = (0.15, 0.9)
+# A field being saved: far more than a card's text, short of a mistake.
+MAX_FIELD = 4 * 1024 * 1024
 
 
 def settings_of(cfg: dict) -> dict:
@@ -121,9 +123,46 @@ class Bridge:
 
     # --- actions -------------------------------------------------------------
 
-    def cmd_edit(self, msg: dict) -> dict:
-        self.host.edit(int(msg.get("cid") or 0))
+    def cmd_browse(self, msg: dict) -> dict:
+        """B: the card in Anki's own browser."""
+        self.host.browse(int(msg.get("cid") or 0))
         return {}
+
+    # --- editing (e) ---------------------------------------------------------
+
+    def cmd_note(self, msg: dict) -> dict:
+        """A card's note, ready to edit (see notes.payload); null if gone."""
+        return {"note": notes.payload(self.host.col, int(msg.get("cid") or 0))}
+
+    def cmd_save(self, msg: dict) -> dict:
+        """Write the fields that changed ({index: html}). The reply says
+        whether anything was written and what to warn about."""
+        fields = msg.get("fields")
+        if not isinstance(fields, dict) or any(not isinstance(v, str) or len(v) > MAX_FIELD for v in fields.values()):
+            return {"error": "That can't be saved."}
+        result = notes.save(self.host.col, int(msg.get("nid") or 0), fields)
+        if result is None:
+            return {"gone": True}
+        note, changes = result
+        if changes is not None:
+            self.host.changed(changes)
+        return {"saved": changes is not None, "problem": notes.problem(note)}
+
+    def cmd_clipboard(self, msg: dict) -> dict:
+        """The system's clipboard, to paste (Cmd+V, p): see
+        notes.from_clipboard. With `mark`, only whether it has changed
+        (asked at each yank). A host with no clipboard says so, and the
+        page pastes what the browser hands it."""
+        read = getattr(self.host, "clipboard", None)
+        if read is None:
+            return {"unsupported": True}
+        return read(mark_only=msg.get("mark") is True)
+
+    def cmd_media(self, msg: dict) -> dict:
+        """A pasted image: into the media folder; the src to use for it."""
+        src = notes.add_media(self.host.col, str(msg.get("mime") or ""), str(msg.get("data") or ""),
+                              str(msg.get("name") or ""))
+        return {"src": src} if src else {"error": "That image couldn't be added."}
 
     def cmd_back(self, msg: dict) -> dict:
         self.host.back()

@@ -11,7 +11,11 @@ type Pycmd = (arg: string, cb?: (result: unknown) => void) => boolean;
 declare global {
   interface Window {
     pycmd?: Pycmd;
-    skim?: { push: (event: PushEvent) => void };
+    skim?: {
+      push: (event: PushEvent) => void;
+      /** An edit not saved yet, handed to Python as the page goes away. */
+      take: () => { nid: number; fields: Record<string, string> } | null;
+    };
   }
 }
 

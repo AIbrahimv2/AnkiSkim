@@ -14,19 +14,20 @@ from __future__ import annotations
 import json
 import os
 import time
+import traceback
 
 import aqt
 from anki.consts import QUEUE_TYPE_SUSPENDED
 from anki.utils import ids2str
 from aqt import gui_hooks, mw
 from aqt.operations.scheduling import suspend_cards, unsuspend_cards
-from aqt.qt import QDialog, Qt, QTimer, QVBoxLayout, qconnect, sip
+from aqt.qt import QApplication, QDialog, QEventLoop, Qt, QTimer, QVBoxLayout, qconnect, sip
 from aqt.sound import av_player, play_clicked_audio
 from aqt.theme import theme_manager
 from aqt.utils import disable_help_button, restoreGeom, saveGeom, setWindowIcon
 from aqt.webview import AnkiWebView
 
-from . import frame, kit
+from . import frame, kit, notes
 from .bridge import Bridge
 from .config import ADDON, get_config, update_config
 from .tags import Analyzer
@@ -43,6 +44,8 @@ FOLLOW_EVERY = 0.04
 # views, once the first cards are in (moving between them never waits on
 # Python).
 RECOUNT_DELAY_MS = 300
+# How long closing waits for the page to hand over an edit it hasn't saved.
+FLUSH_MS = 500
 
 def asset_url(name: str) -> str:
     """URL for a built asset, versioned by mtime so a rebuild is never
@@ -229,7 +232,52 @@ class SkimWindow(QDialog):
         op(parent=self, card_ids=cids).run_in_background()
         return {"suspended": not unsuspend, "count": len(queues)}
 
-    def edit(self, cid: int) -> None:
+    def changed(self, changes) -> None:
+        """A note was saved from the page (e): tell Anki, the way its own
+        operations do, so Edit → Undo, the browser and the reviewer all hear
+        of it. Skim is the one who did it (see api.on_operation), and its
+        page reads the cards again by itself."""
+        try:
+            from aqt.operations import on_op_finished
+
+            on_op_finished(mw, changes, self)
+        except Exception:
+            traceback.print_exc()
+
+    def clipboard(self, mark_only: bool = False) -> dict:
+        """The system's clipboard for the page to paste while editing: a
+        copied picture included, which a web page can't always read
+        itself. Read here, the way Anki's own editor does."""
+        mime = QApplication.clipboard().mimeData()
+        mark = notes.clipboard_mark(mime)
+        if mark_only:
+            return {"mark": mark}
+        return {**notes.from_clipboard(mw.col, mime), "mark": mark}
+
+    def flush(self) -> None:
+        """Save an edit the page hasn't yet, before the page goes away (the
+        profile closing, a reload). The page saves by itself moments after
+        you stop typing and when the window hides, so this is for the last
+        half second: ask it what's left, wait briefly, write it here."""
+        if not self._loaded or mw.col is None:
+            return
+        got: list = []
+        loop = QEventLoop()
+
+        def done(result) -> None:
+            got.append(result)
+            loop.quit()
+
+        try:
+            self.web.evalWithCallback("window.skim && window.skim.take ? JSON.stringify(window.skim.take()) : ''", done)
+            QTimer.singleShot(FLUSH_MS, loop.quit)
+            loop.exec()
+            if got and isinstance(got[0], str) and got[0].startswith("{"):
+                self.bridge.handle(json.dumps({**json.loads(got[0]), "cmd": "save"}))
+        except Exception:
+            traceback.print_exc()
+
+    def browse(self, cid: int) -> None:
         """Anki's browser, on Skim's search, with this card selected.
 
         The browser doesn't search straight away: it waits for its editor to
@@ -394,6 +442,7 @@ class SkimWindow(QDialog):
     def reload(self) -> None:
         """Theme changed: the card frames are rebuilt with the new colours."""
         if self._loaded:
+            self.flush()
             self._loaded = False
             self.load()
 

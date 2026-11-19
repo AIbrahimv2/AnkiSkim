@@ -3,7 +3,7 @@ what happens with bad input."""
 
 import json
 
-from harness import ALL, check, col, mw
+from harness import ALL, check, col, mw, notes
 from skim import api, settings_page
 from skim.bridge import MAX_BATCH, Bridge
 from skim.tags import Analyzer
@@ -15,6 +15,8 @@ class Host:
         self.col = col
         self.state = ViewState()
         self.saved = []
+        self.changes = []
+        self.browsed = []
 
     def prepare(self, text):
         return text
@@ -49,6 +51,12 @@ class Host:
     def save_layout(self, layout):
         self.saved_layout = layout
 
+    def changed(self, changes):
+        self.changes.append(changes)
+
+    def browse(self, cid):
+        self.browsed.append(cid)
+
 
 host = Host()
 b = Bridge(host)
@@ -69,6 +77,35 @@ check(part["ids"] == [cardio["ids"][3], cardio["ids"][1]] and len(part["facets"]
 check(part["reading"] == cardio["reading"] == "Cardio", "named for what they were read against")
 check(call("facets", seq=cardio["seq"] - 1, ids=ALL).get("stale"), "and not for a view that's gone")
 check(call("rows", ids=ALL[:1])["reading"] == "Cardio", "rows say their reading too")
+
+print("editing a note")
+brain = sorted(col.find_cards(f"nid:{notes['brainstem']}"), key=lambda c: col.get_card(c).ord)
+got = call("note", cid=brain[1])["note"]
+check(got["nid"] == notes["brainstem"] and got["cloze"] and got["card"] == "Cloze 2", "a card's note, and which card it is")
+check([f["name"] for f in got["fields"]] == ["Text", "Back Extra"] and got["fields"][0]["html"].startswith("The {{c1::"),
+      "its fields by name, as they're stored")
+check(call("note", cid=1)["note"] is None, "a card that's gone has none")
+r = call("save", nid=got["nid"], fields={"1": "Extra"})
+check(r == {"saved": False, "problem": None} and not host.changes, "saving what's there already writes nothing")
+r = call("save", nid=got["nid"], fields={"1": "More <b>here</b>", "9": "x", "no": "y"})
+check(r["saved"] and len(host.changes) == 1, "a changed field is written, and Anki hears of it")
+after = col.get_note(got["nid"]).fields
+check(after == ["The {{c1::brainstem}} has {{c2::three::number}} parts", "More <b>here</b>"],
+      "only that field; ones the note doesn't have are skipped")
+r = call("save", nid=got["nid"], fields={"0": "No cloze now", "1": "<br>"})
+check(r["problem"] and "cloze" in r["problem"].lower(), "a cloze note left with no cloze says so")
+check(col.get_note(got["nid"]).fields[1] == "", "and a field emptied in the page is empty")
+call("save", nid=got["nid"], fields={"0": "The {{c1::brainstem}} has {{c2::three::number}} parts", "1": "Extra"})
+check(call("save", nid=1, fields={"0": "x"}) == {"gone": True}, "a note that's gone can't be saved")
+check("error" in call("save", nid=got["nid"], fields=["x"]) and "error" in call("save", nid=got["nid"], fields={"0": 5}),
+      "nor anything that isn't fields")
+png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+r = call("media", mime="image/png", name="My shot.png", data=png)
+check(r.get("src", "").endswith(".png") and col.media.have(r["src"].replace("%20", " ")), f"a pasted image goes into the media folder ({r})")
+check("error" in call("media", mime="text/html", data=png) and "error" in call("media", mime="image/png", data="@@"),
+      "only images, and only real ones")
+call("browse", cid=brain[0])
+check(host.browsed == [brain[0]], "B asks for Anki's browser")
 
 print("layout")
 call("layout", share=0.3)

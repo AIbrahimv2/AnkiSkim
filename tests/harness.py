@@ -97,6 +97,7 @@ mw.prepare_card_text_for_display = lambda text: col.media.escape_media_filenames
 mw.progress = types.SimpleNamespace(single_shot=lambda ms, fn, *a, **k: QTimer.singleShot(ms, fn))
 mw.reviewer = types.SimpleNamespace(
     revHtml=lambda: '<div id="_mark" hidden>&#x2605;</div><div id="_flag" hidden>&#x2691;</div><div id="qa"></div>')
+mw.update_undo_actions = lambda: None  # Anki's, after an operation (a note saved from the page)
 aqt.mw = mw
 
 # Import the add-on under a name without a hyphen.

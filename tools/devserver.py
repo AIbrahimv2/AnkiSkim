@@ -193,8 +193,11 @@ def main() -> None:
             self.state.set(col, search=query.strip())
             return self.view()
 
-        def edit(self, cid):
+        def browse(self, cid):
             print(f"[dev] would open the browser on card {cid}")
+
+        def changed(self, changes):
+            print("[dev] saved a note")
 
         def back(self):
             print("[dev] would go back")

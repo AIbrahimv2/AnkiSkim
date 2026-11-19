@@ -437,6 +437,8 @@ def close() -> None:
     global _window
     window, _window = _window, None
     if window is not None:
+        if window.isVisible():
+            window.flush()  # an edit typed a moment ago
         window.close()
         window.cleanup()
         window.deleteLater()

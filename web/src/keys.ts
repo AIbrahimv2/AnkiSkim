@@ -11,7 +11,8 @@ export type Command =
   | { kind: "side"; side: Side | "flip" } // h/l, Space
   | { kind: "scroll"; by: number } // J/K, Ctrl-e/Ctrl-y: scroll the card itself
   | { kind: "search" }
-  | { kind: "edit" }
+  | { kind: "edit" } // e: edit the card here
+  | { kind: "browse" } // B: open it in Anki's browser
   | { kind: "replay" }
   | { kind: "back" }
   | { kind: "close" } // q
@@ -157,8 +158,9 @@ export class Keys {
       case "/":
         return { kind: "search" };
       case "e":
-      case "B": // as in Stepwise, where b opens Skim and B Anki's browser
         return { kind: "edit" };
+      case "B": // as in Stepwise, where b opens Skim and B Anki's browser
+        return { kind: "browse" };
       case "r":
         return { kind: "replay" };
       case "p":

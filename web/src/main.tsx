@@ -9,7 +9,7 @@ import "./styles.css";
 // keep those until the app is there.
 let app: App | null = null;
 const early: PushEvent[] = [];
-window.skim = { push: (e) => (app ? app.push(e) : early.push(e)) };
+window.skim = { push: (e) => (app ? app.push(e) : early.push(e)), take: () => app?.take() ?? null };
 
 async function start() {
   const root = document.getElementById("root");
@@ -18,9 +18,10 @@ async function start() {
   const a = new App(root, boot);
   const chrome = mountChrome(a.chromeHost, {
     slot: a.actionsSlot,
-    onEdit: () => {
+    onEdit: () => a.startEdit(),
+    onBrowse: () => {
       const cid = a.cardId();
-      if (cid) void call("edit", { cid });
+      if (cid) void call("browse", { cid });
     },
     onResetLayout: () => a.resetLayout(),
     layoutChanged: () => a.layoutChanged(),

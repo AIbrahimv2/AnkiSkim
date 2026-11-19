@@ -2,7 +2,7 @@
 // open in the shared add-on kit's window), the list of keys, and toasts.
 // React, like Stepwise's; nothing here runs while you move between cards.
 
-import { CircleCheck, Ellipsis, Info, Keyboard, LayoutPanelLeft, Settings2, Sparkles, SquarePen, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, Ellipsis, Info, Keyboard, LayoutPanelLeft, Settings2, Sparkles, SquarePen, Table2, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -19,7 +19,10 @@ export interface ChromeApi {
 
 export interface ChromeProps {
   slot: HTMLElement;
+  /** Edit the card you're on, here. */
   onEdit(): void;
+  /** Open it in Anki's browser. */
+  onBrowse(): void;
   /** Reset layout: the panes back to their first sizes, the tags open. */
   onResetLayout(): void;
   /** Whether there's a layout to reset (the item is greyed out if not). */
@@ -85,7 +88,8 @@ function Chrome(props: ChromeProps) {
           onClose={() => setMenu(null)}
           minWidth={220}
           entries={[
-            { label: "Edit in Anki's browser", icon: <SquarePen size={14} />, hint: "e", onSelect: props.onEdit },
+            { label: "Edit card", icon: <SquarePen size={14} />, hint: "e", onSelect: props.onEdit },
+            { label: "Open in Anki's browser", icon: <Table2 size={14} />, hint: "B", onSelect: props.onBrowse },
             { label: "Keys", icon: <Keyboard size={14} />, hint: "?", onSelect: () => setHelp(true) },
             {
               label: "Reset layout",
@@ -141,11 +145,40 @@ const KEYS: [string[], string][] = [
   [["t", "T"], "Next / previous view (All, This review, Due, Studied, ...)"],
   [["H", "L"], "The view to the left / right"],
   [["/"], "Search (Anki's syntax); Enter runs it, Esc goes back"],
-  [["e", "B"], "Open the card in Anki's browser, to edit it"],
+  [["e"], "Edit the card (its keys are below)"],
+  [["B"], "Open the card in Anki's browser"],
   [["r"], "Play the card's audio"],
   [["p"], "Back to the window that opened Skim (Stepwise)"],
   [["q", "Esc"], "Close Skim (Esc first ends a selection)"],
   [[`${MOD}=`, `${MOD}-`], `Make everything bigger / smaller (${MOD}0: back to 100%)`],
+];
+
+/** While editing a card (e). */
+const EDIT_KEYS: [string[], string][] = [
+  [["i", "a", "I", "A"], "Type: before / after the cursor, at the line's start / end"],
+  [["o", "O"], "Type on a new line below / above"],
+  [["Esc"], "Stop typing (what you changed is saved)"],
+  [["h", "j", "k", "l"], "Left, down, up, right (j and k go on into the next field)"],
+  [["w", "b", "e"], "Next word, back a word, end of word (W, B, E: by spaces only)"],
+  [["0", "^", "$"], "Start of the line, its first letter, its end"],
+  [["f x", "t x"], "To the next x on the line, or just before it (F, T: backwards; ; and , repeat)"],
+  [["gg", "G"], "First / last field (2G: field 2)"],
+  [["Tab", "Shift-Tab"], "Next / previous field"],
+  [["x", "r x", "~"], "Delete a letter, replace it with x, switch its case"],
+  [["d", "c", "y"], "Delete, change or copy what a move covers: dw, c$, yiw, dd (the line), 3dd"],
+  [["iw", "i(", 'i"', "ic"], "After d, c, y or v: a word, inside brackets or quotes, a cloze's answer (aw, a(, ac: all of it)"],
+  [["p", "P"], "Paste after / before the cursor"],
+  [["v", "V"], "Select letters / lines as you move, then d, c, y"],
+  [["u", "Ctrl-r"], "Undo / redo"],
+  [["."], "Do the last change again"],
+  [["gc", "gC"], "Make a cloze of what a move covers or what's selected: gciw, gc$ (gC: the same number again)"],
+  [[`${MOD}Shift-C`], "A cloze, as in Anki's editor (with Alt: the same number again)"],
+  [["gx"], "Take the cloze under the cursor off, keeping its text"],
+  [[`${MOD}B`, `${MOD}I`, `${MOD}U`], "Bold, italic, underline"],
+  [["J", "K"], "Next / previous note"],
+  [["Space"], "Flip the card beside the fields"],
+  [["gb"], "Open the card in Anki's browser"],
+  [["q", "ZZ"], "Done: back to the cards"],
 ];
 
 function KeysDialog(props: { onClose: () => void }) {
@@ -170,6 +203,20 @@ function KeysDialog(props: { onClose: () => void }) {
         ))}
       </div>
       <p className="keys-foot">A number before a move repeats it, like in vim. Esc cancels a number you've typed.</p>
+      <h3 className="keys-part">Editing a card</h3>
+      <div className="keys-table">
+        {EDIT_KEYS.map(([keys, label]) => (
+          <div className="keys-row" key={label}>
+            <span className="keys-keys">
+              {keys.map((k) => (
+                <kbd key={k}>{k}</kbd>
+              ))}
+            </span>
+            <span className="keys-label">{label}</span>
+          </div>
+        ))}
+      </div>
+      <p className="keys-foot">Edits are saved as you go, and Anki's Edit → Undo takes them back.</p>
     </Modal>
   );
 }

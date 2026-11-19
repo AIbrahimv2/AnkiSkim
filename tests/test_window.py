@@ -75,7 +75,7 @@ def wait_for(expr: str, timeout: float = 20.0):
 
 def press(*keys: str) -> None:
     for k in keys:
-        js(f"document.body.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(k)}, bubbles: true}}))")
+        js(f"for (const t of ['keydown', 'keyup']) document.body.dispatchEvent(new KeyboardEvent(t, {{key: {json.dumps(k)}, bubbles: true}}))")
 
 
 SHOWN = "(() => { const f = document.querySelector('.card-frame.on'); return f && f.contentWindow.skimCid; })()"
@@ -239,7 +239,7 @@ try:
        "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
     check(wait_for(f"{POS} === '1 of 4'"), "back to tag:Neuro")
 
-    print("e opens Anki's browser on the card")
+    print("B opens Anki's browser on the card")
     import aqt
 
     class Browser:
@@ -282,21 +282,141 @@ try:
         press("G")
         check(js(POS) == "4 of 4", "on the last card")
         cid = int(js(SHOWN))
-        press("e")
+        press("B")
         pump(0.3)
         b = browsers[0]
         check(b.rows == list(col.find_cards("tag:Neuro", order="c.id")) and cid != b.rows[0],
-              "e opens the browser on Skim's search")
+              "B opens the browser on Skim's search")
         check(b.selected == cid, f"with the card on screen selected, not the first ({b.selected} for {cid})")
         b.search("tag:Cardio")  # the browser left open on another search
         press("k")
         cid = int(js(SHOWN))
-        press("e")
+        press("B")
         pump(0.3)
         check(b.selected == cid and cid != b.rows[0],
               f"and again with the browser already open, on another search ({b.selected} for {cid})")
     finally:
         aqt.dialogs.open = real_open
+
+    print("e edits the card here")
+    FIELDS = "JSON.stringify([...document.querySelectorAll('.field-body')].map(f => f.innerHTML))"
+    MODE = "document.querySelector('.edit-mode') && document.querySelector('.edit-mode').textContent"
+    STATE = "document.querySelector('.edit-state').textContent"
+    TYPE = "document.execCommand('insertText', false, {})"
+    press("g", "g")
+    cid = int(js(SHOWN))
+    nid = col.get_card(cid).nid
+    check(nid == notes["brainstem"], "on the brainstem note's first card")
+    press("e")
+    check(wait_for("document.querySelector('.app').classList.contains('editing')"), "e puts the note's fields where the table was")
+    check(json.loads(js(FIELDS)) == ["The {{c1::brainstem}} has {{c2::three::number}} parts", "Extra"],
+          "each field as it's stored")
+    check(js(MODE) == "Normal" and js("!document.querySelector('.vim-cursor').hidden"), "in normal mode, with a block cursor")
+    check(api.is_open() and (press("Escape") or True) and api.is_open(), "Esc doesn't close Skim while editing")
+    press("d", "w")
+    check(json.loads(js(FIELDS))[0] == "{{c1::brainstem}} has {{c2::three::number}} parts", "dw deletes a word")
+    press("u")
+    check(json.loads(js(FIELDS))[0].startswith("The {{c1::"), "u puts it back")
+    press("$", "g", "c", "i", "w")
+    check(json.loads(js(FIELDS))[0].endswith("{{c3::parts}}"), "gciw makes a cloze of the word, with the next number")
+    press("A")
+    check(js(MODE) == "Insert", "A types at the end of the line")
+    js(TYPE.format(json.dumps(" & more")))
+    press("j")  # a key that isn't Skim's while typing
+    check(js(POS) == "1 of 4", "and keys typed don't move through the cards")
+    press("Escape")
+    check(js(MODE) == "Normal", "Esc stops typing")
+    wait_for(f"{STATE} === 'Saved'")
+    saved = col.get_note(nid).fields[0]
+    check(saved == "The {{c1::brainstem}} has {{c2::three::number}} {{c3::parts}} &amp; more", f"and what changed is saved ({saved!r})")
+    check(col.get_note(nid).fields[1] == "Extra", "the field that wasn't touched as it was")
+    check(len(col.find_cards(f"nid:{nid}")) == 3, "with a card for the new cloze")
+    wait_for(f"{SHOWN_TEXT} && {SHOWN_TEXT}.includes('& more')")
+    check(True, "the card beside the fields shows the change")
+    # A held key: a Mac sends no repeats to text you can type in, so the
+    # page repeats it.
+    HOLD = "document.body.dispatchEvent(new KeyboardEvent('{}', {{key: 'x', bubbles: true}}))"
+    press("0")
+    js(HOLD.format("keydown"))
+    pump(0.7)
+    js(HOLD.format("keyup"))
+    held = json.loads(js(FIELDS))[0]
+    pump(0.3)
+    check(len(held) < len(saved) - 4 and json.loads(js(FIELDS))[0] == held,
+          f"a key held down repeats until it's let go ({held!r})")
+    js("for (let i = 0; i < 3; i++) document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'x', bubbles: true, repeat: i > 0}))")
+    pump(0.6)
+    js(HOLD.format("keyup"))
+    check(len(json.loads(js(FIELDS))[0]) == len(held) - 3, "where the system repeats keys itself, the page doesn't as well")
+    for _ in range(len(saved) - len(held) + 3):
+        press("u")
+    check(json.loads(js(FIELDS))[0] == saved, "and u takes each of them back, one press a letter, as in vim")
+    # The Mac's clipboard: a picture copied in a browser comes with its
+    # <img> as HTML, and Anki reads the picture itself.
+    from aqt.qt import QApplication, QColor, QImage, QMimeData, QWebEnginePage
+    clip = QApplication.clipboard()
+    picture = QImage(6, 4, QImage.Format.Format_RGB32)
+    picture.fill(QColor("#c0392b"))
+    mime = QMimeData()
+    mime.setImageData(picture)
+    mime.setHtml('<meta charset="utf-8"><img src="https://example.com/heart.png" alt="A heart">')
+    clip.setMimeData(mime)
+    press("Tab", "p")
+    wait_for(f"{FIELDS}.includes('<img')")
+    extra = json.loads(js(FIELDS))[1]
+    name = extra.split('src="')[1].split('"')[0]
+    check(name.startswith("paste-") and name.endswith(".png") and col.media.have(name),
+          f"p pastes a picture copied elsewhere, into the media folder ({extra!r})")
+    check("example.com" not in extra, "the picture itself, not a link to where it came from")
+    press("u")
+    check(json.loads(js(FIELDS))[1] == "Extra", "u takes it out")
+    api._window.web.triggerPageAction(QWebEnginePage.WebAction.Paste)
+    wait_for(f"{FIELDS}.includes('<img')")
+    check(name in json.loads(js(FIELDS))[1], "Cmd+V pastes it too")
+    press("u")
+    clip.setText("copied in Safari")
+    press("p")
+    wait_for(f"{FIELDS}.includes('copied in Safari')")
+    check(True, "and text copied elsewhere")
+    press("u", "y", "i", "w")
+    pump(0.3)
+    press("$", "p")
+    wait_for(f"JSON.parse({FIELDS})[1] === 'ExtraExtra'")
+    check(True, "but after a yank here, p pastes the yank")
+    press("u")
+    clip.setText("newer")
+    press("p")
+    wait_for(f"{FIELDS}.includes('newer')")
+    check(True, "until something else is copied")
+    press("u", "g", "g")
+    wait_for(f"{STATE} === 'Saved'")
+    press("J")
+    wait_for(f"{FIELDS}.includes('Dopamine')")
+    check(js(POS) == "3 of 4", "J goes to the next note, past this note's other cards")
+    press("i")
+    js(TYPE.format(json.dumps("Which ")))
+    check(js("JSON.stringify(window.skim.take())") and col.get_note(notes["parkinson"]).fields[0].startswith("Dopamine"),
+          "what's typed and not yet saved is there for Python to take")
+    js(TYPE.format(json.dumps("the ")))
+    api._window.flush()
+    check(col.get_note(notes["parkinson"]).fields[0] == "the Which Dopamine pathway in Parkinson's?"
+          or col.get_note(notes["parkinson"]).fields[0].startswith("Which the "),
+          f"and closing the profile saves it ({col.get_note(notes['parkinson']).fields[0]!r})")
+    press("Escape", "q")
+    check(wait_for("!document.querySelector('.app').classList.contains('editing')"), "q goes back to the table")
+    check(api.is_open(), "with Skim still open")
+    wait_for("[...document.querySelectorAll('.row')].some(r => r.textContent.includes('Which'))")
+    check(True, "whose rows have the new text")
+    # As it was, for the tests after this.
+    for name, fields in (("brainstem", ["The {{c1::brainstem}} has {{c2::three::number}} parts", "Extra"]),
+                         ("parkinson", ["Dopamine pathway in Parkinson's?", "Nigrostriatal"])):
+        n = col.get_note(notes[name])
+        n.fields = fields
+        col.update_note(n)
+    col.remove_cards_and_orphaned_notes([c for c in col.find_cards(f"nid:{notes['brainstem']}") if col.get_card(c).ord == 2])
+    api.on_operation(types.SimpleNamespace(note_text=True, card=True, notetype=False), None)
+    press("g", "g")
+    check(wait_for(f"{POS} === '1 of 4'"), "back on tag:Neuro's four cards")
 
     print("opened from Stepwise")
     stepwise = QDialog()

@@ -13,6 +13,7 @@
 import { call } from "./bridge.ts";
 import { Cache } from "./cache.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
+import { EditSession } from "./edit/session.ts";
 import { KeyCast } from "./keycast.ts";
 import { type Command, Keys } from "./keys.ts";
 import { CardList, type SortKey } from "./list.ts";
@@ -143,6 +144,12 @@ export class App {
   private lastPlayed = "";
   private chrome!: ChromeApi;
 
+  /** Editing the card you're on (e): its fields, where the table is. */
+  private edit: EditSession;
+  /** A note was saved while editing: the rows are read again after. */
+  private editStale = false;
+  private listPanel: HTMLElement;
+
   private list: CardList;
   private stage: Stage;
   private pane: TagsPane;
@@ -194,6 +201,24 @@ export class App {
 
     const main = el("main", "main");
     const listPanel = el("section", "panel list-panel");
+    this.listPanel = listPanel;
+    this.edit = new EditSession({
+      saved: () => {
+        this.stage.invalidate();
+        this.editStale = true;
+      },
+      step: (dir) => {
+        const i = this.cursor + dir;
+        if (i < 0 || i >= this.shown.length) return null;
+        this.go(i, true);
+        return this.shown[i];
+      },
+      exit: () => this.exitEdit(),
+      flip: () => this.setSide(other(this.side)),
+      help: () => this.chrome?.toggleHelp(),
+      browse: (cid) => void call("browse", { cid }),
+      toast: (message, tone) => this.chrome?.toast(message, tone),
+    });
     this.lensBar = el("div", "lenses");
     this.chips = el("div", "chips");
     listPanel.append(this.lensBar, this.chips);
@@ -209,7 +234,7 @@ export class App {
     rowSplitter.title = "Drag to resize; double-click to reset";
     const tagsPanel = el("section", "panel tags-panel");
     right.append(cardPanel, rowSplitter, tagsPanel);
-    main.append(listPanel, splitter, right);
+    main.append(listPanel, this.edit.el, splitter, right);
     this.hints = el("footer", "hints");
     this.chromeHost = el("div", "chrome");
     app.append(bar, main, this.hints);
@@ -254,7 +279,15 @@ export class App {
         break;
       case "changed":
         this.stage.invalidate();
-        this.retag();
+        if (this.edit.active) {
+          // The rows wait until the table is back; the fields you haven't
+          // touched take the new text now.
+          this.editStale = true;
+          void this.edit.refresh();
+        } else this.retag();
+        break;
+      case "hidden":
+        this.edit.flush();
         break;
       case "retag":
         this.retag();
@@ -275,6 +308,7 @@ export class App {
       case "shown":
         this.view = { ...this.view, back: e.back };
         this.renderChrome();
+        this.edit.focus();
         break;
       case "config":
         this.setConfig(e.config);
@@ -288,6 +322,7 @@ export class App {
     // the meantime mustn't take its place).
     if (!first && this.wantLens !== null && view.lens !== this.wantLens) return;
     this.endSwitch();
+    this.exitEdit(); // other cards: what's unsaved is saved first
     this.view = view;
     this.hidden = new Set(view.hidden ?? []);
     // Kept from an earlier view of these cards, read the same way?
@@ -676,7 +711,9 @@ export class App {
   private onKey(e: KeyboardEvent): void {
     if (this.chrome?.isOpen()) return; // a dialog or menu has the keys
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    if (this.edit.active) return this.edit.onKey(e); // the fields have the keys
+    if (t && t.isContentEditable) return;
     this.cast.press(e);
     const cmd = this.keys.feed(e);
     this.holdCast();
@@ -719,7 +756,9 @@ export class App {
         this.input.select();
         return;
       case "edit":
-        if (cid) void call("edit", { cid });
+        return this.startEdit();
+      case "browse":
+        if (cid) void call("browse", { cid });
         return;
       case "replay":
         if (cid) void call("replay", { cid, side: this.side });
@@ -749,6 +788,42 @@ export class App {
       case "cancel":
         return;
     }
+  }
+
+  // --- editing ------------------------------------------------------------------
+
+  /** e: edit the card you're on. Its fields take the table's place, and
+   *  the card beside them shows what you've changed. */
+  startEdit(): void {
+    const cid = this.shown[this.cursor];
+    if (!cid || this.edit.active || this.wantLens !== null) return;
+    this.endSelection();
+    this.keys.reset();
+    this.holdCast();
+    void this.edit.open(cid).then((ok) => {
+      if (!ok) return;
+      this.listPanel.hidden = true;
+      this.appEl.classList.add("editing");
+    }, () => {});
+  }
+
+  /** Back to the table, on the card you ended on. */
+  private exitEdit(): void {
+    if (!this.edit.active) return;
+    this.edit.close();
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    this.listPanel.hidden = false;
+    this.appEl.classList.remove("editing");
+    if (this.editStale) {
+      this.editStale = false;
+      this.retag();
+    }
+    this.list.setCursor(this.cursor);
+  }
+
+  /** An edit not saved yet, for Python to write as the page goes away. */
+  take(): { nid: number; fields: Record<string, string> } | null {
+    return this.edit.take();
   }
 
   /** The keys stay up while a command is half typed (a number, a first g). */
