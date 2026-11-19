@@ -19,6 +19,13 @@ This repo:
   React: the page (plain DOM, `web/src/app.ts`, `list.ts`, `stage.ts`) handles
   the keys and swaps between card frames drawn ahead of time. Keep it that
   way; `tools/bench_display.py` times the approaches.
+- **Editing (`e`)** is `web/src/edit/`: `vim.ts` (keys to commands) and
+  `text.ts` (motions over a field's text) are pure and tested; `flat.ts`
+  reads a field's HTML as that text and maps places back; `editor.ts` runs
+  commands through `execCommand`, so the browser's undo holds every change;
+  `session.ts` is the panel and saving. Typing never goes through Python:
+  a save sends only the fields that changed (`src/notes.py`), through
+  Anki's `update_note`.
 - **Stepwise** opens and follows Skim through `aqt.mw.skim` (`src/api.py`),
   and tells it about pins and statuses through `set_context`. Keep that API
   backwards compatible (Stepwise checks `VERSION`).

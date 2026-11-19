@@ -3,6 +3,30 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Edit a card without leaving Skim: press `e` and its note's fields take the
+  table's place, with the card still beside them showing what you change.
+  The fields edit like vim: `i` to type and `Esc` to stop, `w`, `b`, `e` and
+  `f` to move, `dw`, `ciw`, `dd`, `p`, `u`, `.` and `v` to select. There's
+  nothing to save: your changes are written as you go, and Anki's
+  Edit → Undo takes them back. `J` and `K` go on to the next note, and `q`
+  goes back to the table. Press `?` for all the keys.
+- Keys for clozes while you edit: `gc` and a move makes one (`gciw` for a
+  word, or select with `v` first), `cic` changes a cloze's answer, `gx`
+  takes a cloze off and keeps its text. Cmd+Shift+C works as it does in
+  Anki's editor.
+- Paste from anywhere while you edit: Cmd+V, or `p`, puts in what you last
+  copied on your computer. A picture copied in a browser, a screenshot or an
+  image file from Finder is added to your media and shown on the card.
+
+### Changed
+
+- `e` now edits the card in Skim. `B` still opens it in Anki's browser, and
+  so does **⋯ → Open in Anki's browser**.
+
 ## [1.1.0] - 2026-11-19
 
 ### Added

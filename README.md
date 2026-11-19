@@ -84,7 +84,16 @@ through topics.
   selected in Anki. Click one or press `t` / `T` (or `H` / `L`). Skim opens on
   All, or on This review during a review. While it follows a review it keeps
   the view you picked (studied cards in the order you studied them).
-- **Edit in Anki's browser.** `e` opens the card there, with the same search.
+- **Edit where you are.** `e` turns the card you're on into its note's
+  fields, in place of the table, with the card still beside them showing
+  what you change. The fields edit like vim: `i` to type and `Esc` to stop,
+  `w` `b` `e` `f` to move, `dw` `ciw` `dd` `p` `u` `.` and the rest, `v` to
+  select. Clozes have keys of their own: `gciw` makes one of a word, `cic`
+  changes a cloze's answer, `gx` takes one off. Nothing to save: what you
+  change is written as you go, through Anki, so Edit → Undo takes it back.
+  `J` and `K` go on to the next note, and `q` goes back to the table.
+- **Or in Anki's browser.** `B` opens the card there, with the same search,
+  for what Skim doesn't edit (tags, the deck, the note type).
 - **Follows Anki's light and dark themes**, and looks like Stepwise.
 
 ## Usage
@@ -117,12 +126,57 @@ through topics.
 | `t` / `T` | Next / previous view (All, This review, Due, Studied, ...) |
 | `H` / `L` | The view to the left / right |
 | `/` | Search; Enter runs it, Esc goes back to the cards |
-| `e` or `B` | Open the card in Anki's browser, to edit it |
+| `e` | Edit the card (see below) |
+| `B` | Open the card in Anki's browser |
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
 | `q` or `Esc` | Close Skim (Esc first cancels a number you've typed, or ends a selection) |
 | `Cmd-=` / `Cmd--` (`Ctrl` elsewhere) | Make everything in the window bigger / smaller; `Cmd-0` back to 100% |
 | `?` | Show these keys |
+
+### Editing a card
+
+`e` on a card shows its note's fields where the table was. You start in
+normal mode, on the first field, with a block cursor.
+
+| Keys | Does |
+| --- | --- |
+| `i` `a` `I` `A` | Type: before / after the cursor, at the line's start / end |
+| `o` / `O` | Type on a new line below / above |
+| `Esc` | Stop typing |
+| `h` `j` `k` `l` | Left, down, up, right; `j` and `k` go on into the next field |
+| `w` `b` `e` | Next word, back a word, end of word (`W` `B` `E`: by spaces only) |
+| `0` `^` `$` | Start of the line, its first letter, its end |
+| `f x` / `t x` | To the next `x` on the line, or just before it (`F` `T` backwards; `;` and `,` repeat) |
+| `gg` / `G` | First / last field (`2G`: field 2); `Tab` and `Shift-Tab` step through them |
+| `x`, `r x`, `~` | Delete a letter, replace it, switch its case |
+| `d` `c` `y` + a move | Delete, change or copy what the move covers: `dw`, `c$`, `yiw`, `dd`, `3dd` |
+| `iw` `i(` `i"` `ic` | After `d`, `c`, `y` or `v`: a word, inside brackets or quotes, a cloze's answer (`aw` `a(` `ac`: all of it) |
+| `p` / `P` | Paste after / before the cursor: what you yanked, or whatever you've copied since, anywhere on your computer |
+| `Cmd-V` | Paste from the clipboard (`Ctrl-V` on Windows and Linux) |
+| `v` / `V` | Select letters / lines as you move, then `d`, `c`, `y` |
+| `u` / `Ctrl-r` | Undo / redo |
+| `.` | Do the last change again |
+| `gc` + a move, `gC` | Make a cloze of what the move covers, or of what's selected (`gC`: the same number again) |
+| `Cmd-Shift-C` | A cloze, as in Anki's editor (with `Alt`: the same number again) |
+| `gx` | Take the cloze under the cursor off, keeping its text |
+| `Cmd-B` `Cmd-I` `Cmd-U` | Bold, italic, underline |
+| `J` / `K` | Next / previous note |
+| `Space` | Flip the card beside the fields |
+| `gb` | Open the card in Anki's browser |
+| `q` or `ZZ` | Done: back to the table |
+
+A number works as in vim (`3w`, `d2w`, `2dd`). `j` and `k` move by the lines
+you see, so a long paragraph isn't one step. Pasting takes from your
+computer's clipboard: a picture copied in a browser ("Copy image"), a
+screenshot or an image file copied in Finder goes into your media folder
+and onto the card; text from a web page keeps its bold, lists and tables and
+drops the rest of the page's styling.
+
+Edits are saved when you stop typing (and a moment after you pause), each
+one through Anki itself: only the fields you changed are written, a new
+cloze gets its card, and Anki's Edit → Undo takes an edit back. Fields show
+their HTML as Anki's editor does, without drawing MathJax.
 
 ### Settings
 
@@ -161,15 +215,15 @@ ln -s "$(pwd)/src" ~/Library/Application\ Support/Anki2/addons21/anki-skim
 
 The window's page is TypeScript in `web/`, built with Vite into
 `src/web/skim.js` and `skim.css` (committed, so the add-on works straight from
-a checkout). The parts you move through (list, card frames, keys) are plain
-DOM; the dialogs, menu and toasts are React, with styles and controls copied
+a checkout). The parts you move through (list, card frames, keys) and the
+editor (`web/src/edit/`) are plain DOM; the dialogs, menu and toasts are React, with styles and controls copied
 from Stepwise. It talks to Python through Anki's `pycmd` bridge
 (`src/bridge.py`).
 
 ```bash
 cd web && npm install
 npm run build        # rebuild src/web/ after changing the page
-npm test             # the vim keys
+npm test             # the vim keys, for moving and for editing
 ```
 
 To work on the page with **real cards**, run the dev server with Anki's own
