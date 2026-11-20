@@ -114,8 +114,7 @@ export interface Pane {
   reason: string | null;
   yield: string | null;
   banks: [string, number][];
-  /** Which exam it's for, in words ("Mostly Step 1"), and by step. */
-  lean?: string | null;
+  /** Which exam it's for: the steps it's tagged for, with their shares. */
   steps?: PaneStep[];
   /** The card's places by system, the topic's first. */
   systems: PaneSystem[];

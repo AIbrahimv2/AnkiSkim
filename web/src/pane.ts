@@ -4,9 +4,9 @@
 // places by system, each named, the reason for the verdict: the topic's system in the accent colour, the others in their
 // Stepwise colours (done, queued, saved for later) or grey. Then its yield
 // (with signal bars) and question banks as pills, and which exam it's
-// for: a pill when it's tagged for one step, or, when it's in Step 1 and 2,
-// a section that weighs them (a bar like the systems', then each step's
-// resources and questions). Then its places, by system in the bar's
+// for: a pill ("Step 1") when it's tagged for one step, or, when it's in
+// Step 1 and 2, a bar of each step's share like the systems', then each
+// step's resources and questions. Then its places, by system in the bar's
 // order, each with the resource that has it and the end of its path. Its
 // other tags follow, by resource, and fold into "Show more" only when
 // they'd push the pane past its height. The systems flow into columns as
@@ -99,15 +99,11 @@ function stepBanks(s: PaneStep): HTMLElement | null {
   return e;
 }
 
-/** Step 1 or 2, for a card tagged for both: the lean, a bar of each
- *  step's share, then each step's resources and questions. */
-function steps(lean: string, list: PaneStep[]): HTMLDivElement {
-  const sec = el("div", "tp-sys tp-steps");
-  const top = list.reduce((a, b) => (b.share > a.share ? b : a));
-  const head = el("div", "tp-sys-head");
-  head.append(el("span", `tp-dot ${top.here ? "s-here" : "s-none"}`), el("span", "tp-sys-name", lean));
-  head.title = "Which exam the card is for: its resources and question-bank questions under each step's tags";
-  sec.append(head);
+/** Step 1 or 2, for a card tagged for both: a bar of each step's share
+ *  (the bar says which way it leans), then each step's resources and
+ *  questions. */
+function steps(list: PaneStep[]): HTMLDivElement {
+  const sec = el("div", "tp-steps");
   sec.append(bar(list.map((s) => ({
     name: stepName(s),
     note: `${s.share}%`,
@@ -250,13 +246,13 @@ export class TagsPane {
     }
     // Which exam: a pill when it's one step, a section when it's two.
     const stepList = p.steps ?? [];
-    if (p.lean && stepList.length === 1) {
-      const pill = el("span", "tp-pill tp-step", p.lean);
-      pill.title = "Which exam the card is for: it's tagged under one step only";
+    if (stepList.length === 1) {
+      const pill = el("span", "tp-pill tp-step", stepName(stepList[0]));
+      pill.title = `Tagged for ${stepName(stepList[0])} only`;
       pills.append(pill);
     }
     if (pills.childElementCount) this.body.append(pills);
-    if (p.lean && stepList.length > 1) this.body.append(steps(p.lean, stepList));
+    if (stepList.length > 1) this.body.append(steps(stepList));
     if (p.systems.length) {
       const places = el("div", "tp-places");
       places.style.columnCount = String(p.systems.length);

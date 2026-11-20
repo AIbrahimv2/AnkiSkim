@@ -30,10 +30,9 @@ All notable changes to this project are documented here. The format is based on
   Anki's main window. Skim says what was undone.
 - Step 1 or Step 2: the tags under a card say which exam it's for, from
   the resources and question-bank questions it has under each step's tags.
-  A card tagged for one step says so ("Step 1 only"); a card in both says
-  "Mostly Step 1", "Mostly Step 2" or "Steps 1 and 2", with a bar of each
-  step's share and the resources and UWorld, AMBOSS and NBME questions
-  behind it.
+  A card tagged for one step gets a pill ("Step 1"); a card in both gets a
+  bar of each step's share, with the resources and UWorld, AMBOSS and NBME
+  questions behind each.
 - A Retrievability column: the chance you'd recall each card now, as FSRS
   works it out (the same number as Anki's Card Info). It's orange when a
   card has slipped below the retention it's scheduled for. Sort by it to

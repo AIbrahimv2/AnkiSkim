@@ -85,8 +85,6 @@ BANK_SHORT = {"UWorld": "UW", "AMBOSS": "AM", "NBME": "NB"}
 _NOISE = ("#ak_other", "#ak_step1_v12::^other", "#ak_step2_v12::^other")
 _PREFIX = re.compile(r"^[^a-z0-9]*\d+[_\-.]*")
 _STEP = re.compile(r"step_?(\d)")
-# A step's share of a card from which it's "mostly" that step's.
-MOSTLY = 2 / 3
 
 NOW, CALL, WAIT = "now", "call", "wait"
 VERDICT_CODES = {None: 0, NOW: 1, CALL: 2, WAIT: 3}
@@ -411,28 +409,25 @@ class Analyzer:
         for o in others:
             o["tags"].sort(key=lambda x: x[0].lower())
         level = facts["level"]
-        lean, steps = self.steps(facts["places"])
         return {
             "verdict": facts["verdict"],
             "reason": facts["reason"],
             "yield": YIELD_LABELS.get(level) if level else None,
             "banks": sorted(facts["banks"].items(), key=lambda kv: -kv[1]),
-            "lean": lean,
-            "steps": steps,
+            "steps": self.steps(facts["places"]),
             "systems": [sys_ for _, sys_ in sorted(systems.items(), key=order)],
             "more": others,
         }
 
-    def steps(self, infos: Iterable[Tag]) -> tuple[str | None, list[dict]]:
-        """Which exam a card is for, from the steps its tags sit under
-        (#AK_Step1_v12, #AK_Step2_v12): (lean, steps). Two things count,
-        each giving every step its share: the resources that have the card
-        in a step (AnKing's own sorting, ^Systems, left out), and the
-        question banks' questions on it there. A step's `share` is the mean
-        of the two (just the one when the card has only that); a step it's
-        tagged in with neither has none. The lean says it in words: "Step 1
-        only", "Mostly Step 2" (a share of MOSTLY or more), or "Steps 1 and
-        2". Each step: its `share` in percent, whether it's the topic's
+    def steps(self, infos: Iterable[Tag]) -> list[dict]:
+        """Which exam a card is for: the steps its tags sit under
+        (#AK_Step1_v12, #AK_Step2_v12), in order, each with its share of
+        the card. Two things count, each giving every step its share: the
+        resources that have the card in a step (AnKing's own sorting,
+        ^Systems, left out), and the question banks' questions on it
+        there. A step's `share` is the mean of the two (just the one when
+        the card has only that); a step it's tagged in with neither has
+        none. Each step: its `share` in percent, whether it's the topic's
         (`here`), its `resources` (yours first, as in the places) and its
         questions by bank. Every resource counts, pinned or not."""
         seen: set[int] = set()
@@ -452,7 +447,7 @@ class Analyzer:
                 rank = (t.resource not in self.here_resources, t.pin is None, t.pin or 0, label.lower())
                 resources[step][label] = min(rank, resources[step].get(label, rank))
         if not seen:
-            return None, []
+            return []
         shares: dict[int, float] = dict.fromkeys(seen, 0.0)
         signals = [{s: len(r) for s, r in resources.items()}, {s: sum(b.values()) for s, b in banks.items()}]
         signals = [sig for sig in signals if sum(sig.values())]
@@ -462,22 +457,13 @@ class Analyzer:
                 shares[s] += n / total / len(signals)
         if not signals:
             shares = dict.fromkeys(seen, 1 / len(seen))
-        order = sorted(seen)
-        top = max(order, key=lambda s: shares[s])
-        if len(order) == 1:
-            lean = f"Step {top} only"
-        elif shares[top] >= MOSTLY - 1e-9:
-            lean = f"Mostly Step {top}"
-        else:
-            names = [str(s) for s in order]
-            lean = f"Steps {', '.join(names[:-1])} and {names[-1]}"
-        return lean, [{
+        return [{
             "step": s,
             "share": round(shares[s] * 100),
             "here": s in self.here_steps,
             "resources": sorted(resources[s], key=resources[s].get),
             "banks": sorted(banks[s].items(), key=lambda kv: (-kv[1], kv[0])),
-        } for s in order]
+        } for s in sorted(seen)]
 
 
 def _tell_apart(groups: list[tuple[str, dict]], against: Iterable[str] = ()) -> None:
