@@ -90,9 +90,24 @@ for ease in (3, 3, 1, 3):  # good, good, again (a lapse once it's a review), goo
     col.sched.answerCard(c, ease)
 now = int(time.time())
 data = json.loads(col.db.scalar("select data from cards where id = ?", studied))
+# Anki 25.02 and later keep when a card was last reviewed (lrt), and both
+# Card Info and Skim count from it. Older ones don't: Card Info counts from
+# the last review in the card's history, and Skim, like Anki's browser,
+# from its due day less its interval, which agree for a card reviewed when
+# its interval began. So there, move the history and the due day back
+# together, in whole days.
+keeps_lrt = "lrt" in data
+due0 = col.db.scalar("select due from cards where id = ?", studied)
+moved = 0
 for back, what in ((3 * 86400, "3 days"), (40 * 86400 + 5 * 3600, "40 days"), (500 * 86400, "500 days")):
-    data["lrt"] = now - back
-    col.db.execute("update cards set data = ? where id = ?", json.dumps(data), studied)
+    if keeps_lrt:
+        data["lrt"] = now - back
+        col.db.execute("update cards set data = ? where id = ?", json.dumps(data), studied)
+    else:
+        days = back // 86400
+        col.db.execute("update revlog set id = id - ? where cid = ?", (days * 86400 - moved) * 1000, studied)
+        col.db.execute("update cards set due = ? where id = ?", due0 - days, studied)
+        moved = days * 86400
     row = cards.rows(col, [studied])[str(studied)]
     anki = col.card_stats_data(studied).fsrs_retrievability
     check(abs(row["rt"] - anki) < 0.0005, f"retrievability {what} after a review is Anki's ({row['rt']} vs {anki:.4f})")
@@ -111,8 +126,10 @@ check(cards.schedule((1, int(tnow) + 600, 0, 0, 0, 1, 0, None, None, None, None,
 check(cards.schedule((2, 50, today - 2, 10, 2500, 5, 0, None, None, None, None, None), today, tnow)["du"] == -2,
       "a card in a filtered deck is due when it is back home")
 old_r = cards.retrievability(10, None, None, today + 5, 10, today, tnow)
-check(abs(old_r - (1 + 19 / 81 * 5 / 10) ** -0.5) < 1e-9,
-      "a card reviewed before Anki kept the time counts from its due day less its interval, with FSRS-5's decay")
+from anki.utils import point_version  # noqa: E402
+curve = (1 + 5 / 90) ** -1 if point_version() < 240600 else (1 + 19 / 81 * 5 / 10) ** -0.5  # FSRS-4 in 24.04
+check(abs(old_r - curve) < 1e-9,
+      "a card reviewed before Anki kept the time counts from its due day less its interval, on Anki's own curve")
 fac = cards.facets(col, [ALL[0], ALL[1]], an, extra=["ret", "lapses", "due", "bogus"])
 check(fac["ret"][0] == row["rt"] and fac["ret"][1] is None and fac["lapses"] == [1, 0] and fac["due"][1] is None
       and "bogus" not in fac, f"facets carry a scheduling column's values when asked, blanks as None ({fac['ret']})")

@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable, Iterable
 
 from anki.collection import Collection
-from anki.utils import ids2str
+from anki.utils import ids2str, point_version
 
 from .tags import VERDICT_CODES, YIELD_LABELS, Analyzer, banks_text
 
@@ -45,8 +45,10 @@ _FSRS_KEYS = ("s", "d", "decay", "lrt", "dr")
 SCHED_SQL = "c.type, c.due, c.odue, c.ivl, c.factor, c.reps, c.lapses, " + ", ".join(
     f"case when json_valid(c.data) then json_extract(c.data, '$.{k}') end" for k in _FSRS_KEYS
 )
-# FSRS-5's decay, for a memory state that doesn't keep its own (FSRS-6's do).
-_DECAY = 0.5
+# The decay of the forgetting curve Anki uses, for a memory state that
+# doesn't keep its own (FSRS-6's do): FSRS-5's (and 4.5's), or FSRS-4's in
+# Anki 24.04, the last to use it. Card Info's retrievability follows it.
+_DECAY = 1.0 if point_version() < 240600 else 0.5
 _DAY = 86400
 # A due bigger than this is a time in seconds (a card learning within the
 # day); smaller, a day number.
