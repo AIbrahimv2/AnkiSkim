@@ -63,7 +63,7 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 
 **Code: 2141626960.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
-<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, yield, question banks and verdicts, beside a card with a tRNA diagram that Skim says to unsuspend now, and where it's tagged" width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, retrievability, yield, question banks and verdicts, beside a card with a tRNA diagram that Skim says to unsuspend now, and where it's tagged" width="100%"></p>
 
 **Features**
 
