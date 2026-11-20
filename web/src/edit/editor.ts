@@ -158,6 +158,8 @@ export class Editor {
   private clipMark: string | null = null;
   /** Bumped by each load, so a paste on its way to another note stops. */
   private loads = 0;
+  /** The height in pixels a pasted picture is given; 0 for its own size. */
+  pasteHeight = 150;
   private repeatTimer = 0;
   /** The system sends repeats for held keys itself. */
   private systemRepeats = false;
@@ -728,7 +730,16 @@ export class Editor {
 
   /** A clip into the field, where the selection is. False if it's empty. */
   private insertClip(clip: Clip): boolean {
-    if (clip.image) this.exec("insertHTML", `<img src="${clip.image.replace(/"/g, "&quot;")}">`);
+    if (clip.image) {
+      // The height (Settings) goes on the picture itself, so the card
+      // shows it that tall everywhere it's reviewed, and its width follows.
+      // Where a note type caps the width (AnKing: 85% of the card, all of
+      // it on a phone), object-fit keeps a wide picture's shape inside
+      // the narrower box instead of squashing it.
+      const h = this.pasteHeight;
+      const size = h > 0 ? ` style="height: ${h}px; width: auto; object-fit: contain;"` : "";
+      this.exec("insertHTML", `<img src="${clip.image.replace(/"/g, "&quot;")}"${size}>`);
+    }
     else {
       const html = clip.html ? cleanPaste(clip.html) : "";
       if (html) this.exec("insertHTML", html);

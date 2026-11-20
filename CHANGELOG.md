@@ -21,6 +21,10 @@ All notable changes to this project are documented here. The format is based on
 - Paste from anywhere while you edit: Cmd+V, or `p`, puts in what you last
   copied on your computer. A picture copied in a browser, a screenshot or an
   image file from Finder is added to your media and shown on the card.
+- Pasted pictures come out one height: each picture you paste while editing
+  is 150 pixels tall on the card, with its width to match, whatever size
+  you copied it at. **Height of pasted pictures** in Settings changes that
+  (0 leaves pictures their own size).
 
 ### Changed
 

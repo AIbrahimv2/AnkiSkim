@@ -41,6 +41,8 @@ export interface PageConfig {
   autoplay: boolean;
   waitBelow: number;
   systemDone: number;
+  /** The height in pixels a pasted picture is given; 0 for its own size. */
+  pasteHeight: number;
 }
 
 export interface Layout {
@@ -151,6 +153,8 @@ export interface Settings {
   systemDone: number;
   /** How big the window draws, in percent (Cmd+= / Cmd+-). */
   size: number;
+  /** The height in pixels a pasted picture is given; 0 for its own size. */
+  pasteHeight: number;
 }
 
 export type PushEvent =

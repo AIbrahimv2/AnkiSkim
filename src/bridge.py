@@ -46,12 +46,14 @@ def settings_of(cfg: dict) -> dict:
         "waitBelow": cfg["wait_below_percent"],
         "systemDone": cfg["system_done_percent"],
         "size": cfg["zoom_percent"],
+        "pasteHeight": cfg["paste_image_height"],
     }
 
 
 def page_config(cfg: dict) -> dict:
     return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"],
-            "waitBelow": cfg["wait_below_percent"], "systemDone": cfg["system_done_percent"]}
+            "waitBelow": cfg["wait_below_percent"], "systemDone": cfg["system_done_percent"],
+            "pasteHeight": cfg["paste_image_height"]}
 
 
 class Bridge:

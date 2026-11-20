@@ -234,6 +234,7 @@ export class App {
     rowSplitter.title = "Drag to resize; double-click to reset";
     const tagsPanel = el("section", "panel tags-panel");
     right.append(cardPanel, rowSplitter, tagsPanel);
+    this.edit.setPasteHeight(boot.config.pasteHeight);
     main.append(listPanel, this.edit.el, splitter, right);
     this.hints = el("footer", "hints");
     this.chromeHost = el("div", "chrome");
@@ -464,6 +465,7 @@ export class App {
     const startChanged = config.startSide !== this.config.startSide;
     const retag = config.waitBelow !== this.config.waitBelow || config.systemDone !== this.config.systemDone;
     this.config = config;
+    this.edit.setPasteHeight(config.pasteHeight);
     if (startChanged) this.setSide(config.startSide);
     if (retag) this.retag();
   }

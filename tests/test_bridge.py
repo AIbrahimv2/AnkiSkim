@@ -121,16 +121,18 @@ print("settings")
 got = call("settings")
 s = got["settings"]
 check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False,
-           "waitBelow": 50, "systemDone": 50, "size": 100}, "the defaults")
+           "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150}, "the defaults")
 check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 check(call("save_settings", settings={"systemDone": 0}).get("problems", {}).get("systemDone"), "so is a system done at 0%")
 check(call("save_settings", settings={"size": 300}).get("problems", {}).get("size"), "and a size over 200%")
+check(call("save_settings", settings={"pasteHeight": 5}).get("problems", {}).get("pasteHeight"), "and a pasted picture 5 pixels high")
 r = call("save_settings", settings={"shortcut": "Ctrl+Shift+Nope"})
 check(r.get("problems", {}).get("shortcut"), "a shortcut Qt can't read is refused")
 check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
-check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50, "systemDone": 50},
+check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50, "systemDone": 50,
+                                     "pasteHeight": 150},
       "a change is saved and sent back")
 check(r["settings"]["startSide"] == "question", "with Settings as saved")
 check(host.saved == [{"start_side", "autoplay_audio"}], "the window hears what changed")
@@ -162,7 +164,7 @@ api._window = w
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(w.saved == [{"autoplay_audio"}], "an open window applies what changed")
 check(w.pushed == [{"type": "config", "config": {"startSide": "answer", "autoplay": True, "waitBelow": 50,
-                                                 "systemDone": 50}}], w.pushed)
+                                                 "systemDone": 50, "pasteHeight": 150}}], w.pushed)
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(len(w.pushed) == 1, "and hears nothing when nothing changed")
 check(settings_page.PAGE["bridge"] is settings_page.handle and settings_page.PAGE["script"] == "web/settings.js",

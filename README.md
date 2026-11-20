@@ -171,7 +171,11 @@ you see, so a long paragraph isn't one step. Pasting takes from your
 computer's clipboard: a picture copied in a browser ("Copy image"), a
 screenshot or an image file copied in Finder goes into your media folder
 and onto the card; text from a web page keeps its bold, lists and tables and
-drops the rest of the page's styling.
+drops the rest of the page's styling. Every picture you paste is given one
+height on the card, 150 pixels, with its width to match, however big it was
+where you copied it, so it sits with the text rather than pushing it off
+the screen. **Height of pasted pictures** in Settings changes it (0
+leaves pictures their own size).
 
 Edits are saved when you stop typing (and a moment after you pause), each
 one through Anki itself: only the fields you changed are written, a new
@@ -184,7 +188,7 @@ their HTML as Anki's editor does, without drawing MathJax.
 opens the same thing): the side each card opens on (the back, by default,
 which for most note types includes the front), playing audio by itself, when
 a card could wait (less than half its places in the topic's system, by
-default), the window's size, the search Skim opens on the first time, and the
+default), the height pasted pictures are given, the window's size, the search Skim opens on the first time, and the
 keyboard shortcut.
 
 ### For other add-ons

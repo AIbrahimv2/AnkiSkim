@@ -25,3 +25,6 @@ it too). The keys below are what it saves, for reference.
   as done on every card even though you never marked every topic in it.
   Hover a system to see how much of it is done. Default `50`; `100` means
   only when every topic is.
+- `paste_image_height` — the height, in pixels, a picture you paste while
+  editing a card (`e`) is given on the card, whatever size it was copied at.
+  Default `150`; `0` leaves pictures their own size.

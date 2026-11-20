@@ -123,6 +123,27 @@ export function SettingsPanel(props: { onClose: () => void }) {
           </div>
         </section>
         <section className="set-section">
+          <h3>Editing</h3>
+          <div className="set-card">
+            <Row
+              label="Height of pasted pictures"
+              hint="Every picture you paste while editing a card is given this height on the card, whatever size it was copied at, and its width follows. 0 leaves pictures their own size."
+              problem={problems.pasteHeight}
+            >
+              <span className="pct-field">
+                <input
+                  className={`set-input num${problems.pasteHeight ? " bad" : ""}`}
+                  inputMode="numeric"
+                  value={String(v.pasteHeight)}
+                  onChange={(e) => set("pasteHeight", Number(e.target.value.replace(/\D/g, "")) || 0)}
+                  aria-label="Pixels"
+                />
+                px
+              </span>
+            </Row>
+          </div>
+        </section>
+        <section className="set-section">
           <h3>Window</h3>
           <div className="set-card">
             <Row

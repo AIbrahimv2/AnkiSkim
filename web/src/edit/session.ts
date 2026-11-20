@@ -97,6 +97,11 @@ export class EditSession {
     this.el.append(head, this.editor.el, this.warn, foot);
   }
 
+  /** The height a pasted picture is given (Settings); 0 for its own. */
+  setPasteHeight(px: number): void {
+    this.editor.pasteHeight = px > 0 ? Math.round(px) : 0;
+  }
+
   get active(): boolean {
     return !this.el.hidden;
   }

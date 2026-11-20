@@ -24,11 +24,20 @@ DEFAULTS: dict = {
     "system_done_percent": 50,
     # How big the window draws (Cmd+= / Cmd+-, the kit's zoom.py).
     "zoom_percent": 100,
+    # The height, in pixels, a picture pasted while editing is given on the
+    # card; 0 leaves it its own size. There's no resizing a picture in the
+    # fields, so every pasted one gets the same height. AnKing's note types
+    # set none (only widths: 85% of the card, 60% in the resources' fields)
+    # and 28px text, so 150px is about four lines: the picture sits with
+    # the text rather than pushing it off the screen.
+    "paste_image_height": 150,
 }
 
 SIDES = ("question", "answer")
 # The sizes the window can take (the kit's zoom.py: MIN, MAX).
 ZOOM_RANGE = (50, 200)
+# A pasted picture's height in pixels, when one is set.
+PASTE_HEIGHT_RANGE = (20, 2000)
 
 
 def get_config() -> dict:
@@ -41,6 +50,8 @@ def get_config() -> dict:
     cfg["wait_below_percent"] = max(5, min(95, cfg["wait_below_percent"]))
     cfg["system_done_percent"] = max(5, min(100, cfg["system_done_percent"]))
     cfg["zoom_percent"] = max(ZOOM_RANGE[0], min(ZOOM_RANGE[1], cfg["zoom_percent"]))
+    h = cfg["paste_image_height"]
+    cfg["paste_image_height"] = 0 if h <= 0 else max(PASTE_HEIGHT_RANGE[0], min(PASTE_HEIGHT_RANGE[1], h))
     return cfg
 
 
@@ -98,4 +109,13 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             changes["zoom_percent"] = pct
         except (TypeError, ValueError):
             problems["size"] = f"Enter a percentage from {ZOOM_RANGE[0]} to {ZOOM_RANGE[1]}."
+    if "pasteHeight" in values:
+        try:
+            px = int(values["pasteHeight"] or 0)
+            if px != 0 and not PASTE_HEIGHT_RANGE[0] <= px <= PASTE_HEIGHT_RANGE[1]:
+                raise ValueError
+            changes["paste_image_height"] = px
+        except (TypeError, ValueError):
+            problems["pasteHeight"] = (f"Enter a height from {PASTE_HEIGHT_RANGE[0]} to {PASTE_HEIGHT_RANGE[1]} "
+                                       "pixels, or 0 to leave pictures their own size.")
     return changes, problems
