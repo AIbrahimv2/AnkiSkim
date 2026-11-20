@@ -435,7 +435,8 @@ html, body {
 .tp-qs { display: flex; align-items: center; gap: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tp-q { display: inline-flex; align-items: center; gap: 4px; --kit-res-size: 14px; }
 /* Systems flow into as many columns as the pane is wide enough for, each
-   kept whole. */
+   kept whole: never more columns than systems (pane.ts column-count), so
+   one alone has the pane's width. */
 .tp-places { column-width: 360px; column-gap: 28px; }
 .tp-sys { break-inside: avoid; padding: 4px 0 6px; }
 .tp-sys-head { display: flex; align-items: center; gap: 7px; padding: 2px 0; }

@@ -259,6 +259,7 @@ export class TagsPane {
     if (p.lean && stepList.length > 1) this.body.append(steps(p.lean, stepList));
     if (p.systems.length) {
       const places = el("div", "tp-places");
+      places.style.columnCount = String(p.systems.length);
       const logos = fitNames(places, p.systems.flatMap((s) => s.places.map((x) => x.resource)));
       for (const s of p.systems) {
         const sys = el("div", "tp-sys");
@@ -280,6 +281,7 @@ export class TagsPane {
     const other = el("div", "tp-other");
     if (p.systems.length) other.append(el("div", "tp-sys-head tp-sys-name", "Other tags"));
     const groups = el("div", "tp-places");
+    groups.style.columnCount = String(p.more.length);
     const logos = fitNames(groups, p.more.map((o) => o.label));
     for (const o of p.more) {
       const group = el("div", "tp-sys");

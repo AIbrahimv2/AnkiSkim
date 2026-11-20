@@ -55,6 +55,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- A card's tags use the whole width under the card when they're all in one
+  system, and no longer cut a tag short beside empty space.
 - Suspending or unsuspending cards with Cmd+J no longer makes every row in
   the table flicker: only those cards' state and verdict change. Under a
   filter or a sort the table stays where it is, and a card that leaves
