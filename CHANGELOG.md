@@ -31,6 +31,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- The bar over a card's tags names each system in it, so you don't have to
+  hover to see which is which.
 - `e` now edits the card in Skim. `B` still opens it in Anki's browser, and
   so does **⋯ → Open in Anki's browser**.
 

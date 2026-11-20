@@ -399,9 +399,18 @@ html, body {
 .tags-panel .s-queued { --sys: var(--q); }
 .tags-panel .s-later { --sys: var(--l); }
 .tags-panel .s-none { --sys: color-mix(in srgb, var(--text-3) 60%, transparent); }
-/* The card's places by system, as the verdict counts them: its reason. */
-.tp-bar { display: flex; gap: 3px; height: 6px; margin: 0 0 10px; }
-.tp-seg { min-width: 6px; border-radius: 3px; background: var(--sys); }
+/* The card's places by system, as the verdict counts them: its reason.
+   Each part named, in its colour, as wide as its weight (flex-grow, from
+   pane.ts) but never narrower than its name: too many to fit, and they
+   wrap. */
+.tp-bar { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 10px; }
+.tp-seg {
+  flex: 0 1 0; display: flex; align-items: baseline; gap: 6px;
+  padding: 1px 8px 3px; border-radius: 5px; white-space: nowrap;
+  background: color-mix(in srgb, var(--sys) 22%, transparent);
+  box-shadow: inset 0 -3px 0 var(--sys);
+}
+.tp-seg-note { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tp-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
 .tp-pill { padding: 1px 8px; border-radius: 6px; background: var(--press); white-space: nowrap; }
 .tp-yield, .tp-bank { display: inline-flex; align-items: center; gap: 6px; }

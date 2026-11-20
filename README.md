@@ -56,9 +56,9 @@ through topics.
   (in your pinned resources and the one you're on) by system: the topic's
   first, then the systems you haven't done, then the ones you have, so you
   can see where you'll meet the card again. When there's more than one
-  system, a bar over them shows how many resources put the card in each, the
-  topic's in blue and the others in Stepwise's colours (done, queued, saved
-  for later) or grey. Each place shows its resource, with its logo where it
+  system, a bar over them shows how many resources put the card in each,
+  named, the topic's in blue and the others in Stepwise's colours (done,
+  queued, saved for later) or grey. Each place shows its resource, with its logo where it
   has one, and the end of its path, with a check once it's done in Stepwise;
   hover for the whole tag. The yield (with its bars) and question banks are
   pills. Its other tags (other resources, AnKing's own) follow with readable

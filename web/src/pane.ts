@@ -1,14 +1,14 @@
 // The tags pane under the card: where the card lives. Its title is the
 // verdict (Now, Wait, Your Call), or "Tags" when there's
 // none. Under it, when the card is in more than one system, a bar of its
-// places by system, the reason for the verdict: the topic's system in the accent colour, the others in their
+// places by system, each named, the reason for the verdict: the topic's system in the accent colour, the others in their
 // Stepwise colours (done, queued, saved for later) or grey. Then its yield
 // (with signal bars) and question banks as pills, then its places, by system in the bar's
 // order, each with the resource that has it and the end of its path. Its
 // other tags follow, by resource, and fold into "Show more" only when
 // they'd push the pane past its height. The systems flow into columns as
-// the pane widens. One size of text throughout; colour, not words, says
-// what a system is to you (hover a dot for it). The title folds the pane
+// the pane widens. One size of text throughout; colour says what a system
+// is to you (hover a dot for it). The title folds the pane
 // away (i too), so the card gets its room. Plain DOM, drawn from the row
 // the page already has.
 
@@ -61,6 +61,24 @@ function fitNames(host: HTMLElement, names: string[]): boolean {
   host.style.setProperty("--res", `${Math.min(Math.max(longest, 6), 18) + 1 + (logos ? 4 : 0)}ch`);
   return logos;
 }
+
+/** A bar of named parts, in their systems' colours, each as wide as its
+ *  weight but never narrower than its name (they wrap when they don't all
+ *  fit), so it reads without hovering. */
+function bar(parts: { name: string; note?: string; weight: number; cls: string; title: string }[]): HTMLDivElement {
+  const b = el("div", "tp-bar");
+  for (const x of parts) {
+    const seg = el("span", `tp-seg ${x.cls}`);
+    seg.style.flexGrow = String(x.weight);
+    seg.title = x.title;
+    seg.append(el("span", "tp-seg-name", x.name));
+    if (x.note) seg.append(el("span", "tp-seg-note", x.note));
+    b.append(seg);
+  }
+  return b;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** A row: the resource with its logo (left blank when the row above has
  *  it), the path, and what's at its end (Extra, its status). */
@@ -166,14 +184,12 @@ export class TagsPane {
     const weighed = p.systems.filter((s) => s.weight > 0);
     if (weighed.length > 1) {
       const total = weighed.reduce((n, s) => n + s.weight, 0);
-      const bar = el("div", "tp-bar");
-      for (const s of weighed) {
-        const seg = el("span", `tp-seg ${stateClass(s.state)}`);
-        seg.style.flexGrow = String(s.weight);
-        seg.title = `${s.name}: ${s.weight} of ${total}`;
-        bar.append(seg);
-      }
-      this.body.append(bar);
+      this.body.append(bar(weighed.map((s) => ({
+        name: s.name,
+        weight: s.weight,
+        cls: stateClass(s.state),
+        title: `${s.name}: ${s.weight} of ${plural(total, "resource")}${s.state ? ` · ${STATE_HINT[s.state]}` : ""}`,
+      }))));
     }
     const pills = el("div", "tp-pills");
     if (p.yield) {
