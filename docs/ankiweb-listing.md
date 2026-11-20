@@ -71,8 +71,10 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 - **Cards as you review them**, with their note type's styling, images, MathJax and audio.
 - **Vim keys:** `j`/`k`, counts like `10j` and `25G`, `gg`/`G`, `Ctrl-d`/`Ctrl-u`, `h`/`l` or Space for the front and back, `/` to search. Arrow keys work too.
 - **Now or wait.** On a topic, each suspended card says whether to unsuspend it now or wait for the system it mostly belongs to, and why ("43% here; comes up again in Endocrine, Repro").
-- **Columns to decide by:** state, AnKing yield, UWorld, AMBOSS and NBME questions, and the other systems a card comes up in. Filter to Suspended, Now, Wait, High yield or Q-bank.
-- **Select and suspend:** `v` selects cards as you move, and Cmd/Ctrl+J suspends them, as in Anki's browser.
+- **Columns to decide by:** state, AnKing yield, UWorld, AMBOSS and NBME questions, the other systems a card comes up in, and Retrievability, the chance you'd recall it now as FSRS works it out. Choose your columns (Due, Interval, Stability and more) and drag them into any order. Filter to Suspended, Now, Wait, High Yield or Q-bank.
+- **Step 1 or Step 2:** each card says which exam it's for, from its resources and question-bank questions under each step.
+- **Select and suspend:** `v` selects cards as you move, and Cmd/Ctrl+J suspends them, as in Anki's browser. `u` undoes.
+- **Edit in place:** press `e` and the note's fields take the table's place, with the card beside them showing what you change. Vim keys, keys for clozes, and pasted pictures sized to one height. Changes save as you type.
 - **From a review:** Cmd/Ctrl+Shift+B opens Skim on today's review at the card you're on, without giving away answers you haven't seen.
 - **Views** for Anki's "Today" searches: Due, Added, Studied, Again and more.
 - **Pairs with [🪜 Stepwise](https://ankiweb.net/shared/info/1949793886):** press `b` on a topic there to see its cards here, and Skim follows as you move through topics.
