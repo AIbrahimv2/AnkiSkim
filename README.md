@@ -13,6 +13,8 @@ through topics.
 
 <img src="docs/screenshot.png" width="100%" alt="Two Skim windows side by side. Left: a B&amp;B topic's cards in a table with their state, retrievability, yield, question banks and verdicts, beside the card on screen and its tags by system and by step. Right: the same card open in the editor, its fields beside the card, with a diagram of dynein and kinesin">
 
+<sub>Shown with [AnkiGlass](https://github.com/AIbrahimv2/AnkiGlass), which gives Anki's windows, Skim's included, macOS Liquid Glass.</sub>
+
 ## Features
 
 - **Instant moves.** While you read a card, Skim draws the next ones (and the

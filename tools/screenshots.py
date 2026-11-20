@@ -2,7 +2,7 @@
 """Make the screenshot for the README and the AnkiWeb listing.
 
     python3 tools/screenshots.py [--collection PATH] [--stepwise PATH] [--topic TAG] [--card TEXT]
-                                 [--capture-wallpaper | --wallpaper PATH]
+                                 [--plain] [--capture-wallpaper | --wallpaper PATH]
 
 Writes docs/screenshot.png: two Skim windows side by side, unlabelled. On
 the left, Skim on a B&B topic (TOPIC) full of suspended cards and their
@@ -15,7 +15,8 @@ Biochem, Neuro, Respiratory and Micro, 86% Step 1 to 14% Step 2, and its
 diagram, which the editor shows whole with its credit, is Duncan and
 Goldstein's, CC BY 4.0, via Wikimedia Commons. --topic and --card show
 another. Each window is taller than its default 1180x780 and draws at 108%
-(ZOOM). The page comes from tools/devserver.py, run with Anki's own Python
+(ZOOM), on AnkiGlass's glass as AnkiGlass gives an add-on's window (--plain
+for none), with the card see-through as "Glass behind the card" makes it. The page comes from tools/devserver.py, run with Anki's own Python
 (ANKI_PYTHON, or the launcher's) on a copy of a collection: the Default
 profile's unless --collection names another, with the media folder beside
 it. The collection itself is never touched. Verdicts follow Stepwise's
@@ -82,11 +83,13 @@ def main() -> None:
     ap.add_argument("--stepwise", default=STEPWISE, help="Stepwise's meta.json, if the file exists")
     ap.add_argument("--topic", default=TOPIC, help="the tag the window opens on")
     ap.add_argument("--card", default=CARD, help="text in the row of the card to show")
+    ap.add_argument("--plain", action="store_true", help="without AnkiGlass")
     shots.add_wallpaper_args(ap)
     args = ap.parse_args()
     if not os.path.isfile(args.collection):
         raise SystemExit(f"no collection at {args.collection}: pass --collection")
     media = args.media or os.path.join(os.path.dirname(args.collection), "collection.media")
+    glass = None if args.plain else shots.load_glass()
     with shots.Session() as s:
         port = shots.free_port()
         cmd = [shots.anki_python(), os.path.join(ROOT, "tools", "devserver.py"), "--collection", args.collection,
@@ -98,7 +101,8 @@ def main() -> None:
             shots.wait_for(f"http://127.0.0.1:{port}/", timeout=90)
             s.capture([{"url": f"http://127.0.0.1:{port}/?theme=dark", "width": SIZE[0], "height": SIZE[1],
                         "setup": SETUP % {"card": json.dumps(args.card), "then": then}, "zoom": ZOOM, "wait": 300,
-                        "out": f"{name}.png", "result": s.path(f"{name}.json")}
+                        "out": f"{name}.png", "result": s.path(f"{name}.json"),
+                        **({"preload": glass["window"], "transparent": True} if glass else {})}
                        for name, then in (("table", ""), ("editor", EDIT))])
         finally:
             dev.terminate()
@@ -106,7 +110,8 @@ def main() -> None:
         with open(s.path("table.json")) as f:
             print("card", json.load(f))
         # The two windows speak for themselves: no labels.
-        out = s.side_by_side([{"image": f"{name}.png", "size": SIZE, "title": "Skim"} for name in ("table", "editor")],
+        out = s.side_by_side([{"image": f"{name}.png", "size": SIZE, "title": "Skim", "tint": glass and glass["tint"]}
+                              for name in ("table", "editor")],
                              None, shots.wallpaper_for(args, s), os.path.join(DOCS, "screenshot.png"))
     print("wrote", os.path.relpath(out, ROOT))
 

@@ -47,7 +47,9 @@ Its tags put it in Biochem, Neuro, Respiratory and Micro, 86% Step 1 to 14%
 Step 2, and its diagram, whole with its credit in the editor, is Duncan and
 Goldstein's, CC BY 4.0, via Wikimedia Commons. Each window is 1180x1040 at
 108% (as Cmd+= draws it); any bigger and the page would be under 1080px
-wide, where Skim hides the card.
+wide, where Skim hides the card. They're on AnkiGlass's glass, as AnkiGlass
+gives an add-on's window, with the card see-through ("Glass behind the
+card"), so the README and the listing say "Shown with AnkiGlass".
 
 Chosen on 2026-11-20 for 1.2.0 (the editor, and a card that shows its
 steps and systems), from cards in pinned Step 1 resources' topics with both
@@ -70,6 +72,8 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 **Code: 2141626960.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
 <p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Two Skim windows side by side. Left: a B&amp;B topic's cards in a table with their state, retrievability, yield, question banks and verdicts, beside the card on screen and its tags by system and by step. Right: the same card open in the editor, its fields beside the card, with a diagram of dynein and kinesin" width="100%"></p>
+
+<p><small>Shown with <a href="https://ankiweb.net/shared/info/1866406123">AnkiGlass</a>, which gives Anki's windows, Skim's included, macOS Liquid Glass.</small></p>
 
 **Features**
 
