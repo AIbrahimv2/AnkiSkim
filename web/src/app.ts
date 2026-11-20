@@ -16,10 +16,10 @@ import type { ChromeApi } from "./chrome/Chrome.tsx";
 import { EditSession } from "./edit/session.ts";
 import { KeyCast } from "./keycast.ts";
 import { type Command, Keys } from "./keys.ts";
-import { CardList, type SortKey } from "./list.ts";
+import { CardList, type ColKey, onByDefault, type SortKey } from "./list.ts";
 import { TagsPane, tagCount } from "./pane.ts";
 import { Stage, type Want } from "./stage.ts";
-import type { CardHtml, Facets, Layout, PageConfig, Pane, PushEvent, Row, Side, View } from "./types.ts";
+import type { CardHtml, Extra, ExtraKey, Facets, Layout, PageConfig, Pane, PushEvent, Row, Side, View } from "./types.ts";
 
 const SEARCH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -72,8 +72,16 @@ const FILTERS: Filter[] = [
 ];
 /** Suspend / unsuspend, as Anki's browser has it. */
 const SUSPEND_KEY = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘J" : "Ctrl+J";
-/** First direction when you sort by a column. */
-const SORT_START: Record<SortKey, 1 | -1> = { order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1, deck: 1 };
+/** First direction when you sort by a column: the cards most worth a
+ *  look first (the soonest due, the least likely recalled, the hardest,
+ *  the most forgotten). */
+const SORT_START: Record<SortKey, 1 | -1> = {
+  order: 1, state: 1, yield: 1, banks: -1, later: -1, verdict: -1, deck: 1,
+  due: 1, ivl: 1, ease: 1, ret: 1, dif: -1, stab: 1, reps: -1, lapses: -1,
+};
+/** The columns whose sort values come only when you sort by one. */
+const EXTRA = new Set<SortKey>(["due", "ivl", "ease", "ret", "dif", "stab", "reps", "lapses"]);
+const extraOf = (key: SortKey): ExtraKey | null => (EXTRA.has(key) ? (key as ExtraKey) : null);
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const clamp = (x: number, low: number, high: number) => Math.max(low, Math.min(high, x));
@@ -120,6 +128,10 @@ export class App {
   private rowsInFlight = new Set<number>();
   private rowsQueued = false;
   private facets: Facets | null = null;
+  /** The sort values of the scheduling column the table is sorted by, in
+   *  the view's order (null until they come, or when it's sorted by
+   *  something else). */
+  private sortValues: Extra | null = null;
   private facetsSeq = -1;
   /** Bumped by each loadFacets, so an older one stops asking. */
   private facetsRun = 0;
@@ -144,6 +156,8 @@ export class App {
   private listShare = LIST_SHARE;
   private cardSplit = CARD_SPLIT;
   private tagsOpen = true;
+  /** The table's columns you've turned on or off (Layout.cols). */
+  private colChoice: Record<string, boolean> = {};
   private sideEl: HTMLElement;
   private autoplayTimer = 0;
   private lastPlayed = "";
@@ -254,6 +268,7 @@ export class App {
       need: (cids) => this.needRows(cids),
       pick: (i, extend) => this.go(i, true, extend),
       sort: (key) => this.sortBy(key),
+      columnsMenu: (x, y) => this.chrome?.openColumns({ x, y }),
     });
     this.cast = new KeyCast(listPanel);
     this.pane = new TagsPane(tagsPanel, () => this.toggleTags());
@@ -266,6 +281,8 @@ export class App {
     this.setListShare(boot.layout.share ?? LIST_SHARE);
     this.setCardSplit(boot.layout.split ?? CARD_SPLIT);
     this.setTagsOpen(boot.layout.tags ?? true);
+    this.colChoice = { ...(boot.layout.cols ?? {}) };
+    this.list.setChoice(this.colChoice);
     this.wireSplitters(splitter, main, rowSplitter, right);
     this.wireSearch();
     // On <html>, not the window: Anki listens on the document and closes
@@ -340,8 +357,10 @@ export class App {
     this.exitEdit(); // other cards: what's unsaved is saved first
     this.view = view;
     this.hidden = new Set(view.hidden ?? []);
+    this.list.setFsrs(!!view.fsrs);
     // Kept from an earlier view of these cards, read the same way?
     this.facets = this.cache.facets(view.reading, view.ids);
+    this.sortValues = this.keptSortValues();
     this.keys.reset();
     if (document.activeElement !== this.input) this.input.value = view.search;
     // From a review: the side the reviewer is on (front until you answer).
@@ -349,7 +368,7 @@ export class App {
     this.renderChrome();
     this.relist(view.select ?? null);
     clearTimeout(this.facetsTimer);
-    if (this.facets) {
+    if (this.facets && (this.sortValues || !extraOf(this.sort))) {
       this.facetsSeq = view.seq;
       this.facetsAfterCard = null;
       return;
@@ -541,7 +560,20 @@ export class App {
     if (f && lens) {
       const filter = FILTERS.find((x) => x.key === this.filter);
       if (filter && filter.key !== "all") order = order.filter((i) => filter.test(f, i));
-      if (this.sort !== "order") {
+      const extra = this.sortValues;
+      if (extraOf(this.sort)) {
+        // Blanks (a new card has no due, no interval) last, either way.
+        // Until the values come, the view's order.
+        const d = this.sortDir;
+        if (extra) {
+          order.sort((a, b) => {
+            const x = extra[a];
+            const y = extra[b];
+            if (x === null || y === null) return x === y ? a - b : x === null ? 1 : -1;
+            return (x - y) * d || a - b;
+          });
+        }
+      } else if (this.sort !== "order") {
         const d = this.sortDir;
         const decks = this.sort === "deck" ? this.cache.deckRanks(f.deck) : null;
         const value = (i: number): number => {
@@ -562,19 +594,22 @@ export class App {
   }
 
   /** The view's facets: the kept ones, and the rest from Python a slice
-   *  at a time (kept too, for the next view of these cards). */
-  private loadFacets(): void {
+   *  at a time (kept too, for the next view of these cards); sorted by a
+   *  scheduling column, its values too. `sorting`: you've just sorted by
+   *  one, and its values are what's missing. */
+  private loadFacets(sorting = false): void {
     const { seq, ids, reading } = this.view;
     const gen = this.cache.gen;
     const run = ++this.facetsRun;
     this.facetsSeq = seq;
-    const missing = this.cache.missingFacets(reading, ids);
+    const extra = extraOf(this.sort);
+    const missing = this.cache.missingFacets(reading, ids, extra);
     const live = () => this.facetsRun === run && this.view.seq === seq && this.cache.gen === gen;
     const next = (start: number): void => {
       if (start < missing.length) {
         const slice = missing.slice(start, start + FACET_SLICE);
         call<{ ids?: number[]; facets?: Facets; decks?: Record<string, string>; reading?: string; stale?: boolean }>(
-          "facets", { seq, ids: slice })
+          "facets", { seq, ids: slice, extra: extra ? [extra] : [] })
           .then((r) => {
             if (r.stale || !r.ids || !r.facets || this.cache.gen !== gen) return;
             this.cache.putFacets(r.reading ?? "", r.ids, r.facets);
@@ -586,8 +621,10 @@ export class App {
       }
       const f = this.cache.facets(reading, ids);
       if (!f || !live()) return;
-      const again = this.facets !== null; // read again: the cards changed
+      // Read again: the cards changed (and the table stays where it is).
+      const again = this.facets !== null && !sorting;
       this.facets = f;
+      this.sortValues = this.keptSortValues();
       if (this.wantLens !== null) return; // the table waits for the next view
       const keep = this.shown[this.cursor] ?? null;
       // The table moves only if its cards or their order did.
@@ -722,7 +759,59 @@ export class App {
       this.sort = key;
       this.sortDir = SORT_START[key];
     }
+    this.sortValues = this.keptSortValues();
+    if (extraOf(key) && !this.sortValues) {
+      // A scheduling column's values come first: the table sorts then.
+      this.list.setSort(this.sort, this.sortDir);
+      this.loadFacets(true);
+      return;
+    }
     this.relist(this.shown[this.cursor] ?? null);
+  }
+
+  /** The kept sort values of the scheduling column the table is sorted
+   *  by, for the view's cards (null if it isn't, or they aren't all). */
+  private keptSortValues(): Extra | null {
+    const extra = extraOf(this.sort);
+    return extra ? this.cache.sortValues(extra, this.view.ids) : null;
+  }
+
+  // --- columns -------------------------------------------------------------------
+
+  /** Columns' menu: the columns you can turn on and off, and whether each is. */
+  columns(): { key: ColKey; label: string; on: boolean }[] {
+    return this.list.choices();
+  }
+
+  toggleColumn(key: ColKey): void {
+    const on = !this.list.choices().find((c) => c.key === key)?.on;
+    const choice = { ...this.colChoice };
+    if (on === onByDefault(key)) delete choice[key];
+    else choice[key] = on;
+    this.setColumns(choice);
+  }
+
+  /** Default columns, in Columns' menu. */
+  resetColumns(): void {
+    this.setColumns({});
+  }
+
+  /** Whether the columns offered are other than the default ones. */
+  columnsChanged(): boolean {
+    return this.list.choices().some((c) => c.on !== onByDefault(c.key));
+  }
+
+  private setColumns(choice: Record<string, boolean>): void {
+    this.colChoice = choice;
+    this.list.setChoice(choice);
+    // Sorted by a column you've turned off: back to the view's order.
+    if (!this.list.sortable(this.sort)) {
+      this.sort = "order";
+      this.sortDir = 1;
+      this.sortValues = null;
+      this.relist(this.shown[this.cursor] ?? null);
+    }
+    void call("layout", { cols: choice });
   }
 
   /** The Verdict column only where a card can have one: on a topic, with

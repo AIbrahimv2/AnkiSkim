@@ -31,16 +31,27 @@ through topics.
   and the card, or between the card and its tags, to resize them
   (double-click one to reset it, or choose **⋯ → Reset layout** for all of
   it). A narrow table drops the columns it has least room for (Deck first,
-  then Again in, Q-bank and Yield), so the card can take most of the window.
+  then Again in, Q-bank and Yield, then any scheduling columns you've
+  turned on), so the card can take most of the window.
   Click a row to jump there.
 - **Columns that help you decide.** The note's text with clozes filled in, its
   deck (for a card in a filtered deck, its home deck in brackets; hover for
   the full name), its state (new, learning, review, suspended, buried),
+  its retrievability (with FSRS: the chance you'd recall it now, orange
+  below the retention it's scheduled for),
   AnKing's yield tag (with signal bars: four for High down to one for Low),
   the UWorld, AMBOSS and NBME questions tagged on it, the other systems it
   comes up in ("Again in", coloured by what you've done in Stepwise), and a
   verdict.
-  Click a column's title to sort by it (again to reverse it).
+  Click a column's title to sort by it (again to reverse it). Blanks, like
+  a new card's retrievability, stay at the bottom either way.
+- **Pick your columns.** Right-click the column titles, or choose
+  **⋯ → Columns…**, to turn columns on and off. Besides those above there's
+  Due ("in 5d", "today", "3d late" in orange), Interval, Difficulty,
+  Stability, Reviews and Lapses; without FSRS, Ease takes the place of
+  Retrievability, Difficulty and Stability. Your columns are kept for next
+  time; **Default columns** brings back the ones Skim starts with (Deck,
+  State, Retrievability, Yield, Q-bank, Again in and Verdict).
 - **Now or wait.** On a topic (from Stepwise, or a `tag:` search), each
   suspended card gets a verdict. Its places in your pinned resources (and the
   one you're on) are sorted by system: if at least half are in this topic's

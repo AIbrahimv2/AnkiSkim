@@ -2,12 +2,13 @@
 // open in the shared add-on kit's window), the list of keys, and toasts.
 // React, like Stepwise's; nothing here runs while you move between cards.
 
-import { CircleCheck, Ellipsis, Info, Keyboard, LayoutPanelLeft, Settings2, Sparkles, SquarePen, Table2, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, Columns3, Ellipsis, Info, Keyboard, LayoutPanelLeft, Settings2, Sparkles, SquarePen, Table2, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { openKitWindow, selfOf, useKitAbout } from "../kit/AddonDialog.tsx";
 import { kitCall } from "../kitCall.ts";
+import type { ColKey } from "../list.ts";
 import { type Anchor, IconButton, Menu, Modal, anchorBelow } from "./ui.tsx";
 
 export interface ChromeApi {
@@ -15,6 +16,8 @@ export interface ChromeApi {
   toggleHelp(): void;
   /** A dialog or menu is open (and has the keys). */
   isOpen(): boolean;
+  /** Columns' menu, at a point (the table's titles, right-clicked). */
+  openColumns(at: Anchor): void;
 }
 
 export interface ChromeProps {
@@ -27,6 +30,12 @@ export interface ChromeProps {
   onResetLayout(): void;
   /** Whether there's a layout to reset (the item is greyed out if not). */
   layoutChanged(): boolean;
+  /** The table's columns you can turn on and off, and whether each is. */
+  columns(): { key: ColKey; label: string; on: boolean }[];
+  onToggleColumn(key: ColKey): void;
+  /** Default columns: the ones Skim starts with. */
+  onResetColumns(): void;
+  columnsChanged(): boolean;
 }
 
 type Tone = "ok" | "info" | "error";
@@ -39,6 +48,7 @@ interface Toast {
 const control = {
   toast: (_m: string, _t?: Tone) => {},
   help: (_toggle: boolean) => {},
+  columns: (_at: Anchor) => {},
 };
 
 export function mountChrome(host: HTMLElement, props: ChromeProps): ChromeApi {
@@ -47,11 +57,13 @@ export function mountChrome(host: HTMLElement, props: ChromeProps): ChromeApi {
     toast: (m, t) => control.toast(m, t),
     toggleHelp: () => control.help(true),
     isOpen: () => !!host.querySelector(".overlay, .menu"),
+    openColumns: (at) => control.columns(at),
   };
 }
 
 function Chrome(props: ChromeProps) {
   const [menu, setMenu] = useState<Anchor | null>(null);
+  const [columns, setColumns] = useState<Anchor | null>(null);
   const [kitAbout] = useKitAbout(kitCall);
   const unseen = !!selfOf(kitAbout)?.unseen;
   const [help, setHelp] = useState(false);
@@ -64,6 +76,7 @@ function Chrome(props: ChromeProps) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 6500 : 3200);
   };
   control.help = () => setHelp((h) => !h);
+  control.columns = (at) => setColumns(at);
 
   return (
     <>
@@ -92,6 +105,11 @@ function Chrome(props: ChromeProps) {
             { label: "Open in Anki's browser", icon: <Table2 size={14} />, hint: "B", onSelect: props.onBrowse },
             { label: "Keys", icon: <Keyboard size={14} />, hint: "?", onSelect: () => setHelp(true) },
             {
+              label: "Columns…",
+              icon: <Columns3 size={14} />,
+              onSelect: () => button.current && setColumns(anchorBelow(button.current, true)),
+            },
+            {
               label: "Reset layout",
               icon: <LayoutPanelLeft size={14} />,
               disabled: !props.layoutChanged(),
@@ -102,6 +120,28 @@ function Chrome(props: ChromeProps) {
             { separator: true },
             { label: "What's new", icon: <Sparkles size={14} />, dot: unseen, onSelect: () => openKitWindow(kitCall, "news") },
             { label: "About Skim", icon: <Info size={14} />, onSelect: () => openKitWindow(kitCall, "about") },
+          ]}
+        />
+      )}
+      {columns && (
+        <Menu
+          anchor={columns}
+          onClose={() => setColumns(null)}
+          minWidth={200}
+          entries={[
+            { section: "Columns" },
+            ...props.columns().map((c) => ({
+              label: c.label,
+              checked: c.on,
+              // The menu closes on a pick: open again where it was (a new
+              // object, so it draws the new ticks), to turn on several.
+              onSelect: () => {
+                props.onToggleColumn(c.key);
+                setColumns({ ...columns });
+              },
+            })),
+            { separator: true },
+            { label: "Default columns", disabled: !props.columnsChanged(), onSelect: props.onResetColumns },
           ]}
         />
       )}

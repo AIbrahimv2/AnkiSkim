@@ -76,6 +76,9 @@ check(part["ids"] == [cardio["ids"][3], cardio["ids"][1]] and len(part["facets"]
       "facets come for the cards asked for, in that order")
 check(part["reading"] == cardio["reading"] == "Cardio", "named for what they were read against")
 check(call("facets", seq=cardio["seq"] - 1, ids=ALL).get("stale"), "and not for a view that's gone")
+part = call("facets", seq=cardio["seq"], ids=cardio["ids"][:2], extra=["lapses", "nope", 3])
+check(part["facets"]["lapses"] == [0, 0] and "nope" not in part["facets"],
+      "a scheduling column's sort values come when asked for, and nothing else does")
 check(call("rows", ids=ALL[:1])["reading"] == "Cardio", "rows say their reading too")
 
 print("editing a note")
@@ -119,8 +122,15 @@ call("layout", split=0.45678, tags=False)
 check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "the card's height and the tags pane join it")
 call("layout", share=0.05, split=True, tags="no")
 check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "out of range or the wrong type: kept as it was")
+call("layout", cols={"ret": False, "lapses": True, "Bad Key": True, "due": "yes"})
+check(host.saved_layout.get("cols") == {"ret": False, "lapses": True},
+      "the columns you turn on and off are saved, without what isn't a column's key or a yes or no")
 call("layout", reset=True)
-check(host.saved_layout == {}, "Reset layout forgets it all")
+check(host.saved_layout == {"cols": {"ret": False, "lapses": True}}, "Reset layout forgets the rest, not the columns")
+call("layout", cols={})
+check(host.saved_layout == {}, "Default columns forgets them")
+call("layout", cols={str(i): True for i in range(40)})
+check(host.saved_layout == {}, "too many columns: kept as it was")
 
 print("settings")
 got = call("settings")

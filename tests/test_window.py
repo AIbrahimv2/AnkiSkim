@@ -126,8 +126,24 @@ try:
     check(True, "the cards around it are drawn ahead")
 
     print("table, filters and tags")
-    check(js("[...document.querySelectorAll('.list-head span')].map(s => s.textContent).join(',')")
-          == "#,Card,Deck,State,Yield,Q-bank,Again in,Verdict", "the table has its columns")
+    api._window.resize(1500, 900)  # room for every column (a narrow table drops some)
+    pump(0.3)
+    HEADS = "[...document.querySelectorAll('.list-head span')].map(s => s.textContent).join(',')"
+    heads = wait_for(f"{HEADS}.endsWith('Verdict') && {HEADS}")
+    check(heads == "#,Card,Deck,State,Yield,Q-bank,Again in,Verdict",
+          f"the table has its columns: without FSRS, no Retrievability; on a topic, a Verdict once the counts come ({heads})")
+    MENU = "[...document.querySelectorAll('.menu .menu-item')].map(b => b.textContent.trim() + (b.querySelector('.mi-check svg') ? '+' : ''))"
+    js("document.querySelector('.list-head span').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: 40, clientY: 40}))")
+    menu = wait_for(f"{MENU}.length && {MENU}.join(',')")
+    check(menu == "Deck+,State+,Due,Interval,Ease,Reviews,Lapses,Yield+,Q-bank+,Again in+,Verdict+,Default columns",
+          f"right-clicking the titles lists the columns to turn on and off, Ease without FSRS ({menu})")
+    js("[...document.querySelectorAll('.menu .menu-item')].find(b => b.textContent.trim() === 'Lapses').click()")
+    check(wait_for(f"{HEADS}.includes('Lapses') && {MENU}.join(',').includes('Lapses+')"),
+          "ticking one adds its column, and the menu stays open to tick more")
+    check(mw.pm.profile.get("skim.layout", {}).get("cols") == {"lapses": True}, "the columns are saved with the layout")
+    js("[...document.querySelectorAll('.menu .menu-item')].find(b => b.textContent.trim() === 'Default columns').click()")
+    check(wait_for(f"!{HEADS}.includes('Lapses') && !document.querySelector('.menu')")
+          and "cols" not in mw.pm.profile.get("skim.layout", {}), "Default columns brings back the ones Skim starts with")
     check(wait_for("document.querySelector('.row:not(.loading) .r-deck')?.textContent") == "Topics",
           "a row shows its deck")
     chips = wait_for("[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',').includes('Suspended2') && "

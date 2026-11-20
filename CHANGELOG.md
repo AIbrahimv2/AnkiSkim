@@ -34,6 +34,16 @@ All notable changes to this project are documented here. The format is based on
   "Mostly Step 1", "Mostly Step 2" or "Steps 1 and 2", with a bar of each
   step's share and the resources and UWorld, AMBOSS and NBME questions
   behind it.
+- A Retrievability column: the chance you'd recall each card now, as FSRS
+  works it out (the same number as Anki's Card Info). It's orange when a
+  card has slipped below the retention it's scheduled for. Sort by it to
+  see the cards you're most likely to have forgotten first.
+- Choose the table's columns: right-click the column titles, or choose
+  **⋯ → Columns…**, and tick the ones you want. Besides the ones Skim had,
+  there's Due ("in 5d", "3d late"), Interval, Difficulty, Stability,
+  Reviews and Lapses, or Ease if you don't use FSRS. Click any of them to
+  sort by it. Skim remembers your columns, and **Default columns** brings
+  back the ones it starts with.
 
 ### Changed
 

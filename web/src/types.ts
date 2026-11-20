@@ -32,6 +32,9 @@ export interface View {
   /** The bar's views, with their labels and card counts (null until
    *  counted). */
   lenses?: Lens[];
+  /** The collection schedules with FSRS (the table offers Retrievability,
+   *  Difficulty and Stability; without it, Ease). */
+  fsrs?: boolean;
 }
 
 export type Lens = [key: string, label: string, count: number | null];
@@ -52,6 +55,9 @@ export interface Layout {
   split?: number;
   /** Whether the tags pane is open (false: folded to its title). */
   tags?: boolean;
+  /** The table's columns you've turned on or off, by key (list.ts's
+   *  COLUMNS); the rest are as they are by default. */
+  cols?: Record<string, boolean>;
 }
 
 export type Verdict = "now" | "call" | "wait";
@@ -131,6 +137,20 @@ export interface Row {
   o?: string;
   /** 1 if the card's answer was kept back (a card still to come). */
   h?: 1;
+  /** Its scheduling (cards.schedule in Python), left out when blank: when
+   *  it's due in days from today (a fraction for a card learning within
+   *  the day; below 0 when late), its interval in days, ease (%), reviews,
+   *  lapses; with FSRS, retrievability (0 to 1), the desired retention,
+   *  difficulty (%) and stability (days). */
+  du?: number;
+  iv?: number;
+  e?: number;
+  rv?: number;
+  lp?: number;
+  rt?: number;
+  dr?: number;
+  df?: number;
+  sb?: number;
   y?: string | null;
   b?: string;
   /** Other systems it comes up in, with Stepwise's status there and how
@@ -153,6 +173,12 @@ export interface Facets {
   /** Its deck's id (names come with the facets, see Cache.putDecks). */
   deck: number[];
 }
+
+/** What the table can also sort by: its scheduling columns. Python sends
+ *  one with the facets only when asked (see App.loadFacets), null for a
+ *  card with none (a new card has no due). */
+export type ExtraKey = "due" | "ivl" | "ease" | "ret" | "dif" | "stab" | "reps" | "lapses";
+export type Extra = (number | null)[];
 
 /** Both sides of a card, ready for the reviewer page, and its body class. */
 export interface CardHtml {

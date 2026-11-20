@@ -25,6 +25,10 @@ async function start() {
     },
     onResetLayout: () => a.resetLayout(),
     layoutChanged: () => a.layoutChanged(),
+    columns: () => a.columns(),
+    onToggleColumn: (key) => a.toggleColumn(key),
+    onResetColumns: () => a.resetColumns(),
+    columnsChanged: () => a.columnsChanged(),
   });
   a.attachChrome(chrome);
   setErrorHandler((message) => chrome.toast(message, "error"));

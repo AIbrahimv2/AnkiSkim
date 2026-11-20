@@ -18,6 +18,7 @@ below (`browse`, `changed`, `back`, `close_window`, `replay`, `play`, `save_layo
 from __future__ import annotations
 
 import json
+import re
 import traceback
 
 from . import cards, kit, notes
@@ -32,6 +33,9 @@ MAX_SELECTED = 100_000
 # table's share of the width, and the card's share of the height.
 SHARE_RANGE = (0.2, 0.9)
 SPLIT_RANGE = (0.15, 0.9)
+# The table's columns you've turned on or off: list.ts's keys.
+MAX_COLS = 32
+_COL_KEY = re.compile(r"[a-z]{1,12}")
 # A field being saved: far more than a card's text, short of a mistake.
 MAX_FIELD = 4 * 1024 * 1024
 
@@ -112,7 +116,8 @@ class Bridge:
         if msg.get("seq") != view["seq"]:
             return {"stale": True}
         ids = self._ids(msg, MAX_FACETS)
-        facets = cards.facets(self.host.col, ids, self.host.analyzer())
+        extra = [k for k in msg.get("extra") or [] if isinstance(k, str)]
+        facets = cards.facets(self.host.col, ids, self.host.analyzer(), extra)
         return {"ids": ids, "facets": facets, "decks": cards.deck_names(self.host.col, facets["deck"]),
                 "reading": view["reading"]}
 
@@ -208,14 +213,28 @@ class Bridge:
         width, the card's share of the height beside it, and whether the
         tags pane is open. A call can carry any of them; the rest are kept.
         `reset` forgets them all first (Reset layout in the ⋯ menu), so the
-        page starts from its defaults, whatever they are by then."""
-        layout = {} if msg.get("reset") is True else dict(self.host.layout())
+        page starts from its defaults, whatever they are by then.
+
+        `cols` is the table's columns you've turned on or off ({key: on}),
+        all of them each time; the others are as list.ts has them by
+        default. Reset layout keeps them: Columns → Default columns sends
+        an empty one."""
+        layout = dict(self.host.layout())
+        if msg.get("reset") is True:
+            layout = {k: v for k, v in layout.items() if k == "cols"}
         for key, low, high in (("share", *SHARE_RANGE), ("split", *SPLIT_RANGE)):
             v = msg.get(key)
             if isinstance(v, (int, float)) and not isinstance(v, bool) and low <= v <= high:
                 layout[key] = round(float(v), 3)
         if isinstance(msg.get("tags"), bool):
             layout["tags"] = msg["tags"]
+        cols = msg.get("cols")
+        if isinstance(cols, dict) and len(cols) <= MAX_COLS:
+            picked = {k: v for k, v in cols.items() if isinstance(k, str) and _COL_KEY.fullmatch(k) and isinstance(v, bool)}
+            if picked:
+                layout["cols"] = picked
+            else:
+                layout.pop("cols", None)
         self.host.save_layout(layout)
         return {}
 

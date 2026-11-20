@@ -161,7 +161,7 @@ def main() -> None:
             return f"card card{ord_ + 1} isMac{night}"
 
         def view(self):
-            return self.state.as_dict(args.back or None)
+            return {**self.state.as_dict(args.back or None), "fsrs": bool(col.get_config("fsrs", False))}
 
         def ids(self):
             return self.state.ids

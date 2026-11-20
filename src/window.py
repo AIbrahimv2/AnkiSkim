@@ -136,6 +136,7 @@ class SkimWindow(QDialog):
         else:
             out["lens"], n = api.ALL, len(self._view.ids)
         out["lenses"] = [[api.ALL, "All", n], *api.lens_counts()]
+        out["fsrs"] = bool(mw.col.get_config("fsrs", False))
         return out
 
     def analyzer(self) -> Analyzer:

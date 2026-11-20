@@ -75,6 +75,50 @@ moved = cards.rows(col, neuro)[str(neuro[0])]
 check(moved["d"] == "Cram" and moved["o"] == "Topics", f"a card in a filtered deck has its home deck too ({moved})")
 col.sched.empty_filtered_deck(cram)
 
+print("scheduling")
+import json  # noqa: E402
+import time  # noqa: E402
+
+new = cards.rows(col, [ALL[0]])[str(ALL[0])]
+check(new["rv"] == 0 and new["lp"] == 0 and not {"du", "iv", "e", "rt", "df", "sb"} & new.keys(),
+      f"a new card has no due, interval, ease or memory state ({new})")
+col.set_config("fsrs", True)
+studied = ALL[0]
+for ease in (3, 3, 1, 3):  # good, good, again (a lapse once it's a review), good
+    c = col.get_card(studied)
+    c.start_timer()
+    col.sched.answerCard(c, ease)
+now = int(time.time())
+data = json.loads(col.db.scalar("select data from cards where id = ?", studied))
+for back, what in ((3 * 86400, "3 days"), (40 * 86400 + 5 * 3600, "40 days"), (500 * 86400, "500 days")):
+    data["lrt"] = now - back
+    col.db.execute("update cards set data = ? where id = ?", json.dumps(data), studied)
+    row = cards.rows(col, [studied])[str(studied)]
+    anki = col.card_stats_data(studied).fsrs_retrievability
+    check(abs(row["rt"] - anki) < 0.0005, f"retrievability {what} after a review is Anki's ({row['rt']} vs {anki:.4f})")
+info = col.card_stats_data(studied).memory_state
+check(row["sb"] == round(info.stability, 2) and row["df"] == round((info.difficulty - 1) / 9 * 100),
+      f"stability and difficulty are Card Info's ({row['sb']}d, {row['df']}%)")
+card = col.get_card(studied)
+check(row["rv"] == card.reps and row["lp"] == card.lapses == 1 and row["e"] == card.factor // 10,
+      f"reviews, lapses and ease ({row['rv']}, {row['lp']}, {row['e']}%)")
+check(isinstance(row["du"], (int, float)) and row["dr"] == 0.9, f"a due, and the retention it's scheduled for ({row})")
+today, tnow = cards.timing(col)
+check(cards.schedule((2, today - 4, 0, 10, 2500, 5, 0, None, None, None, None, None), today, tnow)["du"] == -4,
+      "a review card due four days ago is four days late")
+check(cards.schedule((1, int(tnow) + 600, 0, 0, 0, 1, 0, None, None, None, None, None), today, tnow)["du"] == round(600 / 86400, 3),
+      "a card learning within the day is due in a fraction of a day")
+check(cards.schedule((2, 50, today - 2, 10, 2500, 5, 0, None, None, None, None, None), today, tnow)["du"] == -2,
+      "a card in a filtered deck is due when it is back home")
+old_r = cards.retrievability(10, None, None, today + 5, 10, today, tnow)
+check(abs(old_r - (1 + 19 / 81 * 5 / 10) ** -0.5) < 1e-9,
+      "a card reviewed before Anki kept the time counts from its due day less its interval, with FSRS-5's decay")
+fac = cards.facets(col, [ALL[0], ALL[1]], an, extra=["ret", "lapses", "due", "bogus"])
+check(fac["ret"][0] == row["rt"] and fac["ret"][1] is None and fac["lapses"] == [1, 0] and fac["due"][1] is None
+      and "bogus" not in fac, f"facets carry a scheduling column's values when asked, blanks as None ({fac['ret']})")
+check("ret" not in cards.facets(col, [ALL[0]], an), "and only then")
+col.set_config("fsrs", False)
+
 print("render")
 seen = []
 

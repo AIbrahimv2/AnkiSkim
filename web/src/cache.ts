@@ -11,10 +11,13 @@
 // Until their new rows come, the old ones stay at hand (see oldRow), so
 // the table keeps showing them instead of blanking every row.
 
-import type { Facets, Row } from "./types.ts";
+import type { Extra, ExtraKey, Facets, Row } from "./types.ts";
 
 /** A card's facets: state, yield, banks, verdict, later, deck (see Facets). */
 type Facet = [number, number, number, number, number, number];
+/** Sort values kept per column (see Cache.extra): a big deck's worth. */
+const MAX_EXTRA = 200_000;
+const EXTRA_KEYS = new Set<string>(["due", "ivl", "ease", "ret", "dif", "stab", "reps", "lapses"] satisfies ExtraKey[]);
 
 /** Readings kept: the bar's views share one; Stepwise's topics and a
  *  review's cards have their own. */
@@ -42,12 +45,16 @@ export class Cache {
   private old = new Map<string, Map<number, Row>>();
   /** Deck names by id, for sorting by deck. */
   private decks = new Map<number, string>();
+  /** The scheduling columns' sort values by card, for the ones you've
+   *  sorted by (they don't depend on the reading). */
+  private extra = new Map<ExtraKey, Map<number, number | null>>();
 
   /** Forget everything: the cards, or what they're read against, changed.
    *  The rows stay at hand until they're read again (oldRow). */
   clear(): void {
     for (const [key, r] of this.readings) this.keepOld(key, r.rows);
     this.readings.clear();
+    this.extra.clear();
     // Deck names stay: the facets kept meanwhile still sort by them, and
     // the new facets bring theirs.
     this.gen++;
@@ -69,6 +76,7 @@ export class Cache {
       }
       if (gone.size) this.keepOld(key, gone);
     }
+    for (const values of this.extra.values()) for (const c of cids) values.delete(c);
     this.gen++;
   }
 
@@ -127,16 +135,39 @@ export class Cache {
     return out;
   }
 
-  /** The cards among `ids` whose facets aren't kept. */
-  missingFacets(key: string, ids: number[]): number[] {
+  /** The cards among `ids` whose facets aren't kept, or (with `extra`)
+   *  whose sort values for that column aren't. */
+  missingFacets(key: string, ids: number[], extra: ExtraKey | null = null): number[] {
     const kept = this.reading(key)?.facets;
-    return kept ? ids.filter((c) => !kept.has(c)) : ids.slice();
+    const values = extra ? this.extra.get(extra) : undefined;
+    if (!kept || (extra && !values)) return ids.slice();
+    return ids.filter((c) => !kept.has(c) || (values !== undefined && !values.has(c)));
   }
 
-  /** Facets as Python sends them: for `ids`, in their order. */
-  putFacets(key: string, ids: number[], f: Facets): void {
+  /** Facets as Python sends them: for `ids`, in their order, with any
+   *  sort values asked for. */
+  putFacets(key: string, ids: number[], f: Facets & Partial<Record<ExtraKey, Extra>>): void {
     const kept = this.reading(key, true).facets;
     ids.forEach((c, i) => kept.set(c, [f.state[i], f.yield[i], f.banks[i], f.verdict[i], f.later[i], f.deck[i]]));
+    for (const [k, list] of Object.entries(f) as [string, unknown][]) {
+      if (!EXTRA_KEYS.has(k) || !Array.isArray(list)) continue;
+      let values = this.extra.get(k as ExtraKey);
+      if (!values || values.size > MAX_EXTRA) this.extra.set(k as ExtraKey, (values = new Map()));
+      ids.forEach((c, i) => values.set(c, list[i] ?? null));
+    }
+  }
+
+  /** A column's sort values for `ids`, in their order, if every one is kept. */
+  sortValues(extra: ExtraKey, ids: number[]): Extra | null {
+    const values = this.extra.get(extra);
+    if (!values) return ids.length ? null : [];
+    const out: Extra = new Array(ids.length);
+    for (let i = 0; i < ids.length; i++) {
+      const v = values.get(ids[i]);
+      if (v === undefined) return null;
+      out[i] = v;
+    }
+    return out;
   }
 
   /** Deck names as Python sends them with facets: by id. */

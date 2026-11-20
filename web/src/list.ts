@@ -3,8 +3,13 @@
 // cards scrolls like one with 50. Moving the cursor changes two rows, and
 // a row read again (the cards changed) changes only the cells that differ:
 // suspending a card redraws its State and Verdict, nothing else.
+//
+// Its columns are COLUMNS': # and Card always, the others as you turn them
+// on and off (Columns, in the ⋯ menu or a right-click on the titles), less
+// the ones the table is too narrow for. The rows are made anew only when
+// that changes, not as you move.
 
-import type { Row, Status } from "./types.ts";
+import type { ExtraKey, Row, Status } from "./types.ts";
 import { barsOf, yieldBars } from "./yieldbars.ts";
 
 export const ROW_H = 30;
@@ -32,39 +37,68 @@ const STATUS_ORDER: Record<string, number> = { none: 0, later: 1, queued: 2, com
 const CHIP_GAP = 3;
 type Again = [unit: string, status: Status, part: number | null];
 
-/** Columns you can sort by (the facets the page has for every card). */
-export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict" | "deck";
-const HEADS: [label: string, key: SortKey | null, title: string][] = [
-  ["#", "order", "Original order"],
-  ["Card", null, "The note's text, clozes filled in"],
-  ["Deck", "deck", "The card's deck (for a filtered deck, its home deck in brackets)"],
-  ["State", "state", "New, learning, review, suspended or buried"],
-  ["Yield", "yield", "AnKing's yield tag"],
-  ["Q-bank", "banks", "UWorld (UW), AMBOSS (AM) and NBME (NB) questions tagged on the card"],
-  ["Again in", "later", "Other systems the card is in (green: done; orange: queued)"],
-  ["Verdict", "verdict", "Unsuspend now, or wait for the system it mostly belongs to"],
-];
+/** Columns you can sort by: the facets the page has for every card, and
+ *  the scheduling columns, whose values come when you sort by one. */
+export type SortKey = "order" | "state" | "yield" | "banks" | "later" | "verdict" | "deck" | ExtraKey;
+export type ColKey = "num" | "text" | "deck" | "state" | ExtraKey | "yield" | "bank" | "again" | "verdict";
 
-/** The columns' widths, in HEADS' order; Card and Deck share what the
- *  fixed ones leave, Deck a third as much. `min` is the least each needs. */
-type ColKey = "num" | "text" | "deck" | "state" | "yield" | "bank" | "again" | "verdict";
-const COLS: [key: ColKey, track: string, min: number][] = [
-  ["num", "34px", 34],
-  ["text", "minmax(200px, 1fr)", 200],
-  ["deck", "minmax(72px, 0.35fr)", 72],
-  ["state", "74px", 74],
-  ["yield", "92px", 92],
-  ["bank", "112px", 112],
-  ["again", "150px", 150],
-  ["verdict", "66px", 66],
+interface Column {
+  key: ColKey;
+  /** Its title, in the table and in Columns' menu. */
+  label: string;
+  /** What its title says when you hover it. */
+  title: string;
+  sort: SortKey | null;
+  /** Its track in the grid, and the least width it needs. */
+  track: string;
+  min: number;
+  cls: string;
+  /** Shown unless you turn it off (true), or once you turn it on (false).
+   *  # and Card always are. */
+  on?: boolean;
+  /** Only with FSRS (true) or without it (false). */
+  fsrs?: boolean;
+}
+
+/** The table's columns, in order; Card and Deck share what the fixed ones
+ *  leave, Deck a third as much. A fixed one is as wide as its title with
+ *  the sort arrow after it. The scheduling ones (Due to Lapses) come
+ *  after State; Retrievability is on by default, the rest are there to
+ *  turn on. */
+export const COLUMNS: Column[] = [
+  { key: "num", label: "#", title: "Original order", sort: "order", track: "34px", min: 34, cls: "r-num num" },
+  { key: "text", label: "Card", title: "The note's text, clozes filled in", sort: null, track: "minmax(200px, 1fr)", min: 200, cls: "r-text" },
+  { key: "deck", label: "Deck", title: "The card's deck (for a filtered deck, its home deck in brackets)", sort: "deck", track: "minmax(72px, 0.35fr)", min: 72, cls: "r-deck", on: true },
+  { key: "state", label: "State", title: "New, learning, review, suspended or buried", sort: "state", track: "74px", min: 74, cls: "r-state", on: true },
+  { key: "due", label: "Due", title: "When it's due next (orange: late)", sort: "due", track: "68px", min: 68, cls: "r-due num", on: false },
+  { key: "ivl", label: "Interval", title: "Its interval: the time between its last review and when it's due", sort: "ivl", track: "56px", min: 56, cls: "r-ivl num", on: false },
+  { key: "ease", label: "Ease", title: "Its ease (SM-2)", sort: "ease", track: "46px", min: 46, cls: "r-ease num", on: false, fsrs: false },
+  { key: "ret", label: "Retrievability", title: "The chance you'd recall it now, as FSRS reckons it (orange: below the retention it's scheduled for)", sort: "ret", track: "88px", min: 88, cls: "r-ret num", on: true, fsrs: true },
+  { key: "dif", label: "Difficulty", title: "How hard the card is for you, as FSRS reckons it (0 to 100%)", sort: "dif", track: "64px", min: 64, cls: "r-dif num", on: false, fsrs: true },
+  { key: "stab", label: "Stability", title: "How long it takes to fall to 90% retrievability (FSRS)", sort: "stab", track: "60px", min: 60, cls: "r-stab num", on: false, fsrs: true },
+  { key: "reps", label: "Reviews", title: "How many times you've reviewed it", sort: "reps", track: "58px", min: 58, cls: "r-reps num", on: false },
+  { key: "lapses", label: "Lapses", title: "How many times you've forgotten it after learning it", sort: "lapses", track: "52px", min: 52, cls: "r-lapses num", on: false },
+  { key: "yield", label: "Yield", title: "AnKing's yield tag", sort: "yield", track: "92px", min: 92, cls: "r-yield", on: true },
+  { key: "bank", label: "Q-bank", title: "UWorld (UW), AMBOSS (AM) and NBME (NB) questions tagged on the card", sort: "banks", track: "112px", min: 112, cls: "r-bank num", on: true },
+  { key: "again", label: "Again in", title: "Other systems the card is in (green: done; orange: queued)", sort: "later", track: "150px", min: 150, cls: "r-again", on: true },
+  { key: "verdict", label: "Verdict", title: "Unsuspend now, or wait for the system it mostly belongs to", sort: "verdict", track: "66px", min: 66, cls: "r-verdict", on: true },
 ];
+const BY_KEY = new Map(COLUMNS.map((c) => [c.key, c]));
+
+/** Whether a column is on when you haven't turned it on or off. */
+export function onByDefault(key: ColKey): boolean {
+  return BY_KEY.get(key)?.on !== false;
+}
+
+
 /** Without a Verdict column, Again in gets its room. */
 const AGAIN_WIDE = 224;
 /** The columns a narrow table gives up, first to last, so the card beside
- *  it can be wider: the tags pane under the card shows all but Deck, and
- *  Deck is mostly the same for every card. #, Card, State and Verdict stay
- *  (--list-min in the stylesheet is what they need). */
-const DROP: ColKey[] = ["deck", "again", "bank", "yield"];
+ *  it can be wider: Deck is mostly the same for every card, and the tags
+ *  pane under the card shows Again in, Q-bank and Yield; then the
+ *  scheduling ones you've turned on, from the right. #, Card, State and
+ *  Verdict stay (--list-min in the stylesheet is what they need). */
+const DROP: ColKey[] = ["deck", "again", "bank", "yield", "lapses", "reps", "stab", "dif", "ease", "ivl", "due", "ret"];
 /** Space between columns, and a row's padding and flag edge (.row). */
 const COL_GAP = 8;
 const ROW_PAD = 19;
@@ -79,13 +113,16 @@ export interface ListOptions {
   /** A row clicked; `extend` with Shift held. */
   pick(index: number, extend: boolean): void;
   sort(key: SortKey): void;
+  /** The titles right-clicked: open Columns' menu there. */
+  columnsMenu(x: number, y: number): void;
 }
 
 interface RowEl {
   el: HTMLDivElement;
+  /** A cell for each column shown, in their order (see build). */
   cells: HTMLSpanElement[];
   /** The yield's word, after its bars (made once, in make). */
-  yieldText: HTMLSpanElement;
+  yieldText: HTMLSpanElement | null;
   index: number;
   /** It shows its card's row as it is now (not an old one, or none). */
   filled: boolean;
@@ -111,38 +148,39 @@ export class CardList {
   /** Again in's heading, its width (0 until read) and the width of each
    *  chip by its text, so a row's chips are fitted without reading its
    *  layout (see fitChips). */
-  private againHead!: HTMLSpanElement;
+  private againHead: HTMLSpanElement | null = null;
   private againWidth = 0;
   private chipWidths = new Map<string, number>();
   private measureBox: HTMLDivElement;
-  /** The columns the table is too narrow for (see fitColumns). */
-  private cut = new Set<ColKey>();
-  private tracks = "";
+  /** The columns shown, in order (see fitColumns), and as a key. */
+  private cols: Column[] = [];
+  private colsKey = "";
+  /** The columns you've turned on or off (the rest are as COLUMNS has
+   *  them), whether the collection uses FSRS, and whether a card here can
+   *  have a verdict (none until the page knows). */
+  private choice: Record<string, boolean> = {};
+  private fsrs = false;
+  private verdicts = false;
+  private sortKey: SortKey = "order";
+  private sortDir: 1 | -1 = 1;
 
   constructor(host: HTMLElement, opts: ListOptions) {
     this.opts = opts;
     this.host = host;
-    // No Verdict column until the page knows a card here can have one.
-    host.classList.add("no-verdict");
     this.measureBox = document.createElement("div");
     this.measureBox.className = "measure";
     this.head = document.createElement("div");
     this.head.className = "list-head";
-    for (const [label, key, title] of HEADS) {
-      const h = document.createElement("span");
-      h.textContent = label;
-      h.title = title;
-      if (key === "later") this.againHead = h;
-      if (key) {
-        h.className = "sortable";
-        h.dataset.sort = key;
-        h.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          this.opts.sort(key);
-        });
-      }
-      this.head.append(h);
-    }
+    this.head.addEventListener("mousedown", (e) => {
+      const h = (e.target as HTMLElement).closest<HTMLElement>("[data-sort]");
+      if (!h || e.button !== 0) return;
+      e.preventDefault();
+      this.opts.sort(h.dataset.sort as SortKey);
+    });
+    this.head.addEventListener("contextmenu", (e) => {
+      e.preventDefault(); // not the web view's own menu
+      this.opts.columnsMenu(e.clientX, e.clientY);
+    });
     this.scroller = document.createElement("div");
     this.scroller.className = "list-scroll";
     this.sizer = document.createElement("div");
@@ -162,6 +200,7 @@ export class CardList {
         this.opts.pick(Number(el.dataset.i), e.shiftKey);
       }
     });
+    this.fitColumns();
   }
 
   get cursor(): number {
@@ -173,43 +212,108 @@ export class CardList {
     return Math.max(1, Math.floor(this.scroller.clientHeight / ROW_H));
   }
 
-  /** Show the Verdict column, or give its room to Again in. */
+  /** Show the Verdict column (unless you've turned it off), or give its
+   *  room to Again in. */
   setVerdicts(show: boolean): void {
-    if (this.host.classList.contains("no-verdict") !== show) return;
-    this.host.classList.toggle("no-verdict", !show);
+    if (this.verdicts === show) return;
+    this.verdicts = show;
     this.fitColumns();
     this.refit();
   }
 
-  /** As many columns as the table is wide enough for: the ones in DROP
-   *  go, first to last, until the rest fit. Runs when the table's width
-   *  changes, not as you move. */
+  /** The collection schedules with FSRS: its columns, not Ease. */
+  setFsrs(on: boolean): void {
+    if (this.fsrs === on) return;
+    this.fsrs = on;
+    this.fitColumns();
+    this.refit();
+  }
+
+  /** The columns you've turned on or off. */
+  setChoice(choice: Record<string, boolean>): void {
+    this.choice = choice;
+    this.fitColumns();
+    this.refit();
+  }
+
+  /** The columns Columns' menu offers, and whether each is on: all but #
+   *  and Card, with FSRS's or Ease, whichever the collection uses. */
+  choices(): { key: ColKey; label: string; on: boolean }[] {
+    return COLUMNS.filter((c) => c.on !== undefined && this.offered(c)).map((c) => ({
+      key: c.key,
+      label: c.label,
+      on: this.isOn(c),
+    }));
+  }
+
+  /** Whether a column that sorts by `key` is on (# always is). */
+  sortable(key: SortKey): boolean {
+    return COLUMNS.some((c) => c.sort === key && this.offered(c) && this.isOn(c));
+  }
+
+  private offered(c: Column): boolean {
+    return c.fsrs === undefined || c.fsrs === this.fsrs;
+  }
+
+  private isOn(c: Column): boolean {
+    return c.on === undefined || (this.choice[c.key] ?? c.on);
+  }
+
+  /** As many of the columns that are on as the table is wide enough for:
+   *  the ones in DROP go, first to last, until the rest fit. Runs when the
+   *  table's width or the columns change, not as you move; the header and
+   *  rows are made anew only if what shows changes. */
   private fitColumns(): void {
     const room = this.scroller.clientWidth;
-    if (!room) return; // the page is hidden, or the table is
-    const verdict = !this.host.classList.contains("no-verdict");
-    let cols = COLS.filter(([key]) => verdict || key !== "verdict");
-    const width = (key: ColKey, min: number) => (key === "again" && !verdict ? AGAIN_WIDE : min);
-    const need = () => cols.reduce((s, [key, , min]) => s + width(key, min), 0) + COL_GAP * (cols.length - 1) + ROW_PAD;
-    const cut = new Set<ColKey>();
-    for (const key of DROP) {
-      if (need() <= room) break;
-      cols = cols.filter(([k]) => k !== key);
-      cut.add(key);
+    // Hidden (the page, or the table): what's there stays until it shows.
+    if (!room && this.colsKey) return;
+    let cols = COLUMNS.filter((c) => this.offered(c) && this.isOn(c) && (c.key !== "verdict" || this.verdicts));
+    const verdict = cols.some((c) => c.key === "verdict");
+    const width = (c: Column) => (c.key === "again" && !verdict ? AGAIN_WIDE : c.min);
+    const need = () => cols.reduce((s, c) => s + width(c), 0) + COL_GAP * (cols.length - 1) + ROW_PAD;
+    if (room) {
+      for (const key of DROP) {
+        if (need() <= room) break;
+        cols = cols.filter((c) => c.key !== key);
+      }
     }
-    const tracks = cols.map(([key, track]) => (key === "again" && !verdict ? `${AGAIN_WIDE}px` : track)).join(" ");
-    if (tracks === this.tracks) return;
-    this.tracks = tracks;
-    this.host.style.setProperty("--cols", tracks);
-    // Again in's chips aren't drawn while it's gone; refit, after this,
-    // draws them when it comes back (its width changes).
-    this.cut = cut;
-    for (const key of DROP) this.host.classList.toggle(`cut-${key}`, cut.has(key));
+    const key = cols.map((c) => c.key).join(" ");
+    if (key === this.colsKey) return;
+    this.colsKey = key;
+    this.cols = cols;
+    this.host.style.setProperty("--cols", cols.map((c) => (c.key === "again" && !verdict ? `${AGAIN_WIDE}px` : c.track)).join(" "));
+    this.build();
+  }
+
+  /** The header and the rows for the columns shown: the rows are made
+   *  anew with their cells, and filled from what's kept. */
+  private build(): void {
+    this.againHead = null;
+    this.againWidth = 0;
+    this.head.replaceChildren(
+      ...this.cols.map((c) => {
+        const h = document.createElement("span");
+        h.textContent = c.label;
+        h.title = c.title;
+        if (c.key === "again") this.againHead = h;
+        if (c.sort) {
+          h.className = "sortable";
+          h.dataset.sort = c.sort;
+        }
+        return h;
+      }),
+    );
+    this.setSort(this.sortKey, this.sortDir);
+    for (const r of this.live.values()) r.el.remove();
+    this.live.clear();
+    this.spare = [];
+    this.render();
   }
 
   /** Again in changed width (the Verdict column came or went, or the
    *  page was shown): fit the rows' chips again. */
   private refit(): void {
+    if (!this.againHead) return;
     const w = this.againHead.clientWidth;
     if (w === this.againWidth) return;
     this.againWidth = w;
@@ -241,7 +345,7 @@ export class CardList {
   private fitChips(again: Again[]): HTMLSpanElement[] {
     const sorted = [...again].sort((x, y) => STATUS_ORDER[x[1] ?? "none"] - STATUS_ORDER[y[1] ?? "none"]);
     const chips = sorted.map(([unit, status, part]) => chip(unit, status, part));
-    const room = this.againWidth || (this.againWidth = this.againHead.clientWidth);
+    const room = this.againWidth || (this.againWidth = this.againHead?.clientWidth ?? 0);
     if (!room) return chips;
     const widths = sorted.map(([unit]) => this.chipWidth("ag", unit));
     const span = (n: number) => widths.slice(0, n).reduce((s, w) => s + w + CHIP_GAP, -CHIP_GAP);
@@ -257,6 +361,8 @@ export class CardList {
 
   /** Show which column the list is sorted by. */
   setSort(key: SortKey, dir: 1 | -1): void {
+    this.sortKey = key;
+    this.sortDir = dir;
     for (const h of this.head.querySelectorAll<HTMLElement>("[data-sort]")) {
       const on = h.dataset.sort === key && key !== "order";
       h.classList.toggle("sorted", on);
@@ -361,14 +467,17 @@ export class CardList {
   private make(): RowEl {
     const el = document.createElement("div");
     el.className = "row";
-    const cells = ["r-num num", "r-text", "r-deck", "r-state", "r-yield", "r-bank num", "r-again", "r-verdict"].map((cls) => {
+    let yieldText: HTMLSpanElement | null = null;
+    const cells = this.cols.map((col) => {
       const c = document.createElement("span");
-      c.className = cls;
+      c.className = col.cls;
+      if (col.key === "yield") {
+        yieldText = document.createElement("span");
+        c.append(yieldBars(), yieldText);
+      }
       el.append(c);
       return c;
     });
-    const yieldText = document.createElement("span");
-    cells[4].append(yieldBars(), yieldText);
     return { el, cells, yieldText, index: -1, filled: false, drawn: undefined };
   }
 
@@ -386,7 +495,6 @@ export class CardList {
     const cid = this.ids[r.index];
     const now = this.placeholder ? undefined : this.opts.row(cid);
     const row = now ?? (this.placeholder ? undefined : this.opts.oldRow(cid));
-    const [, text, deck, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");
     if (this.selected(r.index)) cls.push("sel");
@@ -394,9 +502,15 @@ export class CardList {
     if (!row) {
       cls.push("loading");
       if (r.drawn) {
-        for (const c of r.cells.slice(1)) if (c !== yld) c.replaceChildren();
-        yld.dataset.y = "0";
-        r.yieldText.textContent = "";
+        this.cols.forEach((col, i) => {
+          const c = r.cells[i];
+          if (col.key === "num") return;
+          if (col.key !== "yield") c.replaceChildren();
+          else {
+            c.dataset.y = "0";
+            r.yieldText!.textContent = "";
+          }
+        });
         r.drawn = undefined;
       }
       setClass(r.el, cls.join(" "));
@@ -407,36 +521,118 @@ export class CardList {
     const was = r.drawn;
     if (row === was) return;
     r.drawn = row;
-    if (!was || row.t !== was.t || row.k !== was.k) {
-      text.textContent = row.t || "(empty)";
-      text.title = row.k ? `${row.t}\n${row.k}` : row.t;
-    }
-    if (!was || row.d !== was.d || row.o !== was.o) {
-      deck.textContent = row.o ? `${leaf(row.d)} (${leaf(row.o)})` : leaf(row.d);
-      deck.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
-    }
-    if (!was || row.q !== was.q) {
-      const [label, stateCls] = STATES[row.q] ?? ["", ""];
-      state.textContent = label;
-      state.className = `r-state ${stateCls}`;
-    }
-    if (!was || row.y !== was.y) {
-      yld.dataset.y = barsOf(row.y);
-      r.yieldText.textContent = row.y ?? "";
-    }
-    if (!was || row.b !== was.b) {
-      bank.textContent = row.b ?? "";
-      bank.title = row.b ?? "";
-    }
-    if (!was || !sameAgain(row.a, was.a)) {
-      again.replaceChildren(...(this.cut.has("again") ? [] : this.fitChips(row.a ?? [])));
-    }
-    if (!was || row.v !== was.v || row.r !== was.r) {
-      verdict.textContent = row.v ? VERDICTS[row.v] : "";
-      verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
-      verdict.title = row.r ?? "";
+    this.cols.forEach((col, i) => this.draw(col, r.cells[i], row, was, r));
+  }
+
+  /** Write one of a row's cells, if what it shows differs from `was` (the
+   *  row the cell shows now, if any). */
+  private draw(col: Column, c: HTMLSpanElement, row: Row, was: Row | undefined, r: RowEl): void {
+    switch (col.key) {
+      case "text":
+        if (!was || row.t !== was.t || row.k !== was.k) {
+          c.textContent = row.t || "(empty)";
+          c.title = row.k ? `${row.t}\n${row.k}` : row.t;
+        }
+        return;
+      case "deck":
+        if (!was || row.d !== was.d || row.o !== was.o) {
+          c.textContent = row.o ? `${leaf(row.d)} (${leaf(row.o)})` : leaf(row.d);
+          c.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
+        }
+        return;
+      case "state":
+        if (!was || row.q !== was.q) {
+          const [label, stateCls] = STATES[row.q] ?? ["", ""];
+          c.textContent = label;
+          c.className = `r-state ${stateCls}`;
+        }
+        return;
+      case "due":
+        if (!was || row.du !== was.du || row.q !== was.q) {
+          c.textContent = dueText(row.du);
+          // Late only for a card that's being scheduled: a suspended or
+          // buried card's due is where it was left.
+          const off = row.q < 0;
+          c.className = `${col.cls}${off ? " off" : row.du !== undefined && row.du < 0 ? " late" : ""}`;
+        }
+        return;
+      case "ivl":
+        if (!was || row.iv !== was.iv) c.textContent = row.iv ? span(row.iv) : "";
+        return;
+      case "ease":
+        if (!was || row.e !== was.e) c.textContent = row.e ? `${row.e}%` : "";
+        return;
+      case "ret":
+        if (!was || row.rt !== was.rt || row.dr !== was.dr) {
+          const pct = row.rt === undefined ? null : Math.round(row.rt * 100);
+          c.textContent = pct === null ? "" : `${pct}%`;
+          const low = pct !== null && pct < Math.round((row.dr ?? 0.9) * 100);
+          c.className = `${col.cls}${low ? " late" : ""}`;
+          c.title = pct === null ? "" : `${pct}% (scheduled for ${Math.round((row.dr ?? 0.9) * 100)}%)`;
+        }
+        return;
+      case "dif":
+        if (!was || row.df !== was.df) c.textContent = row.df === undefined ? "" : `${row.df}%`;
+        return;
+      case "stab":
+        if (!was || row.sb !== was.sb) c.textContent = row.sb === undefined ? "" : span(row.sb);
+        return;
+      case "reps":
+        if (!was || row.rv !== was.rv) c.textContent = row.rv ? String(row.rv) : "";
+        return;
+      case "lapses":
+        // 0 once you've reviewed it; blank for a new card.
+        if (!was || row.lp !== was.lp || row.rv !== was.rv) c.textContent = row.rv ? String(row.lp ?? 0) : "";
+        return;
+      case "yield":
+        if (!was || row.y !== was.y) {
+          c.dataset.y = barsOf(row.y);
+          r.yieldText!.textContent = row.y ?? "";
+        }
+        return;
+      case "bank":
+        if (!was || row.b !== was.b) {
+          c.textContent = row.b ?? "";
+          c.title = row.b ?? "";
+        }
+        return;
+      case "again":
+        if (!was || !sameAgain(row.a, was.a)) c.replaceChildren(...this.fitChips(row.a ?? []));
+        return;
+      case "verdict":
+        if (!was || row.v !== was.v || row.r !== was.r) {
+          c.textContent = row.v ? VERDICTS[row.v] : "";
+          c.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
+          c.title = row.r ?? "";
+        }
+        return;
     }
   }
+}
+
+/** A number of days, short, as Anki writes intervals: 5h, 2.3d, 12d,
+ *  3.5mo, 1.2y. */
+export function span(days: number): string {
+  const one = (x: number) => x.toFixed(1).replace(/\.0$/, "");
+  if (days < 1) return `${Math.max(1, Math.round(days * 24))}h`;
+  if (days < 10) return `${one(days)}d`;
+  if (days < 30) return `${Math.round(days)}d`;
+  if (days < 365) return `${one(days / 30)}mo`;
+  return `${one(days / 365)}y`;
+}
+
+/** When a card is due, from its row's `du`: today, tomorrow, in 5d, 3d
+ *  late; for a card learning within the day, in 10m, in 2h or now. */
+export function dueText(du: number | undefined): string {
+  if (du === undefined) return "";
+  if (!Number.isInteger(du)) {
+    if (du <= 0) return "now";
+    const m = Math.round(du * 1440);
+    return m < 60 ? `in ${Math.max(1, m)}m` : `in ${Math.round(m / 60)}h`;
+  }
+  if (du === 0) return "today";
+  if (du === 1) return "tomorrow";
+  return du > 0 ? `in ${span(du)}` : `${span(-du)} late`;
 }
 
 /** The same systems, statuses and shares in Again in. */

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import html
 import re
+import time
 from collections.abc import Callable, Iterable
 
 from anki.collection import Collection
@@ -32,6 +33,76 @@ _SPACE = re.compile(r"\s+")
 _TYPE = re.compile(r"\[\[type:[^]]+\]\]")
 
 ROW_CHARS = 240
+
+# --- scheduling ---------------------------------------------------------------
+#
+# For the columns you can turn on (Due, Interval, Retrievability, ...): read
+# with the row, from the card and the FSRS memory state Anki keeps in its
+# data (s: stability, d: difficulty, decay, lrt: when you last reviewed it,
+# in seconds, dr: desired retention). json_valid: older cards' data can be
+# empty, which json_extract would refuse.
+_FSRS_KEYS = ("s", "d", "decay", "lrt", "dr")
+SCHED_SQL = "c.type, c.due, c.odue, c.ivl, c.factor, c.reps, c.lapses, " + ", ".join(
+    f"case when json_valid(c.data) then json_extract(c.data, '$.{k}') end" for k in _FSRS_KEYS
+)
+# FSRS-5's decay, for a memory state that doesn't keep its own (FSRS-6's do).
+_DECAY = 0.5
+_DAY = 86400
+# A due bigger than this is a time in seconds (a card learning within the
+# day); smaller, a day number.
+_TIMESTAMP = 1_000_000_000
+# What the page can sort by besides the facets, and the row's field each
+# comes from (see schedule).
+EXTRA = {"due": "du", "ivl": "iv", "ease": "e", "ret": "rt", "dif": "df", "stab": "sb", "reps": "rv",
+         "lapses": "lp"}
+
+
+def timing(col: Collection) -> tuple[int, float]:
+    """Today, as Anki's scheduler counts days, and now, for schedule()."""
+    return col.sched.today, time.time()
+
+
+def schedule(fields: tuple, today: int, now: float) -> dict:
+    """A card's scheduling, from SCHED_SQL's fields, for the list (blanks
+    left out). du: when it's due, in days from today (a fraction for one
+    learning within the day, from now; below 0 when it's late), iv: its
+    interval in days, e: its ease in percent (SM-2), rv: reviews, lp:
+    lapses; with an FSRS memory state, rt: retrievability (0 to 1), dr:
+    the desired retention it's scheduled for, df: difficulty in percent and
+    sb: stability in days, as Anki's Card Info has them."""
+    type_, due, odue, ivl, factor, reps, lapses, s, d, decay, lrt, dr = fields
+    due = odue or due  # a card in a filtered deck: its due back home
+    out: dict = {"rv": reps, "lp": lapses}
+    if type_ != 0:  # not new
+        out["du"] = round((due - now) / _DAY, 3) if due > _TIMESTAMP else due - today
+    if ivl > 0:
+        out["iv"] = ivl
+    if factor:
+        out["e"] = factor // 10
+    if s and s > 0:
+        out["rt"] = round(retrievability(s, decay, lrt, due, ivl, today, now), 4)
+        out["dr"] = round(dr or 0.9, 2)
+        out["sb"] = round(s, 2)
+    if d:
+        out["df"] = round((d - 1) / 9 * 100)
+    return out
+
+
+def retrievability(s: float, decay: float | None, lrt: int | None, due: int, ivl: int,
+                   today: int, now: float) -> float:
+    """The chance you'd recall a card now, as Anki's FSRS reckons it: from
+    its stability and the time since you last reviewed it. A card reviewed
+    before Anki kept that time counts from its due day less its interval,
+    as Anki's browser does."""
+    decay = decay or _DECAY
+    if lrt:
+        days = max(0.0, (now - lrt) / _DAY)
+    elif due < _TIMESTAMP:
+        days = max(0, today - (due - ivl))
+    else:
+        days = 0.0  # learning within the day
+    factor = 0.9 ** (-1 / decay) - 1
+    return (1 + factor * days / s) ** -decay
 
 
 def search(col: Collection, query: str) -> list[int]:
@@ -75,7 +146,7 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
 
     t: the note's text, k: card type, q: Anki's queue number, f: flag,
     d: its deck's full name, o: its home deck's, for a card in a filtered
-    deck; h: 1 if the answer was kept back;
+    deck; h: 1 if the answer was kept back; its scheduling (see schedule);
     with an analyzer, also y: yield, b: question banks, a: the other systems
     it comes up in ([unit, status]), v/r: the verdict and why, p: its tags
     pane (see tags.Analyzer)."""
@@ -85,13 +156,14 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
     models: dict[int, tuple[int, bool, list[str]]] = {}
     decks: dict[int, str] = {}
     out: dict[str, dict] = {}
+    today, now = timing(col)
     # The note's fields, not its stored sort field: Anki strips that of
     # HTML without leaving spaces where line breaks were.
     sql = (
-        "select c.id, c.ord, c.queue, c.flags, c.did, c.odid, n.mid, n.flds, n.tags from cards c "
+        f"select c.id, c.ord, c.queue, c.flags, c.did, c.odid, n.mid, n.flds, n.tags, {SCHED_SQL} from cards c "
         f"join notes n on n.id = c.nid where c.id in {ids2str(ids)}"
     )
-    for cid, ord_, queue, flags, did, odid, mid, flds, tags in col.db.all(sql):
+    for cid, ord_, queue, flags, did, odid, mid, flds, tags, *sched in col.db.all(sql):
         info = models.get(mid)
         if info is None:
             info = models[mid] = _model_info(col, mid)
@@ -110,6 +182,7 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
             "q": queue,
             "f": flags & 0b111,
             "d": deck_name(col, did, decks),
+            **schedule(tuple(sched), today, now),
         }
         if odid:
             row["o"] = deck_name(col, odid, decks)
@@ -130,22 +203,29 @@ def rows(col: Collection, cids: Iterable[int], analyzer: Analyzer | None = None,
     return out
 
 
-def facets(col: Collection, cids: list[int], analyzer: Analyzer) -> dict[str, list[int]]:
+def facets(col: Collection, cids: list[int], analyzer: Analyzer,
+           extra: Iterable[str] = ()) -> dict[str, list]:
     """For filtering and sorting the whole list: per card, in `cids`
     order, its queue, yield level (0 for none), question count, verdict
     (0 none, 1 now, 2 your call, 3 wait), how many systems it comes up
     in that you haven't done and its deck's id (see deck_names). About
-    30 ms per 1,000 cards."""
-    found: dict[int, tuple[int, str, int]] = {}
+    30 ms per 1,000 cards. `extra`: also these of EXTRA's, to sort by
+    (None for a blank), asked for only when you sort by one."""
+    extra = [k for k in extra if k in EXTRA]
+    cols = f", {SCHED_SQL}" if extra else ""
+    found: dict[int, tuple] = {}
     for start in range(0, len(cids), 2000):
         chunk = cids[start:start + 2000]
-        sql = (f"select c.id, c.queue, n.tags, c.did from cards c join notes n on n.id = c.nid "
+        sql = (f"select c.id, c.queue, n.tags, c.did{cols} from cards c join notes n on n.id = c.nid "
                f"where c.id in {ids2str(chunk)}")
-        for cid, queue, tags, did in col.db.all(sql):
-            found[cid] = (queue, tags, did)
-    out: dict[str, list[int]] = {"state": [], "yield": [], "banks": [], "verdict": [], "later": [], "deck": []}
+        for cid, *rest in col.db.all(sql):
+            found[cid] = tuple(rest)
+    out: dict[str, list] = {"state": [], "yield": [], "banks": [], "verdict": [], "later": [], "deck": []}
+    for k in extra:
+        out[k] = []
+    today, now = timing(col) if extra else (0, 0.0)
     for cid in cids:
-        queue, tags, did = found.get(cid, (99, "", 0))
+        queue, tags, did, *sched = found.get(cid, (99, "", 0))
         facts = analyzer.card(tags.split(), suspended=queue == -1)
         out["state"].append(queue)
         out["yield"].append(facts["level"] or 0)
@@ -153,6 +233,10 @@ def facets(col: Collection, cids: list[int], analyzer: Analyzer) -> dict[str, li
         out["verdict"].append(VERDICT_CODES[facts["verdict"]])
         out["later"].append(facts["later"])
         out["deck"].append(did)
+        if extra:
+            s = schedule(tuple(sched), today, now) if sched else {}
+            for k in extra:
+                out[k].append(s.get(EXTRA[k]))
     return out
 
 
