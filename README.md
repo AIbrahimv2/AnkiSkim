@@ -128,6 +128,7 @@ through topics.
 | `/` | Search; Enter runs it, Esc goes back to the cards |
 | `e` | Edit the card (see below) |
 | `B` | Open the card in Anki's browser |
+| `u` / `Ctrl-r` | Undo / redo what was done last (an edit, a suspend), as Anki's Edit menu does |
 | `r` | Play the card's audio |
 | `p` | Back to the window that opened Skim (Stepwise) |
 | `q` or `Esc` | Close Skim (Esc first cancels a number you've typed, or ends a selection) |
@@ -155,7 +156,7 @@ normal mode, on the first field, with a block cursor.
 | `p` / `P` | Paste after / before the cursor: what you yanked, or whatever you've copied since, anywhere on your computer |
 | `Cmd-V` | Paste from the clipboard (`Ctrl-V` on Windows and Linux) |
 | `v` / `V` | Select letters / lines as you move, then `d`, `c`, `y` |
-| `u` / `Ctrl-r` | Undo / redo |
+| `u` / `Ctrl-r` | Undo / redo, in the fields |
 | `.` | Do the last change again |
 | `gc` + a move, `gC` | Make a cloze of what the move covers, or of what's selected (`gC`: the same number again) |
 | `Cmd-Shift-C` | A cloze, as in Anki's editor (with `Alt`: the same number again) |
@@ -179,7 +180,8 @@ leaves pictures their own size).
 
 Edits are saved when you stop typing (and a moment after you pause), each
 one through Anki itself: only the fields you changed are written, a new
-cloze gets its card, and Anki's Edit → Undo takes an edit back. Fields show
+cloze gets its card, and Anki's Edit → Undo takes an edit back: `u` back at
+the table does the same, and `Ctrl-r` redoes it. Fields show
 their HTML as Anki's editor does, without drawing MathJax.
 
 ### Settings

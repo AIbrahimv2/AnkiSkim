@@ -196,6 +196,14 @@ def main() -> None:
         def browse(self, cid):
             print(f"[dev] would open the browser on card {cid}")
 
+        def undo(self, redo=False):
+            from anki.errors import UndoEmpty
+            try:
+                out = col.redo() if redo else col.undo()
+            except UndoEmpty:
+                return {"empty": True}
+            return {"message": f"{out.operation} {'redone' if redo else 'undone'}"}
+
         def changed(self, changes):
             print("[dev] saved a note")
 

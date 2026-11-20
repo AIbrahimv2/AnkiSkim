@@ -126,6 +126,14 @@ test("v selects as you move; Shift+arrows select too", () => {
   assert.deepEqual(k.feed(press("ArrowDown", { shiftKey: true })), { kind: "move", by: 3, extend: true });
 });
 
+test("u undoes and Ctrl-r redoes", () => {
+  const k = new Keys();
+  assert.deepEqual(type(k, "u"), { kind: "undo" });
+  assert.deepEqual(k.feed(press("r", { ctrlKey: true })), { kind: "redo" });
+  assert.deepEqual(k.feed(press("\x12", { metaKey: true })), { kind: "redo" }); // Control+R as Anki's web view sends it
+  assert.deepEqual(type(k, "r"), { kind: "replay" });
+});
+
 test("Cmd+J (Ctrl+J) suspends or unsuspends, as in Anki's browser", () => {
   const k = new Keys();
   assert.deepEqual(k.feed(press("j", { metaKey: true })), { kind: "suspend" });

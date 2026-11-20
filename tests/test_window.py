@@ -436,6 +436,45 @@ try:
     press("g", "g")
     check(wait_for(f"{POS} === '1 of 4'"), "back on tag:Neuro's four cards")
 
+    print("u undoes an edit, from the table")
+    TOAST = "[...document.querySelectorAll('.toast')].map(t => t.textContent).join('|')"
+    CTRL_R = "for (const t of ['keydown', 'keyup']) document.body.dispatchEvent(new KeyboardEvent(t, {key: 'r', ctrlKey: true, bubbles: true}))"
+    original = col.get_note(nid).fields[0]
+    press("e")
+    wait_for("document.querySelector('.app').classList.contains('editing')")
+    press("A")
+    js(TYPE.format(json.dumps(" one")))
+    press("Escape")
+    wait_for(f"{STATE} === 'Saved'")
+    press("A")
+    js(TYPE.format(json.dumps(" two")))
+    press("Escape")
+    wait_for(f"{STATE} === 'Saved'")
+    check(col.get_note(nid).fields[0] == original + " one two", "two edits, each saved")
+    press("q")
+    wait_for("!document.querySelector('.app').classList.contains('editing')")
+    press("u")
+    wait_for(f"{TOAST} !== ''")
+    check(js(TOAST) == "Update Note undone", f"u says what it undid, in Anki's words ({js(TOAST)!r})")
+    after = col.get_note(nid).fields[0]
+    check(after in (original, original + " one"), f"u in the table takes an edit back ({after!r})")
+    one_step = after == original
+    print(f"  ..  edits to one note in a row are {'one undo step' if one_step else 'a step each'}")
+    wait_for(f"[...document.querySelectorAll('.row')].some(r => r.textContent.includes('parts')) && "
+             f"![...document.querySelectorAll('.row')].some(r => r.textContent.includes(' two'))")
+    check(True, "and the table shows the card as it was")
+    js(CTRL_R)
+    wait_for(f"{TOAST}.includes('redone')")
+    check(js(TOAST).endswith("Update Note redone") and "Error" not in js(TOAST), f"and Ctrl-r what it redid ({js(TOAST)!r})")
+    check(col.get_note(nid).fields[0] == original + " one two", "Ctrl-r puts it back")
+    press("u")
+    if not one_step:
+        press("u")
+    wait_for(f"!{TOAST}.includes('redone') || true")
+    pump(0.3)
+    check(col.get_note(nid).fields[0] == original, "and u again leaves the note as it started")
+    check(js(POS) == "1 of 4", "still on the card it was on")
+
     print("opened from Stepwise")
     stepwise = QDialog()
     stepwise.setWindowTitle("Stepwise")

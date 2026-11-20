@@ -388,6 +388,16 @@ export class App {
     }, () => {});
   }
 
+  /** u and Ctrl-r: Anki's own Undo and Redo, for what was done last (an
+   *  edit made with e, a suspend). Python sends "changed" when it's done,
+   *  and the cards are read again. */
+  private undo(redo: boolean): void {
+    call<{ message?: string; empty?: boolean }>("undo", { redo }).then((r) => {
+      if (r.empty) this.chrome?.toast(redo ? "Nothing to redo" : "Nothing to undo", "info");
+      else if (r.message) this.chrome?.toast(r.message, "ok");
+    }, () => {});
+  }
+
   /** A card's row as it should show in this view, if it's kept. */
   private rowFor(cid: number): Row | undefined {
     return this.cache.row(this.view.reading, cid, this.hidden.has(cid));
@@ -782,6 +792,9 @@ export class App {
         return this.renderSelection();
       case "suspend":
         return this.toggleSuspend();
+      case "undo":
+      case "redo":
+        return this.undo(cmd.kind === "redo");
       case "help":
         this.chrome?.toggleHelp();
         return;

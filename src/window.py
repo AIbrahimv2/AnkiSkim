@@ -244,6 +244,35 @@ class SkimWindow(QDialog):
         except Exception:
             traceback.print_exc()
 
+    def undo(self, redo: bool = False) -> dict:
+        """u and Ctrl-r in the table: Anki's own Edit → Undo and Redo, so
+        they take back whatever was done last, here or anywhere in Anki (an
+        edit, a suspend, an answer). Says what it was, in Anki's words, or
+        that there was nothing. Skim's page hears of the change as it does
+        of any other (api.on_operation)."""
+        from anki.errors import UndoEmpty
+        from aqt.operations import on_op_finished
+
+        try:
+            out = mw.col.redo() if redo else mw.col.undo()
+        except UndoEmpty:
+            return {"empty": True}
+        try:
+            on_op_finished(mw, out, None)
+        except Exception:
+            traceback.print_exc()
+        # What it was, in Anki's words ("Update Note undone"). The undo is
+        # done by now: never let wording it fail the reply.
+        name = getattr(out, "operation", "") or ""
+        try:
+            say = mw.col.tr.undo_action_redone if redo else mw.col.tr.undo_action_undone
+            # Without the marks Anki puts round the name for mixed scripts.
+            message = say(name).replace("\u2068", "").replace("\u2069", "")
+        except Exception:
+            traceback.print_exc()
+            message = "Redone" if redo else "Undone"
+        return {"message": message}
+
     def clipboard(self, mark_only: bool = False) -> dict:
         """The system's clipboard for the page to paste while editing: a
         copied picture included, which a web page can't always read

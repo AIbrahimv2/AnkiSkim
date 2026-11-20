@@ -104,6 +104,11 @@ r = call("media", mime="image/png", name="My shot.png", data=png)
 check(r.get("src", "").endswith(".png") and col.media.have(r["src"].replace("%20", " ")), f"a pasted image goes into the media folder ({r})")
 check("error" in call("media", mime="text/html", data=png) and "error" in call("media", mime="image/png", data="@@"),
       "only images, and only real ones")
+check(call("undo") == {"empty": True}, "a host with no undo has nothing to undo")
+host.undo = lambda redo=False: {"message": "redone" if redo else "undone"}
+check(call("undo")["message"] == "undone" and call("undo", redo=True)["message"] == "redone" and
+      call("undo", redo="yes")["message"] == "undone", "u undoes, and only a true redo redoes")
+del host.undo
 call("browse", cid=brain[0])
 check(host.browsed == [brain[0]], "B asks for Anki's browser")
 

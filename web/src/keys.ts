@@ -19,6 +19,8 @@ export type Command =
   | { kind: "escape" } // Esc: ends a selection, or else closes
   | { kind: "visual" } // v: select cards as you move, or stop
   | { kind: "suspend" } // Cmd+J (Ctrl+J): suspend or unsuspend, as in Anki's browser
+  | { kind: "undo" } // u: Anki's Undo (an edit, a suspend)
+  | { kind: "redo" } // Ctrl-r
   | { kind: "help" }
   | { kind: "tags" } // i: fold the tags pane under the card, or open it
   | { kind: "filter"; by: 1 | -1 } // f/F: next / previous filter
@@ -90,6 +92,8 @@ export class Keys {
           return { kind: "scroll", by: -(n ?? 1) };
         case "j": // Cmd+J on a Mac, Ctrl+J elsewhere (ctrlLetter takes either)
           return { kind: "suspend" };
+        case "r":
+          return { kind: "redo" };
       }
       return undefined;
     }
@@ -163,6 +167,8 @@ export class Keys {
         return { kind: "browse" };
       case "r":
         return { kind: "replay" };
+      case "u":
+        return { kind: "undo" };
       case "p":
         return { kind: "back" };
       case "q":

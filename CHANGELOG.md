@@ -25,6 +25,9 @@ All notable changes to this project are documented here. The format is based on
   is 150 pixels tall on the card, with its width to match, whatever size
   you copied it at. **Height of pasted pictures** in Settings changes that
   (0 leaves pictures their own size).
+- Undo from Skim: `u` takes back what was done last (an edit you made with
+  `e`, a suspend) and `Ctrl-r` redoes it, as Edit → Undo and Redo do in
+  Anki's main window. Skim says what was undone.
 
 ### Changed
 

@@ -189,6 +189,12 @@ class Bridge:
         toggle = getattr(self.host, "toggle_suspend", None)
         return toggle(self._ids(msg, MAX_SELECTED)) if toggle else {}
 
+    def cmd_undo(self, msg: dict) -> dict:
+        """u, or Ctrl-r with `redo`: Anki's Undo and Redo. The reply has
+        what was undone, in Anki's words, or says there was nothing."""
+        undo = getattr(self.host, "undo", None)
+        return undo(redo=msg.get("redo") is True) if undo else {"empty": True}
+
     def cmd_review_lens(self, msg: dict) -> dict:
         """One of the bar's views: All, the review's session, or a Today
         search. The reply carries the new view, so the page shows it as soon
