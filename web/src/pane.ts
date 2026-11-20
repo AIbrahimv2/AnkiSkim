@@ -3,7 +3,10 @@
 // none. Under it, when the card is in more than one system, a bar of its
 // places by system, each named, the reason for the verdict: the topic's system in the accent colour, the others in their
 // Stepwise colours (done, queued, saved for later) or grey. Then its yield
-// (with signal bars) and question banks as pills, then its places, by system in the bar's
+// (with signal bars) and question banks as pills, and which exam it's
+// for: a pill when it's tagged for one step, or, when it's in Step 1 and 2,
+// a section that weighs them (a bar like the systems', then each step's
+// resources and questions). Then its places, by system in the bar's
 // order, each with the resource that has it and the end of its path. Its
 // other tags follow, by resource, and fold into "Show more" only when
 // they'd push the pane past its height. The systems flow into columns as
@@ -13,7 +16,7 @@
 // the page already has.
 
 import { resourceIcon, resourceImg } from "./kit/resources.tsx";
-import type { Pane, Status, SystemState } from "./types.ts";
+import type { Pane, PaneStep, Status, SystemState } from "./types.ts";
 import { barsOf, yieldBars } from "./yieldbars.ts";
 
 /** The verdict, as the pane's title: the list's words, in title case. */
@@ -78,7 +81,49 @@ function bar(parts: { name: string; note?: string; weight: number; cls: string; 
   return b;
 }
 
+const stepName = (s: PaneStep) => `Step ${s.step}`;
+const questions = (s: PaneStep) => s.banks.reduce((n, [, k]) => n + k, 0);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** A step's questions, by bank: each bank's logo (or name) and count. */
+function stepBanks(s: PaneStep): HTMLElement | null {
+  if (!s.banks.length) return null;
+  const e = el("span", "tp-qs");
+  for (const [bank, n] of s.banks) {
+    const q = el("span", "tp-q");
+    q.title = `${bank}: ${plural(n, "question")}`;
+    const logo = resourceImg(bank);
+    q.append(logo ?? `${bank} `, String(n));
+    e.append(q);
+  }
+  return e;
+}
+
+/** Step 1 or 2, for a card tagged for both: the lean, a bar of each
+ *  step's share, then each step's resources and questions. */
+function steps(lean: string, list: PaneStep[]): HTMLDivElement {
+  const sec = el("div", "tp-sys tp-steps");
+  const top = list.reduce((a, b) => (b.share > a.share ? b : a));
+  const head = el("div", "tp-sys-head");
+  head.append(el("span", `tp-dot ${top.here ? "s-here" : "s-none"}`), el("span", "tp-sys-name", lean));
+  head.title = "Which exam the card is for: its resources and question-bank questions under each step's tags";
+  sec.append(head);
+  sec.append(bar(list.map((s) => ({
+    name: stepName(s),
+    note: `${s.share}%`,
+    weight: s.share,
+    cls: s.here ? "s-here" : "s-none",
+    title: `${stepName(s)}: ${s.share}%, from ${plural(s.resources.length, "resource")} and ${plural(questions(s), "question")}`,
+  }))));
+  fitNames(sec, list.map(stepName));
+  for (const s of list) {
+    const what = s.resources.join(", ");
+    const r = row(stepName(s), what || "No resources", `${stepName(s)}: ${what || "no resources"}`, false, [stepBanks(s)]);
+    if (!what) r.classList.add("tp-none");
+    sec.append(r);
+  }
+  return sec;
+}
 
 /** A row: the resource with its logo (left blank when the row above has
  *  it), the path, and what's at its end (Extra, its status). */
@@ -203,7 +248,15 @@ export class TagsPane {
       pill.append(resourceImg(bank) ?? "", `${bank} ${n}`);
       pills.append(pill);
     }
+    // Which exam: a pill when it's one step, a section when it's two.
+    const stepList = p.steps ?? [];
+    if (p.lean && stepList.length === 1) {
+      const pill = el("span", "tp-pill tp-step", p.lean);
+      pill.title = "Which exam the card is for: it's tagged under one step only";
+      pills.append(pill);
+    }
     if (pills.childElementCount) this.body.append(pills);
+    if (p.lean && stepList.length > 1) this.body.append(steps(p.lean, stepList));
     if (p.systems.length) {
       const places = el("div", "tp-places");
       const logos = fitNames(places, p.systems.flatMap((s) => s.places.map((x) => x.resource)));

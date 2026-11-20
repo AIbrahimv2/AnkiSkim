@@ -65,6 +65,13 @@ through topics.
   names, and fold into "Show more" only when they don't fit; a card can have
   60 of them. The systems spread into columns when the pane is wide. Click
   its title, or press `i`, to hide it and give the card its room.
+- **Step 1 or Step 2.** The tags also say which exam a card is for, from the
+  resources and the UWorld, AMBOSS and NBME questions it has under each
+  step's tags (`#AK_Step1_v12`, `#AK_Step2_v12`). A card tagged for one step
+  gets a pill ("Step 1 only"). A card in both gets a section: "Mostly Step
+  1", "Mostly Step 2" (two thirds or more one way) or "Steps 1 and 2", a bar
+  of each step's share, and each step's resources and questions, so a
+  clinical card that came along with a Step 1 resource shows as one.
 - **Follows Stepwise.** Press `b` (or `p`) on a topic in Stepwise and Skim
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.

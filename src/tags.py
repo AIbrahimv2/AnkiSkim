@@ -11,6 +11,8 @@ you're looking at (Stepwise's selection, or a `tag:` search), they tell:
   (Repro, Reproduction, Reproductive and OB/GYN are all "Repro");
 - where else it comes up: other systems, and whether you've done them;
 - its AnKing yield (#Low/HighYield) and question banks (UWorld, AMBOSS, NBME);
+- which exam it's for: Step 1, Step 2 or both, from the resources and
+  question-bank questions it has under each step's tags;
 - a verdict: unsuspend it now, or wait for the unit it mostly belongs to.
 
 The verdict, for a topic in a unit (say SketchyPharm's antimicrobials,
@@ -82,6 +84,9 @@ BANK_SHORT = {"UWorld": "UW", "AMBOSS": "AM", "NBME": "NB"}
 # Never worth showing among a card's places.
 _NOISE = ("#ak_other", "#ak_step1_v12::^other", "#ak_step2_v12::^other")
 _PREFIX = re.compile(r"^[^a-z0-9]*\d+[_\-.]*")
+_STEP = re.compile(r"step_?(\d)")
+# A step's share of a card from which it's "mostly" that step's.
+MOSTLY = 2 / 3
 
 NOW, CALL, WAIT = "now", "call", "wait"
 VERDICT_CODES = {None: 0, NOW: 1, CALL: 2, WAIT: 3}
@@ -118,6 +123,12 @@ def unit_of(path: list[str]) -> str | None:
             if pat.search(second):
                 return name
     return discipline
+
+
+def step_of(root: str) -> int | None:
+    """The exam a root tag is for: '#AK_Step2_v12' -> 2."""
+    m = _STEP.search(root.lower())
+    return int(m.group(1)) if m else None
 
 
 def topics_from_search(search: str) -> list[str]:
@@ -181,6 +192,7 @@ class Analyzer:
         self._tags: dict[str, Tag] = {}
         self.here_resources = {self._place(t)[0] for t in self.topics} - {None}
         self.here_units = {unit_of(list(self._place(t)[1])) for t in self.topics} - {None}
+        self.here_steps = {step_of(t.split(SEP)[0]) for t in self.topics if SEP in t} - {None}
         # What the pane calls the topic's system: its unit, or else the topic.
         self.here_name = ", ".join(sorted(self.here_units)) or next(
             (pretty(t.rsplit(SEP, 1)[-1]) for t in named), "")
@@ -399,14 +411,73 @@ class Analyzer:
         for o in others:
             o["tags"].sort(key=lambda x: x[0].lower())
         level = facts["level"]
+        lean, steps = self.steps(facts["places"])
         return {
             "verdict": facts["verdict"],
             "reason": facts["reason"],
             "yield": YIELD_LABELS.get(level) if level else None,
             "banks": sorted(facts["banks"].items(), key=lambda kv: -kv[1]),
+            "lean": lean,
+            "steps": steps,
             "systems": [sys_ for _, sys_ in sorted(systems.items(), key=order)],
             "more": others,
         }
+
+    def steps(self, infos: Iterable[Tag]) -> tuple[str | None, list[dict]]:
+        """Which exam a card is for, from the steps its tags sit under
+        (#AK_Step1_v12, #AK_Step2_v12): (lean, steps). Two things count,
+        each giving every step its share: the resources that have the card
+        in a step (AnKing's own sorting, ^Systems, left out), and the
+        question banks' questions on it there. A step's `share` is the mean
+        of the two (just the one when the card has only that); a step it's
+        tagged in with neither has none. The lean says it in words: "Step 1
+        only", "Mostly Step 2" (a share of MOSTLY or more), or "Steps 1 and
+        2". Each step: its `share` in percent, whether it's the topic's
+        (`here`), its `resources` (yours first, as in the places) and its
+        questions by bank. Every resource counts, pinned or not."""
+        seen: set[int] = set()
+        resources: dict[int, dict[str, tuple]] = defaultdict(dict)
+        banks: dict[int, Counter] = defaultdict(Counter)
+        for t in infos:
+            if not t.resource or SEP not in t.resource or t.kind == "other":
+                continue
+            step = step_of(t.resource.split(SEP, 1)[0])
+            if step is None:
+                continue
+            seen.add(step)
+            if t.kind == "bank":
+                banks[step][t.bank] += 1
+            elif t.kind == "place" and not t.label.startswith(("^", "!")):
+                label = t.label.replace("_", " ")
+                rank = (t.resource not in self.here_resources, t.pin is None, t.pin or 0, label.lower())
+                resources[step][label] = min(rank, resources[step].get(label, rank))
+        if not seen:
+            return None, []
+        shares: dict[int, float] = dict.fromkeys(seen, 0.0)
+        signals = [{s: len(r) for s, r in resources.items()}, {s: sum(b.values()) for s, b in banks.items()}]
+        signals = [sig for sig in signals if sum(sig.values())]
+        for sig in signals:
+            total = sum(sig.values())
+            for s, n in sig.items():
+                shares[s] += n / total / len(signals)
+        if not signals:
+            shares = dict.fromkeys(seen, 1 / len(seen))
+        order = sorted(seen)
+        top = max(order, key=lambda s: shares[s])
+        if len(order) == 1:
+            lean = f"Step {top} only"
+        elif shares[top] >= MOSTLY - 1e-9:
+            lean = f"Mostly Step {top}"
+        else:
+            names = [str(s) for s in order]
+            lean = f"Steps {', '.join(names[:-1])} and {names[-1]}"
+        return lean, [{
+            "step": s,
+            "share": round(shares[s] * 100),
+            "here": s in self.here_steps,
+            "resources": sorted(resources[s], key=resources[s].get),
+            "banks": sorted(banks[s].items(), key=lambda kv: (-kv[1], kv[0])),
+        } for s in order]
 
 
 def _tell_apart(groups: list[tuple[str, dict]], against: Iterable[str] = ()) -> None:
@@ -417,8 +488,8 @@ def _tell_apart(groups: list[tuple[str, dict]], against: Iterable[str] = ()) -> 
     for key, g in groups:
         if names[g["label"]] > 1 and SEP in key:
             root = key.split(SEP)[0]
-            step = re.search(r"step_?(\d)", root)
-            g["label"] += f" (Step {step.group(1)})" if step else f" ({pretty(root)})"
+            step = step_of(root)
+            g["label"] += f" (Step {step})" if step else f" ({pretty(root)})"
 
 
 def banks_text(banks: dict) -> str:

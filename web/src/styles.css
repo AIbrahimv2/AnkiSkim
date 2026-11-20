@@ -402,7 +402,7 @@ html, body {
 /* The card's places by system, as the verdict counts them: its reason.
    Each part named, in its colour, as wide as its weight (flex-grow, from
    pane.ts) but never narrower than its name: too many to fit, and they
-   wrap. */
+   wrap. Step 1 or 2 draws its shares the same way. */
 .tp-bar { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 10px; }
 .tp-seg {
   flex: 0 1 0; display: flex; align-items: baseline; gap: 6px;
@@ -415,6 +415,13 @@ html, body {
 .tp-pill { padding: 1px 8px; border-radius: 6px; background: var(--press); white-space: nowrap; }
 .tp-yield, .tp-bank { display: inline-flex; align-items: center; gap: 6px; }
 .tp-bank { --kit-res-size: 16px; }
+/* Step 1 or 2, for a card in both: under its lean, the bar, then a row
+   per step (the step, its resources, its questions by bank). */
+.tp-steps { margin: 0 0 4px; }
+.tp-steps .tp-bar { margin: 4px 0 4px 14px; }
+.tp-steps .tp-none .tp-path { color: var(--text-3); }
+.tp-qs { display: flex; align-items: center; gap: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tp-q { display: inline-flex; align-items: center; gap: 4px; --kit-res-size: 14px; }
 /* Systems flow into as many columns as the pane is wide enough for, each
    kept whole. */
 .tp-places { column-width: 360px; column-gap: 28px; }

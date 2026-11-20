@@ -28,6 +28,12 @@ All notable changes to this project are documented here. The format is based on
 - Undo from Skim: `u` takes back what was done last (an edit you made with
   `e`, a suspend) and `Ctrl-r` redoes it, as Edit → Undo and Redo do in
   Anki's main window. Skim says what was undone.
+- Step 1 or Step 2: the tags under a card say which exam it's for, from
+  the resources and question-bank questions it has under each step's tags.
+  A card tagged for one step says so ("Step 1 only"); a card in both says
+  "Mostly Step 1", "Mostly Step 2" or "Steps 1 and 2", with a bar of each
+  step's share and the resources and UWorld, AMBOSS and NBME questions
+  behind it.
 
 ### Changed
 

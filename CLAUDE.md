@@ -30,7 +30,7 @@ This repo:
   and tells it about pins and statuses through `set_context`. Keep that API
   backwards compatible (Stepwise checks `VERSION`).
 - **Now or wait:** `src/tags.py` reads a card's tags against the topic (units,
-  the tags pane, the verdict). `tests/test_tags.py` pins down its rules; the
+  the tags pane, the verdict, Step 1 or 2). `tests/test_tags.py` pins down its rules; the
   unit names map resources' chapters onto organ systems, so new resources may
   need a pattern there.
 - **Shared kit:** `src/kit/` and `web/src/kit/` are copies of `../anki-addon-kit` (the

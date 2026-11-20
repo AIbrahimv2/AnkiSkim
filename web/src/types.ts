@@ -86,12 +86,29 @@ export interface PaneOther {
   tags: [string, string][];
 }
 
+/** One of the exams a card is tagged for (see tags.Analyzer.steps). */
+export interface PaneStep {
+  /** 1, 2 or 3. */
+  step: number;
+  /** Its share of the card, in percent: of its resources and questions. */
+  share: number;
+  /** The step of the topic you're on. */
+  here: boolean;
+  /** The resources that have the card in it, yours first. */
+  resources: string[];
+  /** Its question banks' questions on the card: [bank, count]. */
+  banks: [string, number][];
+}
+
 export interface Pane {
   verdict: Verdict | null;
   /** The verdict's reason in words, for its tooltip. */
   reason: string | null;
   yield: string | null;
   banks: [string, number][];
+  /** Which exam it's for, in words ("Mostly Step 1"), and by step. */
+  lean?: string | null;
+  steps?: PaneStep[];
   /** The card's places by system, the topic's first. */
   systems: PaneSystem[];
   /** Tags not worth showing first (other resources, AnKing's own). */

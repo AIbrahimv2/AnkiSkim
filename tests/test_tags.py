@@ -3,9 +3,10 @@ the verdict (unsuspend now, or wait). AnKing-style tags, with a stand-in
 for what Stepwise tells Skim."""
 
 from harness import check
-from skim.tags import Analyzer, Context, topics_from_search, unit_of
+from skim.tags import Analyzer, Context, step_of, topics_from_search, unit_of
 
 S1 = "#AK_Step1_v12"
+S2 = "#AK_Step2_v12"
 
 print("units")
 for path, unit in [
@@ -104,6 +105,36 @@ check(drugs_sys["name"] == "Cardio" and drugs_sys["places"][0]["resource"] == "A
       "the one you're on reads without underscores too")
 two_more = an.pane(an.card(KETO + ["#AK_Step2_v12::#Pixorize::03_Micro::Azoles"]))["more"]
 check({"Pixorize (Step 1)", "Pixorize (Step 2)"} <= {o["label"] for o in two_more}, "other resources say which step too")
+
+print("which step")
+check(step_of(S1) == 1 and step_of("#ak_step_2_v11") == 2 and step_of("#AK_Other") is None, "a root names its step")
+check(p["lean"] == "Step 1 only" and p["steps"] == [{
+    "step": 1, "share": 100, "here": True,
+    "resources": ["SketchyPharm", "B&B", "Bootcamp", "FirstAid", "Pixorize"],
+    "banks": [("UWorld", 2), ("AMBOSS", 1)],
+}], f"a card only in Step 1 says so; its resources yours first, ^Systems left out ({p['lean']}, {p['steps']})")
+STEP2 = [f"{S2}::#OME::03_Infectious_Disease::Fungi", f"{S2}::#B&B::08_Infectious_Disease::02_Fungi"] + [
+    f"{S2}::#UWorld::Step::{9000 + i}" for i in range(6)]
+both = an.pane(an.card(KETO + STEP2))
+check(both["lean"] == "Steps 1 and 2" and [(x["step"], x["share"], x["here"]) for x in both["steps"]] == [(1, 52, True), (2, 48, False)],
+      f"5 resources to 2 for Step 1, 3 questions to 6 for Step 2: both ({both['lean']}, {both['steps']})")
+check(both["steps"][1]["resources"] == ["B&B", "OME"] and both["steps"][1]["banks"] == [("UWorld", 6)],
+      "each step has its own resources and questions")
+clinical = [f"{S1}::#B&B::14_Infectious_Disease::04_Fungi", f"{S2}::#OME::03_Infectious_Disease::Fungi",
+            f"{S2}::#Divine::Fungi", f"{S2}::#Emma_Holiday::ID"] + [f"{S2}::#UWorld::Step::{9100 + i}" for i in range(4)]
+p2 = an.pane(an.card(clinical))
+check(p2["lean"] == "Mostly Step 2" and [x["share"] for x in p2["steps"]] == [12, 88],
+      f"1 resource to 3 and no Step 1 questions: mostly Step 2 ({p2['lean']}, {p2['steps']})")
+check(p2["steps"][1]["resources"] == ["Divine", "Emma Holiday", "OME"], "resources read without underscores")
+two_to_one = an.pane(an.card([f"{S1}::#B&B::14_Infectious_Disease", f"{S1}::#FirstAid::06_Micro", f"{S2}::#OME::03_ID"]))
+check(two_to_one["lean"] == "Mostly Step 1", f"two resources to one is mostly ({two_to_one['lean']})")
+only2 = an.pane(an.card(STEP2))
+check(only2["lean"] == "Step 2 only" and not only2["steps"][0]["here"], "Step 2 only, and not the topic's step")
+sorted_only = an.pane(an.card(KETO + [f"{S2}::^Systems::Infectious_Disease"]))
+check(sorted_only["lean"] == "Mostly Step 1" and [x["share"] for x in sorted_only["steps"]] == [100, 0],
+      f"a step it's only sorted into still shows, with nothing ({sorted_only['steps']})")
+check(lone["lean"] is None and lone["steps"] == [], "no step tags, no step")
+check(Analyzer([], None).pane(Analyzer([], None).card(STEP2))["steps"][0]["here"] is False, "no topic, no step of it")
 
 print("statuses change it")
 done = Analyzer([TOPIC], Plan({f"{S1}::#B&B::09_Endocrinology": "completed", f"{S1}::#FirstAid::08_Endocrine": "completed",
