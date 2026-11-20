@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Make the screenshot for the README and the AnkiWeb listing.
 
-    python3 tools/screenshots.py [--collection PATH] [--stepwise PATH] [--capture-wallpaper | --wallpaper PATH]
+    python3 tools/screenshots.py [--collection PATH] [--stepwise PATH] [--topic TAG] [--card TEXT]
+                                 [--capture-wallpaper | --wallpaper PATH]
 
-Writes docs/screenshot.png: Skim's window on a B&B topic (TOPIC) full of
-suspended cards and their verdicts, at one with a picture that Skim says to
-unsuspend now (CARD, found by its text): "tRNAs are the smallest RNAs and
-have a clover-leaf structure", a real AnKing card (note 1467927195193, so
-anyone's copy of the deck has it) whose diagram is OpenStax's, CC BY 4.0,
-credited on the card. The window is taller than its default 1180x780, so
-the diagram and its credit show whole, and draws at 108% (ZOOM). The page comes from tools/devserver.py, run with Anki's own Python
+Writes docs/screenshot.png: two Skim windows side by side, unlabelled. On
+the left, Skim on a B&B topic (TOPIC) full of suspended cards and their
+verdicts, at a card (CARD, found by its row's text) whose tags show both
+steps and several systems; on the right, the same card open in the editor
+(e). The card is "Which molecular motor protein is used for retrograde
+transport along the microtubule? Dynein", a real AnKing card (note
+1468250073774, so anyone's copy of the deck has it): its tags put it in
+Biochem, Neuro, Respiratory and Micro, 86% Step 1 to 14% Step 2, and its
+diagram, which the editor shows whole with its credit, is Duncan and
+Goldstein's, CC BY 4.0, via Wikimedia Commons. --topic and --card show
+another. Each window is taller than its default 1180x780 and draws at 108%
+(ZOOM). The page comes from tools/devserver.py, run with Anki's own Python
 (ANKI_PYTHON, or the launcher's) on a copy of a collection: the Default
 profile's unless --collection names another, with the media folder beside
 it. The collection itself is never touched. Verdicts follow Stepwise's
@@ -40,9 +46,9 @@ import shots  # noqa: E402
 # narrower (under 1080px, styles.css) and Skim hides the card to give the
 # table the window.
 ZOOM = 1.08
-SIZE = (1180, 1040)  # the default width (src/window.py), taller so the card's diagram and its credit show whole
-TOPIC = "#AK_Step1_v12::#B&B::07_Cell_Bio::01_Molecular::05_Translation"
-CARD = "tRNAs are the smallest RNAs"  # its row's text
+SIZE = (1180, 1040)  # the default width (src/window.py), taller to show more of the card and its tags
+TOPIC = "#AK_Step1_v12::#B&B::07_Cell_Bio::03_Cellular_Biology::03_Cytoskeleton"
+CARD = "retrograde transport along the microtubule"  # its row's text: the dynein card
 STEPWISE = os.path.join(os.path.dirname(ROOT), "anki-stepwise", "src", "meta.json")
 SETUP = """(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -57,9 +63,16 @@ SETUP = """(async () => {
     await sleep(40);
   }
   if (!here()) throw new Error('no row with ' + %(card)s);
+  const row = counter().textContent.trim() + ': ' + document.querySelector('.row.cur').textContent;
+%(then)s
   await sleep(2500);  // the keys pressed fade from the corner, and the card's frame settles
-  return counter().textContent.trim() + ': ' + document.querySelector('.row.cur').textContent;
+  return row;
 })()"""
+# Then, for the second window: e opens the card in the editor, its fields in
+# the table's place and the card beside them.
+EDIT = """  document.documentElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'e', bubbles: true}));
+  for (let i = 0; i < 50 && !document.querySelector('.editing .field'); i++) await sleep(100);
+  if (!document.querySelector('.editing .field')) throw new Error("the editor didn't open");"""
 
 
 def main() -> None:
@@ -67,6 +80,8 @@ def main() -> None:
     ap.add_argument("--collection", default=shots.DEFAULT_COLLECTION)
     ap.add_argument("--media", help="the collection's media folder (default: beside it)")
     ap.add_argument("--stepwise", default=STEPWISE, help="Stepwise's meta.json, if the file exists")
+    ap.add_argument("--topic", default=TOPIC, help="the tag the window opens on")
+    ap.add_argument("--card", default=CARD, help="text in the row of the card to show")
     shots.add_wallpaper_args(ap)
     args = ap.parse_args()
     if not os.path.isfile(args.collection):
@@ -75,24 +90,25 @@ def main() -> None:
     with shots.Session() as s:
         port = shots.free_port()
         cmd = [shots.anki_python(), os.path.join(ROOT, "tools", "devserver.py"), "--collection", args.collection,
-               "--media", media, "--search", f'"tag:{TOPIC}"', "--dark", "--port", str(port)]
+               "--media", media, "--search", f'"tag:{args.topic}"', "--dark", "--port", str(port)]
         if os.path.isfile(args.stepwise):
             cmd += ["--stepwise", args.stepwise]
         dev = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             shots.wait_for(f"http://127.0.0.1:{port}/", timeout=90)
             s.capture([{"url": f"http://127.0.0.1:{port}/?theme=dark", "width": SIZE[0], "height": SIZE[1],
-                        "setup": SETUP % {"card": json.dumps(CARD)}, "zoom": ZOOM, "wait": 300, "out": "skim.png",
-                        "result": s.path("skim.json")}])
+                        "setup": SETUP % {"card": json.dumps(args.card), "then": then}, "zoom": ZOOM, "wait": 300,
+                        "out": f"{name}.png", "result": s.path(f"{name}.json")}
+                       for name, then in (("table", ""), ("editor", EDIT))])
         finally:
             dev.terminate()
             dev.wait()
-        with open(s.path("skim.json")) as f:
+        with open(s.path("table.json")) as f:
             print("card", json.load(f))
-        written = s.frames([{"image": "skim.png", "size": SIZE, "title": "Skim", "out": "screenshot.png"}],
-                           shots.wallpaper_for(args, s), DOCS)
-    for out in written:
-        print("wrote", os.path.relpath(out, ROOT))
+        # The two windows speak for themselves: no labels.
+        out = s.side_by_side([{"image": f"{name}.png", "size": SIZE, "title": "Skim"} for name in ("table", "editor")],
+                             None, shots.wallpaper_for(args, s), os.path.join(DOCS, "screenshot.png"))
+    print("wrote", os.path.relpath(out, ROOT))
 
 
 if __name__ == "__main__":

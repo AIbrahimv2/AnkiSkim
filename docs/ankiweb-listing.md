@@ -39,16 +39,22 @@ before each release.
 ## Screenshot
 
 `docs/screenshot.png`, made by `tools/screenshots.py` with the add-ons'
-shared screenshot tools: Skim's window on the B&B Translation topic from the
-Default profile's collection (a copy), with Stepwise's pinned resources, at
-the tRNA card (a clover-leaf diagram, OpenStax, CC BY 4.0, credited on the
-card), which it says to unsuspend now. The window is 1180x1040, taller than
-its default, so the diagram and its credit show whole, and it draws at 108%
-(as Cmd+= draws it), so it reads at the listing's width. Any bigger and the
-page would be under 1080px wide, where Skim hides the card. Chosen on 2026-11-17
-from the B&B cards with openly licensed images: most cards' large text
-pushes their picture out of the card pane, and many topics have no
-suspended cards left to show verdicts. Rerun it after the window changes.
+shared screenshot tools: two Skim windows side by side, from the Default
+profile's collection (a copy) with Stepwise's pinned resources. On the left,
+the B&B Cytoskeleton topic (20 suspended cards, their verdicts in the
+table) at the dynein card; on the right, that card open in the editor (e).
+Its tags put it in Biochem, Neuro, Respiratory and Micro, 86% Step 1 to 14%
+Step 2, and its diagram, whole with its credit in the editor, is Duncan and
+Goldstein's, CC BY 4.0, via Wikimedia Commons. Each window is 1180x1040 at
+108% (as Cmd+= draws it); any bigger and the page would be under 1080px
+wide, where Skim hides the card.
+
+Chosen on 2026-11-20 for 1.2.0 (the editor, and a card that shows its
+steps and systems), from cards in pinned Step 1 resources' topics with both
+steps, two or more systems and pictures each credited with an open
+license; the others were clinical photos, or square pictures that don't
+fit. The tRNA card before it showed one system and one step. Rerun it
+after the window changes; --topic and --card show another card.
 
 ## Description
 
@@ -63,7 +69,7 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 
 **Code: 2141626960.** Paste it in Anki under **Tools → Add-ons → Get Add-ons**.
 
-<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Skim on a B&amp;B topic: a table of its cards with their state, retrievability, yield, question banks and verdicts, beside a card with a tRNA diagram that Skim says to unsuspend now, and where it's tagged" width="100%"></p>
+<p><img src="https://raw.githubusercontent.com/AIbrahimv2/AnkiSkim/main/docs/screenshot.png" alt="Two Skim windows side by side. Left: a B&amp;B topic's cards in a table with their state, retrievability, yield, question banks and verdicts, beside the card on screen and its tags by system and by step. Right: the same card open in the editor, its fields beside the card, with a diagram of dynein and kinesin" width="100%"></p>
 
 **Features**
 

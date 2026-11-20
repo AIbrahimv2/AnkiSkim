@@ -11,7 +11,7 @@ It pairs with [Stepwise](https://github.com/AIbrahimv2/AnkiStepwise): press
 `b` on a topic there to see its cards here, and Skim follows as you move
 through topics.
 
-<img src="docs/screenshot.png" width="100%" alt="Skim on a B&amp;B topic: a table of its cards with their state, retrievability, yield, question banks and verdicts, beside a card with a tRNA diagram that Skim says to unsuspend now, and where it's tagged">
+<img src="docs/screenshot.png" width="100%" alt="Two Skim windows side by side. Left: a B&amp;B topic's cards in a table with their state, retrievability, yield, question banks and verdicts, beside the card on screen and its tags by system and by step. Right: the same card open in the editor, its fields beside the card, with a diagram of dynein and kinesin">
 
 ## Features
 
