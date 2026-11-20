@@ -33,7 +33,7 @@ export interface ChromeProps {
   /** The table's columns you can turn on and off, and whether each is. */
   columns(): { key: ColKey; label: string; on: boolean }[];
   onToggleColumn(key: ColKey): void;
-  /** Default columns: the ones Skim starts with. */
+  /** Default columns: the ones Skim starts with, in their own order. */
   onResetColumns(): void;
   columnsChanged(): boolean;
 }

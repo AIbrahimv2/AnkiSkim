@@ -141,9 +141,31 @@ try:
     check(wait_for(f"{HEADS}.includes('Lapses') && {MENU}.join(',').includes('Lapses+')"),
           "ticking one adds its column, and the menu stays open to tick more")
     check(mw.pm.profile.get("skim.layout", {}).get("cols") == {"lapses": True}, "the columns are saved with the layout")
+    js("document.body.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")  # a click outside closes it
+    wait_for("!document.querySelector('.menu')")
+    # Drag Again in's title to just before Deck's.
+    js("""(() => {
+      const head = document.querySelector('.list-head');
+      const at = (k) => head.querySelector(`[data-col="${k}"]`).getBoundingClientRect();
+      const a = at('again'), d = at('deck');
+      const ev = (type, x) => new PointerEvent(type, {bubbles: true, button: 0, pointerId: 9, clientX: x, clientY: a.top + 4});
+      head.querySelector('[data-col="again"]').dispatchEvent(ev('pointerdown', a.left + 8));
+      head.dispatchEvent(ev('pointermove', d.left + 2));
+      head.dispatchEvent(ev('pointerup', d.left + 2));
+    })()""")
+    heads = wait_for(f"{HEADS}.startsWith('#,Card,Again in') && {HEADS}")
+    check(heads == "#,Card,Again in,Deck,State,Lapses,Yield,Q-bank,Verdict",
+          f"dragging a title moves its column ({heads})")
+    order = mw.pm.profile.get("skim.layout", {}).get("order", [])
+    check(order[:4] == ["num", "text", "again", "deck"], f"and the order is saved ({order[:4]})")
+    check(js("document.querySelector('.list-head .sorted')") is None, "a drag doesn't sort")
+    js("document.querySelector('.list-head span').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, clientX: 40, clientY: 40}))")
+    wait_for(f"{MENU}.length")
     js("[...document.querySelectorAll('.menu .menu-item')].find(b => b.textContent.trim() === 'Default columns').click()")
-    check(wait_for(f"!{HEADS}.includes('Lapses') && !document.querySelector('.menu')")
-          and "cols" not in mw.pm.profile.get("skim.layout", {}), "Default columns brings back the ones Skim starts with")
+    check(wait_for(f"!{HEADS}.includes('Lapses') && !document.querySelector('.menu') && {HEADS}")
+          == "#,Card,Deck,State,Yield,Q-bank,Again in,Verdict"
+          and not {"cols", "order"} & mw.pm.profile.get("skim.layout", {}).keys(),
+          "Default columns brings back the ones Skim starts with, in their order")
     check(wait_for("document.querySelector('.row:not(.loading) .r-deck')?.textContent") == "Topics",
           "a row shows its deck")
     chips = wait_for("[...document.querySelectorAll('.chip')].map(c => c.textContent).join(',').includes('Suspended2') && "

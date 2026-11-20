@@ -49,9 +49,11 @@ through topics.
   **⋯ → Columns…**, to turn columns on and off. Besides those above there's
   Due ("in 5d", "today", "3d late" in orange), Interval, Difficulty,
   Stability, Reviews and Lapses; without FSRS, Ease takes the place of
-  Retrievability, Difficulty and Stability. Your columns are kept for next
-  time; **Default columns** brings back the ones Skim starts with (Deck,
-  State, Retrievability, Yield, Q-bank, Again in and Verdict).
+  Retrievability, Difficulty and Stability. Drag a column's title left or
+  right to move it (# stays first). Your columns and their order are kept
+  for next time; **Default columns** brings back the ones Skim starts with
+  (Deck, State, Retrievability, Yield, Q-bank, Again in and Verdict), in
+  that order.
 - **Now or wait.** On a topic (from Stepwise, or a `tag:` search), each
   suspended card gets a verdict. Its places in your pinned resources (and the
   one you're on) are sorted by system: if at least half are in this topic's

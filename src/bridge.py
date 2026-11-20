@@ -33,7 +33,7 @@ MAX_SELECTED = 100_000
 # table's share of the width, and the card's share of the height.
 SHARE_RANGE = (0.2, 0.9)
 SPLIT_RANGE = (0.15, 0.9)
-# The table's columns you've turned on or off: list.ts's keys.
+# The table's columns you've turned on or off, and their order: list.ts's keys.
 MAX_COLS = 32
 _COL_KEY = re.compile(r"[a-z]{1,12}")
 # A field being saved: far more than a card's text, short of a mistake.
@@ -217,11 +217,12 @@ class Bridge:
 
         `cols` is the table's columns you've turned on or off ({key: on}),
         all of them each time; the others are as list.ts has them by
-        default. Reset layout keeps them: Columns → Default columns sends
-        an empty one."""
+        default. `order` is the order you've dragged them into (every
+        column's key). Reset layout keeps both: Columns → Default columns
+        sends them empty."""
         layout = dict(self.host.layout())
         if msg.get("reset") is True:
-            layout = {k: v for k, v in layout.items() if k == "cols"}
+            layout = {k: v for k, v in layout.items() if k in ("cols", "order")}
         for key, low, high in (("share", *SHARE_RANGE), ("split", *SPLIT_RANGE)):
             v = msg.get(key)
             if isinstance(v, (int, float)) and not isinstance(v, bool) and low <= v <= high:
@@ -235,6 +236,13 @@ class Bridge:
                 layout["cols"] = picked
             else:
                 layout.pop("cols", None)
+        order = msg.get("order")
+        if isinstance(order, list) and len(order) <= MAX_COLS and \
+                all(isinstance(k, str) and _COL_KEY.fullmatch(k) for k in order) and len(set(order)) == len(order):
+            if order:
+                layout["order"] = order
+            else:
+                layout.pop("order", None)
         self.host.save_layout(layout)
         return {}
 

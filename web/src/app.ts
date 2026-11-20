@@ -269,6 +269,7 @@ export class App {
       pick: (i, extend) => this.go(i, true, extend),
       sort: (key) => this.sortBy(key),
       columnsMenu: (x, y) => this.chrome?.openColumns({ x, y }),
+      reorder: (order) => void call("layout", { order: this.list.reordered() ? order : [] }),
     });
     this.cast = new KeyCast(listPanel);
     this.pane = new TagsPane(tagsPanel, () => this.toggleTags());
@@ -283,6 +284,7 @@ export class App {
     this.setTagsOpen(boot.layout.tags ?? true);
     this.colChoice = { ...(boot.layout.cols ?? {}) };
     this.list.setChoice(this.colChoice);
+    this.list.setOrder(boot.layout.order ?? []);
     this.wireSplitters(splitter, main, rowSplitter, right);
     this.wireSearch();
     // On <html>, not the window: Anki listens on the document and closes
@@ -791,14 +793,18 @@ export class App {
     this.setColumns(choice);
   }
 
-  /** Default columns, in Columns' menu. */
+  /** Default columns, in Columns' menu: the ones Skim starts with, in
+   *  their own order. */
   resetColumns(): void {
+    this.list.setOrder([]);
+    void call("layout", { order: [] });
     this.setColumns({});
   }
 
-  /** Whether the columns offered are other than the default ones. */
+  /** Whether the columns offered, or their order, are other than the
+   *  default ones. */
   columnsChanged(): boolean {
-    return this.list.choices().some((c) => c.on !== onByDefault(c.key));
+    return this.list.reordered() || this.list.choices().some((c) => c.on !== onByDefault(c.key));
   }
 
   private setColumns(choice: Record<string, boolean>): void {

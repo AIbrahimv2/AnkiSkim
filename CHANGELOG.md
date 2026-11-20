@@ -42,8 +42,9 @@ All notable changes to this project are documented here. The format is based on
   **⋯ → Columns…**, and tick the ones you want. Besides the ones Skim had,
   there's Due ("in 5d", "3d late"), Interval, Difficulty, Stability,
   Reviews and Lapses, or Ease if you don't use FSRS. Click any of them to
-  sort by it. Skim remembers your columns, and **Default columns** brings
-  back the ones it starts with.
+  sort by it, or drag its title left or right to move it. Skim remembers
+  your columns and their order, and **Default columns** brings back the
+  ones it starts with.
 
 ### Changed
 

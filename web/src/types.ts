@@ -58,6 +58,8 @@ export interface Layout {
   /** The table's columns you've turned on or off, by key (list.ts's
    *  COLUMNS); the rest are as they are by default. */
   cols?: Record<string, boolean>;
+  /** The order you've dragged the columns into: every column's key. */
+  order?: string[];
 }
 
 export type Verdict = "now" | "call" | "wait";

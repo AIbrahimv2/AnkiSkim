@@ -90,6 +90,30 @@ export function onByDefault(key: ColKey): boolean {
   return BY_KEY.get(key)?.on !== false;
 }
 
+/** The columns in the order they're shown by default. */
+export const DEFAULT_ORDER: readonly ColKey[] = COLUMNS.map((c) => c.key);
+
+/** Every column, in the order you've dragged them into (`saved`, as kept
+ *  with the layout): # first, then the ones you've placed, and any you
+ *  haven't (a column added since) after the column it follows by default.
+ *  Keys that aren't a column's are left out. */
+export function fullOrder(saved: readonly string[]): ColKey[] {
+  const out: ColKey[] = [];
+  for (const k of saved) if (BY_KEY.has(k as ColKey) && k !== "num" && !out.includes(k as ColKey)) out.push(k as ColKey);
+  DEFAULT_ORDER.forEach((key, i) => {
+    if (key === "num" || out.includes(key)) return;
+    const before = DEFAULT_ORDER.slice(0, i).findLast((b) => out.includes(b));
+    out.splice(before ? out.indexOf(before) + 1 : 0, 0, key);
+  });
+  return ["num", ...out];
+}
+
+/** `order` with `key` moved to just before `before` (null: to the end). */
+export function moveKey(order: readonly ColKey[], key: ColKey, before: ColKey | null): ColKey[] {
+  const out = order.filter((k) => k !== key);
+  out.splice(before === null ? out.length : out.indexOf(before), 0, key);
+  return out;
+}
 
 /** Without a Verdict column, Again in gets its room. */
 const AGAIN_WIDE = 224;
@@ -102,6 +126,8 @@ const DROP: ColKey[] = ["deck", "again", "bank", "yield", "lapses", "reps", "sta
 /** Space between columns, and a row's padding and flag edge (.row). */
 const COL_GAP = 8;
 const ROW_PAD = 19;
+/** How far a title moves before it's a drag, not a click. */
+const DRAG_START = 5;
 
 export interface ListOptions {
   row(cid: number): Row | undefined;
@@ -115,6 +141,8 @@ export interface ListOptions {
   sort(key: SortKey): void;
   /** The titles right-clicked: open Columns' menu there. */
   columnsMenu(x: number, y: number): void;
+  /** A title dragged to a new place: the columns' new order. */
+  reorder(order: ColKey[]): void;
 }
 
 interface RowEl {
@@ -159,6 +187,10 @@ export class CardList {
    *  them), whether the collection uses FSRS, and whether a card here can
    *  have a verdict (none until the page knows). */
   private choice: Record<string, boolean> = {};
+  /** Every column, in your order (see setOrder). */
+  private order: ColKey[] = [...DEFAULT_ORDER];
+  /** Where a dragged title would go (see dragTitle). */
+  private dropMark: HTMLDivElement;
   private fsrs = false;
   private verdicts = false;
   private sortKey: SortKey = "order";
@@ -171,12 +203,7 @@ export class CardList {
     this.measureBox.className = "measure";
     this.head = document.createElement("div");
     this.head.className = "list-head";
-    this.head.addEventListener("mousedown", (e) => {
-      const h = (e.target as HTMLElement).closest<HTMLElement>("[data-sort]");
-      if (!h || e.button !== 0) return;
-      e.preventDefault();
-      this.opts.sort(h.dataset.sort as SortKey);
-    });
+    this.head.addEventListener("pointerdown", (e) => this.dragTitle(e));
     this.head.addEventListener("contextmenu", (e) => {
       e.preventDefault(); // not the web view's own menu
       this.opts.columnsMenu(e.clientX, e.clientY);
@@ -186,7 +213,10 @@ export class CardList {
     this.sizer = document.createElement("div");
     this.sizer.className = "list-sizer";
     this.scroller.append(this.sizer);
-    host.append(this.head, this.scroller, this.measureBox);
+    this.dropMark = document.createElement("div");
+    this.dropMark.className = "col-drop";
+    this.dropMark.hidden = true;
+    host.append(this.head, this.scroller, this.measureBox, this.dropMark);
     this.scroller.addEventListener("scroll", () => this.schedule(), { passive: true });
     new ResizeObserver(() => {
       this.fitColumns();
@@ -236,10 +266,24 @@ export class CardList {
     this.refit();
   }
 
-  /** The columns Columns' menu offers, and whether each is on: all but #
-   *  and Card, with FSRS's or Ease, whichever the collection uses. */
+  /** The order you've dragged the columns into, as saved (empty: as
+   *  they are by default). */
+  setOrder(saved: readonly string[]): void {
+    this.order = fullOrder(saved);
+    this.fitColumns();
+    this.refit();
+  }
+
+  /** Whether the columns are in another order than their own. */
+  reordered(): boolean {
+    return this.order.join() !== DEFAULT_ORDER.join();
+  }
+
+  /** The columns Columns' menu offers, in the table's order, and whether
+   *  each is on: all but # and Card, with FSRS's or Ease, whichever the
+   *  collection uses. */
   choices(): { key: ColKey; label: string; on: boolean }[] {
-    return COLUMNS.filter((c) => c.on !== undefined && this.offered(c)).map((c) => ({
+    return this.columns().filter((c) => c.on !== undefined && this.offered(c)).map((c) => ({
       key: c.key,
       label: c.label,
       on: this.isOn(c),
@@ -249,6 +293,11 @@ export class CardList {
   /** Whether a column that sorts by `key` is on (# always is). */
   sortable(key: SortKey): boolean {
     return COLUMNS.some((c) => c.sort === key && this.offered(c) && this.isOn(c));
+  }
+
+  /** Every column, in your order. */
+  private columns(): Column[] {
+    return this.order.map((k) => BY_KEY.get(k)!);
   }
 
   private offered(c: Column): boolean {
@@ -267,7 +316,7 @@ export class CardList {
     const room = this.scroller.clientWidth;
     // Hidden (the page, or the table): what's there stays until it shows.
     if (!room && this.colsKey) return;
-    let cols = COLUMNS.filter((c) => this.offered(c) && this.isOn(c) && (c.key !== "verdict" || this.verdicts));
+    let cols = this.columns().filter((c) => this.offered(c) && this.isOn(c) && (c.key !== "verdict" || this.verdicts));
     const verdict = cols.some((c) => c.key === "verdict");
     const width = (c: Column) => (c.key === "again" && !verdict ? AGAIN_WIDE : c.min);
     const need = () => cols.reduce((s, c) => s + width(c), 0) + COL_GAP * (cols.length - 1) + ROW_PAD;
@@ -294,7 +343,8 @@ export class CardList {
       ...this.cols.map((c) => {
         const h = document.createElement("span");
         h.textContent = c.label;
-        h.title = c.title;
+        h.title = c.key === "num" ? c.title : `${c.title}\n\nClick to sort by it, drag to move it; right-click to choose columns.`;
+        h.dataset.col = c.key;
         if (c.key === "again") this.againHead = h;
         if (c.sort) {
           h.className = "sortable";
@@ -308,6 +358,84 @@ export class CardList {
     this.live.clear();
     this.spare = [];
     this.render();
+  }
+
+  /** A title pressed: a click sorts by its column; dragged left or right,
+   *  it moves the column (# stays first), with a line where it would go. */
+  private dragTitle(e: PointerEvent): void {
+    const h = (e.target as HTMLElement).closest<HTMLElement>("[data-col]");
+    if (!h || e.button !== 0) return;
+    e.preventDefault(); // the keys stay on the page
+    const key = h.dataset.col as ColKey;
+    const app = this.host.closest(".app");
+    const x0 = e.clientX;
+    let moving = false;
+    let before: ColKey | null | undefined; // where it goes; undefined: nowhere new
+    try {
+      this.head.setPointerCapture(e.pointerId);
+    } catch {
+      // not a real pointer (a test's): its moves come to the titles anyway
+    }
+    const move = (m: PointerEvent) => {
+      if (!moving) {
+        if (key === "num" || Math.abs(m.clientX - x0) < DRAG_START) return;
+        moving = true;
+        h.classList.add("moving");
+        app?.classList.add("dragging", "drag-col");
+      }
+      before = this.dropBefore(m.clientX, key);
+    };
+    const end = (done: boolean) => {
+      this.head.removeEventListener("pointermove", move);
+      this.head.removeEventListener("pointerup", up);
+      this.head.removeEventListener("pointercancel", cancel);
+      this.dropMark.hidden = true;
+      h.classList.remove("moving");
+      app?.classList.remove("dragging", "drag-col");
+      if (!done) return;
+      if (!moving) {
+        if (h.dataset.sort) this.opts.sort(h.dataset.sort as SortKey);
+      } else if (before !== undefined) {
+        const order = moveKey(this.order, key, before);
+        if (order.join() === this.order.join()) return;
+        this.order = order;
+        this.fitColumns();
+        this.refit();
+        this.opts.reorder(order);
+      }
+    };
+    const up = () => end(true);
+    const cancel = () => end(false);
+    this.head.addEventListener("pointermove", move);
+    this.head.addEventListener("pointerup", up);
+    this.head.addEventListener("pointercancel", cancel);
+  }
+
+  /** The column a title dragged to `x` would go before (null: after the
+   *  last one shown, undefined: where it is), with the line drawn there.
+   *  Never before #. */
+  private dropBefore(x: number, key: ColKey): ColKey | null | undefined {
+    const titles = [...this.head.children] as HTMLElement[];
+    let i = 1;
+    const mid = (t: HTMLElement) => {
+      const r = t.getBoundingClientRect();
+      return r.left + r.width / 2;
+    };
+    while (i < titles.length && x > mid(titles[i])) i++;
+    const at = titles[i]?.dataset.col as ColKey | undefined;
+    // Before itself or the one after it: it stays where it is.
+    const from = titles.findIndex((t) => t.dataset.col === key);
+    const host = this.host.getBoundingClientRect();
+    const head = this.head.getBoundingClientRect();
+    const edge = i < titles.length
+      ? titles[i].getBoundingClientRect().left - COL_GAP / 2
+      : titles[titles.length - 1].getBoundingClientRect().right + COL_GAP / 2;
+    this.dropMark.style.left = `${edge - host.left}px`;
+    this.dropMark.style.top = `${head.top - host.top}px`;
+    this.dropMark.style.height = `${head.height + this.scroller.clientHeight}px`;
+    this.dropMark.hidden = i === from || i === from + 1;
+    if (i === from || i === from + 1) return undefined;
+    return at ?? null;
   }
 
   /** Again in changed width (the Verdict column came or went, or the

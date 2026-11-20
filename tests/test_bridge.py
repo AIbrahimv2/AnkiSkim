@@ -125,9 +125,15 @@ check(host.saved_layout == {"share": 0.3, "split": 0.457, "tags": False}, "out o
 call("layout", cols={"ret": False, "lapses": True, "Bad Key": True, "due": "yes"})
 check(host.saved_layout.get("cols") == {"ret": False, "lapses": True},
       "the columns you turn on and off are saved, without what isn't a column's key or a yes or no")
+call("layout", order=["num", "ret", "text", "deck"])
+check(host.saved_layout.get("order") == ["num", "ret", "text", "deck"], "the order you drag the columns into is saved")
+call("layout", order=["num", "num"])
+call("layout", order=["num", 3])
+check(host.saved_layout.get("order") == ["num", "ret", "text", "deck"], "an order with a key twice, or not a key: kept as it was")
 call("layout", reset=True)
-check(host.saved_layout == {"cols": {"ret": False, "lapses": True}}, "Reset layout forgets the rest, not the columns")
-call("layout", cols={})
+check(host.saved_layout == {"cols": {"ret": False, "lapses": True}, "order": ["num", "ret", "text", "deck"]},
+      "Reset layout forgets the rest, not the columns or their order")
+call("layout", cols={}, order=[])
 check(host.saved_layout == {}, "Default columns forgets them")
 call("layout", cols={str(i): True for i in range(40)})
 check(host.saved_layout == {}, "too many columns: kept as it was")

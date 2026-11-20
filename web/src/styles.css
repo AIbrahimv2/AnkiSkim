@@ -209,6 +209,20 @@ html, body {
 .list-head .sorted[data-dir="up"]::after { content: " ↑"; }
 .list-head .sorted[data-dir="down"]::after { content: " ↓"; }
 .list-head span:first-child { text-align: right; }
+/* Dragging a title to move its column (list.ts, dragTitle): the title
+   fades, and a line shows where the column would go. */
+.list-head span { user-select: none; }
+.list-head span.moving { opacity: 0.4; }
+.app.drag-col, .app.drag-col * { cursor: grabbing !important; }
+.col-drop {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 3;
+}
 .list-scroll { flex: 1; overflow-y: auto; position: relative; scrollbar-width: thin; }
 .list-sizer { position: relative; }
 .row {
