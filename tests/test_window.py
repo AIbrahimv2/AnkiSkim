@@ -187,26 +187,73 @@ try:
     class Op:  # Anki's operation runner needs the whole app: do what it does
         def __init__(self, name, fn, ids):
             self.name, self.fn, self.ids = name, fn, list(ids)
+            self.done = None
 
-        def run_in_background(self):
+        def success(self, done):
+            self.done = done
+            return self
+
+        def run_in_background(self, initiator=None):
             ran.append((self.name, self.ids))
             self.fn(self.ids)
-            api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+            if self.done:
+                self.done(None)
+            api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), initiator)
 
     real_ops = skim_window.suspend_cards, skim_window.unsuspend_cards
     skim_window.suspend_cards = lambda parent, card_ids: Op("suspend", col.sched.suspend_cards, card_ids)
     skim_window.unsuspend_cards = lambda parent, card_ids: Op("unsuspend", col.sched.unsuspend_cards, card_ids)
     CMD_J = "document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'j', metaKey: true, bubbles: true}))"
+    SETTLED_ROWS = "!document.querySelector('.row.loading') && ![...document.querySelectorAll('.chip')].some(c => c.textContent.includes('…'))"
     STATES = "[...document.querySelectorAll('.row')].sort((a, b) => a.dataset.i - b.dataset.i).map(r => r.querySelector('.r-state').textContent).join(',')"
     press("g", "g", "v", "j")
     check(js(POS) == "2 of 4 · 2 selected", f"v, then j, selects two cards ({js(POS)})")
     check(js("document.querySelectorAll('.row.sel').length") == 2, "the selected rows are marked")
     check("suspend" in js("document.querySelector('.hints').textContent"), "and the hints say what's next")
+    # What the page asks Python for, and what changes in the table: rows
+    # that blank or cells that are written. Once the cards ahead are drawn.
+    pump(1.0)
+    asked: list[tuple[str, list]] = []
+
+    def asking(raw):
+        msg = json.loads(raw) if raw.startswith("{") else {}
+        asked.append((msg.get("cmd", raw), msg.get("ids", [])))
+        return api._window.bridge.handle(raw)
+
+    api._window.web.set_bridge_command(asking, api._window)
+    WATCH = ("window._muts = new Set(); window._mo?.disconnect(); window._mo = new MutationObserver((ms) => { for (const m of ms) {"
+             " const t = m.target.nodeType === 1 ? m.target : m.target.parentElement; const row = t.closest('.row');"
+             " if (!row) { window._muts.add('rows added or removed'); continue; }"
+             " if (row.classList.contains('loading') || (m.oldValue || '').includes('loading')) window._muts.add('loading');"
+             " window._muts.add(row.dataset.i + ' ' + (t === row ? 'row' : t.closest('.row > span').className.split(' ')[0])); } });"
+             " window._mo.observe(document.querySelector('.list-sizer'), {subtree: true, childList: true, characterData: true,"
+             " attributes: true, attributeOldValue: true}); true")
+    CHANGED = "[...window._muts].sort().join(', ')"
+    js(WATCH)
     js(CMD_J)
     check(wait_for(f"{STATES} === 'Suspended,Suspended,Suspended,Suspended'"), "Cmd+J suspends them")
     check(ran[-1] == ("suspend", ALL[:2]), f"through Anki's operation, for just those cards ({ran[-1]})")
     check(wait_for("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('Suspended 2 cards'))"), "and says so")
     check(js(POS) == "2 of 4 · 2 selected", "the selection stays")
+    pump(0.3)
+    reads = [(c, sorted(i)) for c, i in asked if c in ("rows", "facets", "cards")]
+    check(reads and all(c != "cards" and i == sorted(ALL[:2]) for c, i in reads),
+          f"only those cards' rows and facets are read again, and no card is drawn again ({reads})")
+    changed = js(CHANGED)
+    check(changed and all(c.split(" ")[0] in ("0", "1") and c.split(" ")[1] in ("r-state", "r-verdict") for c in changed.split(", ")),
+          f"and only their State and Verdict change: no row blanks ({changed})")
+    js(WATCH)
+    asked.clear()
+    api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+    end = time.time() + 8
+    while not any(c == "rows" for c, _ in asked) and time.time() < end:
+        pump(0.05)
+    pump(0.3)
+    check(any(c == "rows" for c, _ in asked) and wait_for(SETTLED_ROWS),
+          f"a change from elsewhere reads every row on screen again ({[c for c, _ in asked]})")
+    check(js(CHANGED) == "", f"and as nothing in them changed, nothing in the table does ({js(CHANGED)})")
+    js("window._mo.disconnect(); true")
+    api._window.web.set_bridge_command(api._window.bridge.handle, api._window)
     js(CMD_J)
     check(wait_for(f"{STATES} === 'New,New,Suspended,Suspended'") and ran[-1] == ("unsuspend", ALL[:2]),
           "Cmd+J again: all suspended, so it unsuspends them")
@@ -222,6 +269,21 @@ try:
           "with nothing selected, Cmd+J is for the card you're on")
     js(CMD_J)
     check(wait_for(f"{STATES} === 'New,New,Suspended,Suspended'"), "and back")
+    CHIP = "[...document.querySelectorAll('.chip')].find(c => c.textContent.startsWith({})).dispatchEvent(new MouseEvent('mousedown', {{bubbles: true}}))"
+    col.sched.suspend_cards([ALL[0]])
+    api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+    wait_for(f"{STATES} === 'Suspended,New,Suspended,Suspended' && {SETTLED_ROWS}")
+    js(CHIP.format("'Suspended'"))
+    check(wait_for(f"{POS} === '3 of 3'"), "under Suspended, three cards")
+    press("k")
+    js(CMD_J)
+    check(wait_for(f"{POS} === '2 of 2'") and wait_for("document.querySelector('.chip.on').textContent === 'Suspended2'"),
+          "a card unsuspended there leaves it, and the one after it takes its place under the cursor")
+    js(CHIP.format("'All'"))
+    col.sched.unsuspend_cards([ALL[0]])
+    col.sched.suspend_cards([ALL[2]])
+    api.on_operation(types.SimpleNamespace(card=True, note_text=False, notetype=False), None)
+    wait_for(f"{STATES} === 'New,New,Suspended,Suspended' && {SETTLED_ROWS}")
     skim_window.suspend_cards, skim_window.unsuspend_cards = real_ops
 
     print("search")

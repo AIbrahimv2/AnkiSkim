@@ -5,8 +5,11 @@
 // big deck, All's facets take Python most of a second; with these kept, going
 // back to All, or to any view of cards already seen, asks for nothing.
 //
-// Everything goes when the cards change (an edit, an answer, a suspend),
-// when Stepwise's plan changes or when the thresholds do (see clear).
+// Everything is read again when the cards change (an edit, an answer, an
+// undo), when Stepwise's plan changes or when the thresholds do (see
+// clear), and just the cards you suspend or unsuspend here (see forget).
+// Until their new rows come, the old ones stay at hand (see oldRow), so
+// the table keeps showing them instead of blanking every row.
 
 import type { Facets, Row } from "./types.ts";
 
@@ -30,17 +33,58 @@ class Reading {
 const rowKey = (cid: number, hidden: boolean): number => cid * 2 + (hidden ? 1 : 0);
 
 export class Cache {
-  /** Bumped by clear(): answers to anything asked before are dropped. */
+  /** Bumped by clear() and forget(): answers to anything asked before are
+   *  dropped. */
   gen = 0;
   private readings = new Map<string, Reading>();
+  /** Rows from before the cards last changed, to show until their new ones
+   *  come (only rows: facets are kept by the page, see App.facets). */
+  private old = new Map<string, Map<number, Row>>();
   /** Deck names by id, for sorting by deck. */
   private decks = new Map<number, string>();
 
-  /** Forget everything: the cards, or what they're read against, changed. */
+  /** Forget everything: the cards, or what they're read against, changed.
+   *  The rows stay at hand until they're read again (oldRow). */
   clear(): void {
+    for (const [key, r] of this.readings) this.keepOld(key, r.rows);
     this.readings.clear();
-    this.decks.clear();
+    // Deck names stay: the facets kept meanwhile still sort by them, and
+    // the new facets bring theirs.
     this.gen++;
+  }
+
+  /** Forget these cards' rows and facets (they were suspended or
+   *  unsuspended): the rest are kept. Answers on their way are dropped,
+   *  as they may be from before. */
+  forget(cids: number[]): void {
+    for (const [key, r] of this.readings) {
+      const gone = new Map<number, Row>();
+      for (const c of cids) {
+        r.facets.delete(c);
+        for (const k of [rowKey(c, false), rowKey(c, true)]) {
+          const row = r.rows.get(k);
+          if (row) gone.set(k, row);
+          r.rows.delete(k);
+        }
+      }
+      if (gone.size) this.keepOld(key, gone);
+    }
+    this.gen++;
+  }
+
+  /** Keep these rows at hand until they're read again, with any kept
+   *  before that haven't been yet (the cards can change twice before their
+   *  rows come back). As many readings and rows as `readings` keeps. */
+  private keepOld(key: string, rows: Map<number, Row>): void {
+    const old = this.old.get(key) ?? new Map<number, Row>();
+    this.old.delete(key);
+    this.old.set(key, old); // most recently used last, as in reading()
+    for (const [k, row] of rows) {
+      old.delete(k);
+      old.set(k, row);
+    }
+    while (old.size > MAX_ROWS) old.delete(old.keys().next().value!);
+    while (this.old.size > MAX_READINGS) this.old.delete(this.old.keys().next().value!);
   }
 
   private reading(key: string, make: true): Reading;
@@ -116,11 +160,18 @@ export class Cache {
     return this.readings.get(key)?.rows.get(rowKey(cid, hidden));
   }
 
+  /** The row a card had before the cards last changed, for while its new
+   *  one is on its way. */
+  oldRow(key: string, cid: number, hidden: boolean): Row | undefined {
+    return this.old.get(key)?.get(rowKey(cid, hidden));
+  }
+
   putRow(key: string, cid: number, row: Row): void {
     const rows = this.reading(key, true).rows;
     const k = rowKey(cid, !!row.h);
     rows.delete(k);
     rows.set(k, row);
     if (rows.size > MAX_ROWS) rows.delete(rows.keys().next().value!);
+    this.old.get(key)?.delete(k);
   }
 }

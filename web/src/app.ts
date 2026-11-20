@@ -19,7 +19,7 @@ import { type Command, Keys } from "./keys.ts";
 import { CardList, type SortKey } from "./list.ts";
 import { TagsPane, tagCount } from "./pane.ts";
 import { Stage, type Want } from "./stage.ts";
-import type { CardHtml, Facets, Layout, PageConfig, PushEvent, Row, Side, View } from "./types.ts";
+import type { CardHtml, Facets, Layout, PageConfig, Pane, PushEvent, Row, Side, View } from "./types.ts";
 
 const SEARCH_ICON =
   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
@@ -79,6 +79,11 @@ const fmt = (n: number) => n.toLocaleString("en-US");
 const clamp = (x: number, low: number, high: number) => Math.max(low, Math.min(high, x));
 const pct = (share: number) => `${(share * 100).toFixed(1)}%`;
 const other = (s: Side): Side => (s === "answer" ? "question" : "answer");
+
+/** The same cards in the same order. */
+function same(a: number[], b: number[]): boolean {
+  return a.length === b.length && a.every((c, i) => c === b[i]);
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -153,6 +158,8 @@ export class App {
   private list: CardList;
   private stage: Stage;
   private pane: TagsPane;
+  /** The card whose tags the pane shows, and them (see setPane). */
+  private paneShown: [cid: number | undefined, pane: Pane | null] = [undefined, null];
   private input: HTMLInputElement;
   private sourceEl: HTMLElement;
   private sides: HTMLElement;
@@ -243,6 +250,7 @@ export class App {
 
     this.list = new CardList(listPanel, {
       row: (cid) => this.rowFor(cid),
+      oldRow: (cid) => this.oldRowFor(cid),
       need: (cids) => this.needRows(cids),
       pick: (i, extend) => this.go(i, true, extend),
       sort: (key) => this.sortBy(key),
@@ -286,6 +294,12 @@ export class App {
           this.editStale = true;
           void this.edit.refresh();
         } else this.retag();
+        break;
+      case "rows":
+        // Suspended or unsuspended here: just these cards' rows and facets
+        // are read again, and the cards themselves stay drawn.
+        if (this.edit.active) this.editStale = true;
+        else this.retag(e.ids);
         break;
       case "hidden":
         this.edit.flush();
@@ -403,6 +417,11 @@ export class App {
     return this.cache.row(this.view.reading, cid, this.hidden.has(cid));
   }
 
+  /** The row it had before the cards changed, while its new one comes. */
+  private oldRowFor(cid: number): Row | undefined {
+    return this.cache.oldRow(this.view.reading, cid, this.hidden.has(cid));
+  }
+
   private startFacets(seq: number): void {
     if (this.facetsAfterCard !== seq) return;
     this.facetsAfterCard = null;
@@ -480,13 +499,16 @@ export class App {
     if (retag) this.retag();
   }
 
-  /** Stepwise's plan or the cards changed: read rows and facets again,
-   *  forgetting the ones kept for other views too. */
-  private retag(): void {
-    this.cache.clear();
+  /** Stepwise's plan or the cards changed (or just `only`, suspended
+   *  here): read rows and facets again, forgetting the ones kept for other
+   *  views too. Until they come, the table and the tags pane keep what
+   *  they show, and the filters, sorting and counts keep the facets they
+   *  have; then only what differs changes. */
+  private retag(only?: number[]): void {
+    if (only) this.cache.forget(only);
+    else this.cache.clear();
     this.rowsInFlight = new Set();
     this.list.refresh(true);
-    this.facets = null;
     // A view whose first card isn't on screen yet gets its facets once it
     // is (see FACETS_AFTER_MS): the cards changing doesn't hurry them.
     if (this.facetsAfterCard === null) this.loadFacets();
@@ -494,9 +516,24 @@ export class App {
   }
 
   /** Fill the table from the view, filtered and sorted, keeping the card
-   *  you're on if it's still there. */
-  private relist(keep: number | null): void {
+   *  you're on if it's still there. `stay`: the same view with new facets
+   *  (the cards changed), so the table stays where it's scrolled, and if
+   *  your card has left it (unsuspended under Suspended) you're on the one
+   *  that took its place. */
+  private relist(keep: number | null, stay = false): void {
     this.endSelection(); // the rows are about to move
+    this.shown = this.ordered();
+    const at = keep !== null ? this.shown.indexOf(keep) : -1;
+    this.cursor = at >= 0 ? at : stay ? Math.max(0, Math.min(this.cursor, this.shown.length - 1)) : 0;
+    this.dir = 1;
+    this.list.setIds(this.shown, this.cursor, false, stay);
+    this.list.setSort(this.sort, this.sortDir);
+    this.renderChips();
+    this.update(false);
+  }
+
+  /** The view's cards, filtered and sorted. */
+  private ordered(): number[] {
     const ids = this.view.ids;
     let order = ids.map((_, i) => i);
     const f = this.facets;
@@ -521,14 +558,7 @@ export class App {
         order.sort((a, b) => (value(a) - value(b)) * d || a - b);
       }
     }
-    this.shown = order.map((i) => ids[i]);
-    const at = keep !== null ? this.shown.indexOf(keep) : -1;
-    this.cursor = at >= 0 ? at : 0;
-    this.dir = 1;
-    this.list.setIds(this.shown, this.cursor);
-    this.list.setSort(this.sort, this.sortDir);
-    this.renderChips();
-    this.update(false);
+    return order.map((i) => ids[i]);
   }
 
   /** The view's facets: the kept ones, and the rest from Python a slice
@@ -556,11 +586,14 @@ export class App {
       }
       const f = this.cache.facets(reading, ids);
       if (!f || !live()) return;
+      const again = this.facets !== null; // read again: the cards changed
       this.facets = f;
       if (this.wantLens !== null) return; // the table waits for the next view
       const keep = this.shown[this.cursor] ?? null;
-      if (this.filter !== "all" || this.sort !== "order") this.relist(keep);
-      else this.renderChips();
+      // The table moves only if its cards or their order did.
+      if ((this.filter !== "all" || this.sort !== "order") && !(again && same(this.ordered(), this.shown))) {
+        this.relist(keep, again);
+      } else this.renderChips();
     };
     next(0);
   }
@@ -570,7 +603,7 @@ export class App {
     this.holdCast();
     if (!ids.length) {
       this.stage.clear();
-      this.pane.show(null);
+      this.setPane(undefined, null);
       this.pos.textContent = "";
       this.message.textContent = this.view.error
         ? this.view.error
@@ -593,8 +626,19 @@ export class App {
   private showPane(): void {
     if (this.wantLens !== null) return; // keeps the card you were on, dimmed
     const cid = this.shown[this.cursor];
-    const row = cid !== undefined ? this.rowFor(cid) : undefined;
-    this.pane.show(row?.p ?? null, row?.p ? tagCount(row.p) : 0);
+    // While its row is read again, the one it had.
+    const row = cid !== undefined ? (this.rowFor(cid) ?? this.oldRowFor(cid)) : undefined;
+    this.setPane(cid, row?.p ?? null);
+  }
+
+  /** Show a card's tags. The same card's, read again after a change, are
+   *  drawn again only if they differ (drawing makes its logos anew). */
+  private setPane(cid: number | undefined, p: Pane | null): void {
+    const [was, wasP] = this.paneShown;
+    if (p === wasP) return;
+    this.paneShown = [cid, p];
+    if (cid === was && p && wasP && JSON.stringify(p) === JSON.stringify(wasP)) return;
+    this.pane.show(p, p ? tagCount(p) : 0);
   }
 
   /** The card on screen, then the ones you're likely to want next. */

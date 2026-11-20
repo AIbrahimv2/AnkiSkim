@@ -177,6 +177,9 @@ export interface Settings {
 export type PushEvent =
   | { type: "view"; view: View }
   | { type: "changed" }
+  /** Only these cards' rows changed (suspended or unsuspended here), not
+   *  what they show. */
+  | { type: "rows"; ids: number[] }
   | { type: "retag" }
   | { type: "reveal"; cid: number }
   | { type: "lenses"; seq: number; lenses: Lens[] }

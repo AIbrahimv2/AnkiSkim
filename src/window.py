@@ -221,7 +221,10 @@ class SkimWindow(QDialog):
         """Suspend these cards, or unsuspend them if every one is (Toggle
         Suspend in Anki's browser, for a selection). Through Anki's own
         operation, so Edit → Undo takes it back and Anki's other windows hear
-        of it; Skim hears too (on_operation) and reads the cards again."""
+        of it. Skim is its initiator, so on_operation leaves it out: the page
+        reads just these cards' rows again (`rows`), not every one's, and
+        their card frames stay as they are (suspending doesn't change what a
+        card shows)."""
         if not cids:
             return {}
         queues = mw.col.db.list(f"select queue from cards where id in {ids2str(cids)}")
@@ -229,8 +232,15 @@ class SkimWindow(QDialog):
             return {}
         unsuspend = all(q == QUEUE_TYPE_SUSPENDED for q in queues)
         op = unsuspend_cards if unsuspend else suspend_cards
-        op(parent=self, card_ids=cids).run_in_background()
+        op(parent=self, card_ids=cids).success(lambda _: self._rows_changed(cids)).run_in_background(initiator=self)
         return {"suspended": not unsuspend, "count": len(queues)}
+
+    def _rows_changed(self, cids: list[int]) -> None:
+        """Only these cards' rows changed (a suspend from the page)."""
+        if self.isVisible():
+            self.push({"type": "rows", "ids": cids})
+        else:
+            self._dirty = True
 
     def changed(self, changes) -> None:
         """A note was saved from the page (e): tell Anki, the way its own

@@ -42,6 +42,15 @@ All notable changes to this project are documented here. The format is based on
 - `e` now edits the card in Skim. `B` still opens it in Anki's browser, and
   so does **⋯ → Open in Anki's browser**.
 
+### Fixed
+
+- Suspending or unsuspending cards with Cmd+J no longer makes every row in
+  the table flicker: only those cards' state and verdict change. Under a
+  filter or a sort the table stays where it is, and a card that leaves
+  the filter leaves the next one under the cursor. After an undo, or a
+  change made elsewhere in Anki, the rows no longer blank while they're
+  read again.
+
 ## [1.1.0] - 2026-11-19
 
 ### Added

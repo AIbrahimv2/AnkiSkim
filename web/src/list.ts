@@ -1,6 +1,8 @@
 // The card table: one row per card, only the rows on screen in the page
 // (plus a few either side), reused as you scroll, so a search with 50,000
-// cards scrolls like one with 50. Moving the cursor changes two rows.
+// cards scrolls like one with 50. Moving the cursor changes two rows, and
+// a row read again (the cards changed) changes only the cells that differ:
+// suspending a card redraws its State and Verdict, nothing else.
 
 import type { Row, Status } from "./types.ts";
 import { barsOf, yieldBars } from "./yieldbars.ts";
@@ -69,6 +71,9 @@ const ROW_PAD = 19;
 
 export interface ListOptions {
   row(cid: number): Row | undefined;
+  /** The row a card had before the cards changed: shown while `need`
+   *  gets its new one, instead of a placeholder. */
+  oldRow(cid: number): Row | undefined;
   /** Rows the list is about to show and doesn't have yet. */
   need(cids: number[]): void;
   /** A row clicked; `extend` with Shift held. */
@@ -82,7 +87,10 @@ interface RowEl {
   /** The yield's word, after its bars (made once, in make). */
   yieldText: HTMLSpanElement;
   index: number;
+  /** It shows its card's row as it is now (not an old one, or none). */
   filled: boolean;
+  /** The row its cells show, whichever card's (see fill). */
+  drawn: Row | undefined;
 }
 
 export class CardList {
@@ -205,7 +213,11 @@ export class CardList {
     const w = this.againHead.clientWidth;
     if (w === this.againWidth) return;
     this.againWidth = w;
-    for (const r of this.live.values()) if (r.filled) this.fill(r);
+    for (const r of this.live.values()) {
+      if (!r.drawn) continue;
+      r.drawn = undefined; // every cell again, the chips with them
+      this.fill(r);
+    }
   }
 
   /** A chip's width, measured once for each text. */
@@ -252,7 +264,9 @@ export class CardList {
     }
   }
 
-  setIds(ids: number[], cursor: number, placeholder = false): void {
+  /** Show these cards, the cursor on `cursor`, scrolled to it; with
+   *  `stay`, scrolled where it is (setCursor brings the cursor into view). */
+  setIds(ids: number[], cursor: number, placeholder = false, stay = false): void {
     this.placeholder = placeholder;
     this.range = null;
     this.ids = ids;
@@ -260,7 +274,7 @@ export class CardList {
     this.sizer.style.height = `${ids.length * ROW_H}px`;
     for (const r of this.live.values()) this.recycle(r);
     this.live.clear();
-    this.scroller.scrollTop = Math.max(0, cursor * ROW_H - SCROLLOFF * ROW_H);
+    if (!stay) this.scroller.scrollTop = Math.max(0, cursor * ROW_H - SCROLLOFF * ROW_H);
     this.render();
   }
 
@@ -355,7 +369,7 @@ export class CardList {
     });
     const yieldText = document.createElement("span");
     cells[4].append(yieldBars(), yieldText);
-    return { el, cells, yieldText, index: -1, filled: false };
+    return { el, cells, yieldText, index: -1, filled: false, drawn: undefined };
   }
 
   private recycle(r: RowEl): void {
@@ -364,40 +378,80 @@ export class CardList {
     this.spare.push(r);
   }
 
+  /** Show the row's card: its row as it is now, or the one it had while
+   *  that comes, or a placeholder. Only the cells that differ from what
+   *  the element shows are written (a reused element shows another card's
+   *  row: most cells differ; a card read again: few or none do). */
   private fill(r: RowEl): void {
-    const row = this.placeholder ? undefined : this.opts.row(this.ids[r.index]);
+    const cid = this.ids[r.index];
+    const now = this.placeholder ? undefined : this.opts.row(cid);
+    const row = now ?? (this.placeholder ? undefined : this.opts.oldRow(cid));
     const [, text, deck, state, yld, bank, again, verdict] = r.cells;
     const cls = ["row"];
     if (r.index === this.cursorIndex) cls.push("cur");
     if (this.selected(r.index)) cls.push("sel");
+    r.filled = !!now;
     if (!row) {
-      r.filled = false;
       cls.push("loading");
-      for (const c of r.cells.slice(1)) if (c !== yld) c.replaceChildren();
-      yld.dataset.y = "0";
-      r.yieldText.textContent = "";
-      r.el.className = cls.join(" ");
+      if (r.drawn) {
+        for (const c of r.cells.slice(1)) if (c !== yld) c.replaceChildren();
+        yld.dataset.y = "0";
+        r.yieldText.textContent = "";
+        r.drawn = undefined;
+      }
+      setClass(r.el, cls.join(" "));
       return;
     }
-    const [label, stateCls] = STATES[row.q] ?? ["", ""];
     if (row.f) cls.push(`flag-${row.f}`);
-    text.textContent = row.t || "(empty)";
-    text.title = row.k ? `${row.t}\n${row.k}` : row.t;
-    deck.textContent = row.o ? `${leaf(row.d)} (${leaf(row.o)})` : leaf(row.d);
-    deck.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
-    state.textContent = label;
-    state.className = `r-state ${stateCls}`;
-    yld.dataset.y = barsOf(row.y);
-    r.yieldText.textContent = row.y ?? "";
-    bank.textContent = row.b ?? "";
-    bank.title = row.b ?? "";
-    again.replaceChildren(...(this.cut.has("again") ? [] : this.fitChips(row.a ?? [])));
-    verdict.textContent = row.v ? VERDICTS[row.v] : "";
-    verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
-    verdict.title = row.r ?? "";
-    r.el.className = cls.join(" ");
-    r.filled = true;
+    setClass(r.el, cls.join(" "));
+    const was = r.drawn;
+    if (row === was) return;
+    r.drawn = row;
+    if (!was || row.t !== was.t || row.k !== was.k) {
+      text.textContent = row.t || "(empty)";
+      text.title = row.k ? `${row.t}\n${row.k}` : row.t;
+    }
+    if (!was || row.d !== was.d || row.o !== was.o) {
+      deck.textContent = row.o ? `${leaf(row.d)} (${leaf(row.o)})` : leaf(row.d);
+      deck.title = row.o ? `${row.d} (${row.o})` : (row.d ?? "");
+    }
+    if (!was || row.q !== was.q) {
+      const [label, stateCls] = STATES[row.q] ?? ["", ""];
+      state.textContent = label;
+      state.className = `r-state ${stateCls}`;
+    }
+    if (!was || row.y !== was.y) {
+      yld.dataset.y = barsOf(row.y);
+      r.yieldText.textContent = row.y ?? "";
+    }
+    if (!was || row.b !== was.b) {
+      bank.textContent = row.b ?? "";
+      bank.title = row.b ?? "";
+    }
+    if (!was || !sameAgain(row.a, was.a)) {
+      again.replaceChildren(...(this.cut.has("again") ? [] : this.fitChips(row.a ?? [])));
+    }
+    if (!was || row.v !== was.v || row.r !== was.r) {
+      verdict.textContent = row.v ? VERDICTS[row.v] : "";
+      verdict.className = `r-verdict${row.v ? ` v-${row.v}` : ""}`;
+      verdict.title = row.r ?? "";
+    }
   }
+}
+
+/** The same systems, statuses and shares in Again in. */
+function sameAgain(a: Again[] | undefined, b: Again[] | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.length === b.length && a.every((x, i) => x[0] === b[i][0] && x[1] === b[i][1] && x[2] === b[i][2]);
+}
+
+/** Set an element's classes, if they aren't already (in any order:
+ *  setCursor and setRange add theirs at the end). */
+function setClass(el: HTMLElement, cls: string): void {
+  if (el.className === cls) return;
+  const want = cls.split(" ");
+  if (want.length === el.classList.length && want.every((c) => el.classList.contains(c))) return;
+  el.className = cls;
 }
 
 /** A deck's own name, without its parents': "AnKing::Step 1" -> "Step 1". */
