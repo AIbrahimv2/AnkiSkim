@@ -9,7 +9,7 @@ the ID 2141626960.
 
 ## Package on AnkiWeb
 
-Version 1.1.0, uploaded 2026-11-19. The release script (`release.py --uploaded`
+Version 1.2.0, uploaded 2026-11-21. The release script (`release.py --uploaded`
 in the `anki-addon-release` skill) updates this line after each upload.
 
 ## Title
