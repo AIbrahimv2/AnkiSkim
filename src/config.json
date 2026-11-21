@@ -1,5 +1,6 @@
 {
   "shortcut": "Ctrl+Shift+B",
+  "b_and_e": true,
   "default_search": "deck:current",
   "start_side": "answer",
   "autoplay_audio": false,

@@ -12,7 +12,11 @@ from aqt.qt import QKeySequence
 ADDON = __name__.split(".")[0]
 
 DEFAULTS: dict = {
+    # Tools → Skim, while Skim hasn't b (b_and_e off).
     "shortcut": "Ctrl+Shift+B",
+    # b opens Skim, and e in a review edits the card in it; Anki's browser
+    # and editor move to Cmd/Ctrl+Shift+B and E (keys.py).
+    "b_and_e": True,
     "default_search": "deck:current",
     "start_side": "answer",
     "autoplay_audio": False,
@@ -76,6 +80,8 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             problems["shortcut"] = "Anki can't use that shortcut."
         else:
             changes["shortcut"] = normal if text else ""
+    if "bAndE" in values:
+        changes["b_and_e"] = bool(values["bAndE"])
     if "defaultSearch" in values:
         changes["default_search"] = str(values["defaultSearch"] or "").strip()
     if "startSide" in values:

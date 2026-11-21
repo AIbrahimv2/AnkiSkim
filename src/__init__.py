@@ -2,29 +2,28 @@
 # Copyright (C) 2026 AIbrahimv2
 """Skim — a fast card browser with vim keys.
 
-Open it from Tools -> Skim (or Stepwise, with p on a topic). j/k move
-through the cards a search finds, h/l show the front or the back, / searches.
-Cards show the way they look when you review them, and the next few are
-drawn ahead of time, so moving is instant.
+Open it with b, from Tools -> Skim, or from Stepwise (b on a topic); e in a
+review edits the card in it. j/k move through the cards a search finds, h/l
+show the front or the back, / searches. Cards show the way they look when
+you review them, and the next few are drawn ahead of time, so moving is
+instant.
 """
 
 from __future__ import annotations
 
 from aqt import gui_hooks, mw
-from aqt.qt import QAction, QKeySequence, QTimer, qconnect
+from aqt.qt import QAction, QTimer, qconnect
 
-from . import api, kit, settings_page
-from .config import ADDON, get_config
+from . import api, keys, kit, settings_page
+from .config import ADDON
 
 
 def _install() -> None:
     action = QAction("Skim", mw)
-    shortcut = get_config()["shortcut"]
-    if shortcut:
-        action.setShortcut(QKeySequence(shortcut))
     qconnect(action.triggered, api.open_from_menu)
     mw.form.menuTools.addAction(action)
-    api.set_action(action)
+    # b and e open Skim, and the shortcut goes on the menu (keys.py).
+    keys.install(action)
 
 
 def _prewarm() -> None:
@@ -38,6 +37,8 @@ gui_hooks.operation_did_execute.append(api.on_operation)
 gui_hooks.theme_did_change.append(api.on_theme_change)
 gui_hooks.reviewer_did_show_question.append(api.on_review_question)
 gui_hooks.reviewer_did_show_answer.append(api.on_review_answer)
+gui_hooks.state_shortcuts_will_change.append(keys.on_state_shortcuts)
+gui_hooks.top_toolbar_did_init_links.append(keys.on_toolbar_links)
 mw.addonManager.setConfigAction(ADDON, api.open_settings)
 # Serve the built page (src/web/) to the Skim window.
 mw.addonManager.setWebExports(ADDON, r"web/.*\.(js|css)")

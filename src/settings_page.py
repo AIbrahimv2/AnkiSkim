@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from . import api
+from . import api, keys
 from .bridge import Bridge
 
 # The panel's commands: the rest of the bridge is the Skim window's.
@@ -24,9 +24,9 @@ class _Host:
         window = api.window()
         if window is not None:
             window.settings_saved(cfg, changed)
-        elif "shortcut" in changed:
+        elif changed & {"shortcut", "b_and_e"}:
             # A window made later reads the rest (audio) itself.
-            api.set_shortcut(cfg["shortcut"])
+            keys.apply(cfg)
 
 
 def handle(msg: dict) -> dict:

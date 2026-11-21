@@ -44,6 +44,7 @@ def settings_of(cfg: dict) -> dict:
     """What Settings (a tab of the kit's window, settings_page.py) edits."""
     return {
         "shortcut": cfg["shortcut"],
+        "bAndE": cfg["b_and_e"],
         "defaultSearch": cfg["default_search"],
         "startSide": cfg["start_side"],
         "autoplay": cfg["autoplay_audio"],

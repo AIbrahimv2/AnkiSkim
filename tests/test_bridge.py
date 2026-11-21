@@ -141,8 +141,8 @@ check(host.saved_layout == {}, "too many columns: kept as it was")
 print("settings")
 got = call("settings")
 s = got["settings"]
-check(s == {"shortcut": "Ctrl+Shift+B", "defaultSearch": "deck:current", "startSide": "answer", "autoplay": False,
-           "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150}, "the defaults")
+check(s == {"shortcut": "Ctrl+Shift+B", "bAndE": True, "defaultSearch": "deck:current", "startSide": "answer",
+           "autoplay": False, "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150}, "the defaults")
 check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 check(call("save_settings", settings={"systemDone": 0}).get("problems", {}).get("systemDone"), "so is a system done at 0%")

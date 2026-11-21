@@ -9,8 +9,11 @@ import { Row, SettingsFoot, ShortcutField } from "../kit/settings.tsx";
 import type { Settings, Side } from "../types.ts";
 import { Switch } from "./ui.tsx";
 
+const MAC = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 /** Cmd on a Mac, Ctrl elsewhere, as the size keys are. */
-const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl+";
+const MOD = MAC ? "⌘" : "Ctrl+";
+/** Where Anki's browser and editor go while Skim has b and e (keys.py). */
+const [ANKI_BROWSE, ANKI_EDIT] = MAC ? ["⇧⌘B", "⇧⌘E"] : ["Ctrl+Shift+B", "Ctrl+Shift+E"];
 
 const SIDES: { value: Side; label: string }[] = [
   { value: "question", label: "Front" },
@@ -182,9 +185,17 @@ export function SettingsPanel(props: { onClose: () => void }) {
                 />
               </div>
             </div>
-            <Row label="Shortcut" hint="Opens Skim from Anki's main window." problem={problems.shortcut}>
-              <ShortcutField value={v.shortcut} onChange={(s) => set("shortcut", s)} />
+            <Row
+              label="b and e open Skim"
+              hint={`b opens Skim instead of Anki's browser, and e in a review edits the card in Skim instead of Anki's editor. Anki's browser moves to ${ANKI_BROWSE}, and its editor to ${ANKI_EDIT}.`}
+            >
+              <Switch checked={v.bAndE} label="" onChange={(x) => set("bAndE", x)} />
             </Row>
+            {!v.bAndE && (
+              <Row label="Shortcut" hint="Opens Skim from Anki's main window." problem={problems.shortcut}>
+                <ShortcutField value={v.shortcut} onChange={(s) => set("shortcut", s)} />
+              </Row>
+            )}
           </div>
         </section>
       </div>

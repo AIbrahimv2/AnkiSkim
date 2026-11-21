@@ -91,7 +91,12 @@ through topics.
   opens on its cards. Leave Skim open and every topic you move to in Stepwise shows its
   cards here, without taking the keys away. `p` in Skim goes back to Stepwise.
   Search for something else in Skim and it stops following.
-- **From a review.** Press Cmd/Ctrl+Shift+B while reviewing and Skim opens on
+- **In place of Anki's browser and editor.** `b` opens Skim from anywhere in
+  Anki's main window, and `e` in a review edits the card in Skim. Anki's
+  browser is still on its toolbar button and moves to Cmd/Ctrl+Shift+B, and
+  its editor to Cmd/Ctrl+Shift+E. **b and e open Skim** in Settings gives
+  Anki its keys back.
+- **From a review.** Press `b` while reviewing and Skim opens on
   today's review of the deck: the cards you've studied so far, in the order
   you answered them, the card on screen (where it starts), then the cards
   still to come, in the order Anki will show them. It shows the side the
@@ -99,6 +104,8 @@ through topics.
   list doesn't give away answers you haven't seen: a card still to come shows
   its front, with its cloze as `[...]` (or its hint). Leave Skim open and it
   follows the review, flipping when you do; `p` goes back to the review.
+  Press `e` instead and the card opens in Skim's editor; `q` takes you
+  back to the review.
 - **Views.** A bar over the table switches between All (your search, or
   Stepwise's topic), This review and Anki's browser's "Today" searches: Due,
   Added, Edited, Studied, First review, Rescheduled, Again and Overdue, each
@@ -120,9 +127,9 @@ through topics.
 
 ## Usage
 
-1. Open **Tools → Skim** (Cmd/Ctrl+Shift+B), or press `b` on a topic in
-   Stepwise. During a review, the same shortcut opens Skim on today's review,
-   at the card you're on.
+1. Press `b` in Anki's main window (or choose **Tools → Skim**), or press
+   `b` on a topic in Stepwise. During a review, `b` opens Skim on today's
+   review, at the card you're on, and `e` opens that card in Skim's editor.
 2. Press `/`, type a search the way you would in Anki's browser
    (`tag:Cardio`, `deck:current is:suspended`, `heart`), and press Enter.
 3. Move with `j` and `k`. `l` shows the back, `h` the front.
@@ -212,8 +219,9 @@ their HTML as Anki's editor does, without drawing MathJax.
 opens the same thing): the side each card opens on (the back, by default,
 which for most note types includes the front), playing audio by itself, when
 a card could wait (less than half its places in the topic's system, by
-default), the height pasted pictures are given, the window's size, the search Skim opens on the first time, and the
-keyboard shortcut.
+default), the height pasted pictures are given, the window's size, the search
+Skim opens on the first time, whether `b` and `e` open Skim, and, if they
+don't, Skim's keyboard shortcut.
 
 ### For other add-ons
 

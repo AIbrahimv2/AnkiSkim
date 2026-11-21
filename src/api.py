@@ -38,7 +38,7 @@ from collections.abc import Callable, Sequence
 
 from aqt import mw
 from anki.utils import ids2str
-from aqt.qt import QAction, QApplication, QKeySequence, QTimer
+from aqt.qt import QApplication, QTimer
 
 from . import kit
 from .tags import Context
@@ -47,7 +47,6 @@ from .window import SkimWindow
 VERSION = 2
 
 _window: SkimWindow | None = None
-_action: QAction | None = None
 _context_factory: Callable[[], Context] | None = None
 
 
@@ -131,7 +130,7 @@ def following(source: str) -> bool:
 
 
 def open_from_menu() -> None:
-    """Tools → Skim (Cmd/Ctrl+Shift+B): during a review, the review, on This
+    """b, or Tools → Skim (keys.py): during a review, the review, on This
     review (or, while Skim already follows it, the view you picked there);
     anywhere else, All: what Skim showed last, unless that was one of the
     bar's other views."""
@@ -148,6 +147,30 @@ def open_from_menu() -> None:
     if not window.isVisible():
         window.show_all()
     window.present()
+
+
+def edit_from_review() -> None:
+    """e in a review (keys.py): the card on screen, in Skim's editor, on
+    the review's view as Cmd/Ctrl+Shift+B opens it (or on This review, if
+    the view you picked hasn't the card); q goes back to the review. Off a
+    review, Anki's editor."""
+    global _lens
+    if mw.col is None:
+        return
+    card = review_card()
+    if card is None:
+        mw.onEditCurrent()
+        return
+    if not following(REVIEW):
+        _lens = "session"
+    # Not counted first, so it opens at once: the bar is counted again
+    # once Skim is open.
+    view = _review_view(card, count=False)
+    if card.id not in view["card_ids"]:
+        _lens = "session"
+        view = _review_view(card, count=False)
+    view["extra"] = {**view["extra"], "edit": card.id}
+    open(back_label="the review", **view)
 
 
 # --- the review -----------------------------------------------------------------
@@ -399,16 +422,6 @@ def prewarm() -> None:
     so the first open is as quick as the rest."""
     if mw.col is not None:
         _get().load()
-
-
-def set_action(action: QAction) -> None:
-    global _action
-    _action = action
-
-
-def set_shortcut(shortcut: str) -> None:
-    if _action is not None:
-        _action.setShortcut(QKeySequence(shortcut) if shortcut else QKeySequence())
 
 
 def window() -> SkimWindow | None:

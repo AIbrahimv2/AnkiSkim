@@ -27,7 +27,7 @@ from aqt.theme import theme_manager
 from aqt.utils import disable_help_button, restoreGeom, saveGeom, setWindowIcon
 from aqt.webview import AnkiWebView
 
-from . import frame, kit, notes
+from . import frame, keys, kit, notes
 from .bridge import Bridge
 from .config import ADDON, get_config, update_config
 from .tags import Analyzer
@@ -363,10 +363,8 @@ class SkimWindow(QDialog):
             pass
 
     def settings_saved(self, cfg: dict, changed: set) -> None:
-        from . import api
-
-        if "shortcut" in changed:
-            api.set_shortcut(cfg["shortcut"])
+        if changed & {"shortcut", "b_and_e"}:
+            keys.apply(cfg)
         if "autoplay_audio" in changed:
             self.web.setPlaybackRequiresGesture(not cfg["autoplay_audio"])
         if "zoom_percent" in changed:
@@ -483,6 +481,8 @@ class SkimWindow(QDialog):
         """Theme changed: the card frames are rebuilt with the new colours."""
         if self._loaded:
             self.flush()
+            # e from a review asked for the editor once, not on every load.
+            self._view.extra.pop("edit", None)
             self._loaded = False
             self.load()
 

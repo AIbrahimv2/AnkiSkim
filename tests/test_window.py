@@ -661,6 +661,41 @@ try:
     api.set_review_lens("session")
     check(wait_for("document.querySelector('.lens.on').textContent.startsWith('This review')"), "and back to the review")
 
+    print("e in a review edits the card in Skim")
+    from aqt.qt import QWidget
+
+    api.set_review_lens("again")
+    check(wait_for(f"{LENS_ON}.startsWith('Again')"), "on a view without the card the reviewer is on")
+    here = col.get_card(next(c for c in ALL if c != third.id))  # Again has only the third
+    mw.reviewer.card = here
+    mw.reviewer.state = "question"
+    reviewer = QWidget()
+    reviewer.setWindowTitle("Anki")
+    reviewer.show()
+    api._window._opener = reviewer
+    backs = []
+    window_back = api._window.back
+    api._window.back = lambda: backs.append(1)
+    api.edit_from_review()
+    check(wait_for("document.querySelector('.app').classList.contains('editing')"),
+          "e mid-review opens Skim with the note's fields")
+    check(wait_for(f"{SHOWN} === {here.id}"), "on the card the reviewer is on")
+    check(json.loads(js(FIELDS)) == list(col.get_note(here.nid).fields), "its note's fields")
+    check(js(f"{LENS_ON}.startsWith('This review')"), "on This review, which has it")
+    press("q")
+    check(wait_for("!document.querySelector('.app').classList.contains('editing')"), "q leaves the editor")
+    pump(0.2)
+    check(backs == [1], "and goes back to the review")
+    press("e")
+    wait_for("document.querySelector('.app').classList.contains('editing')")
+    press("q")
+    wait_for("!document.querySelector('.app').classList.contains('editing')")
+    pump(0.2)
+    check(backs == [1], "e in Skim, as before: q goes back to the table")
+    api._window.back = window_back
+    api._window._opener = None
+    reviewer.close()
+
     js("(() => { const i = document.querySelector('.search input'); i.value = 'tag:Neuro'; "
        "i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()")
     wait_for(f"{POS} === '1 of 4'")

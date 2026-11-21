@@ -1,11 +1,15 @@
 # Skim
 
-Open Skim from **Tools → Skim** (Cmd/Ctrl+Shift+B). Settings are edited in the
+Open Skim with `b`, or from **Tools → Skim**. Settings are edited in the
 window itself: **⋯ → Settings…** (Anki's Config button for this add-on opens
 it too). The keys below are what it saves, for reference.
 
-- `shortcut` — keyboard shortcut for the Tools menu entry (empty to disable).
-  During a review it opens Skim on today's review, at the card you're on.
+- `b_and_e` — `b` opens Skim instead of Anki's browser, and `e` in a review
+  edits the card in Skim instead of Anki's editor (default `true`). Anki's
+  browser moves to Cmd/Ctrl+Shift+B, and its editor to Cmd/Ctrl+Shift+E.
+  During a review, `b` opens Skim on today's review, at the card you're on.
+- `shortcut` — keyboard shortcut for the Tools menu entry, while `b_and_e`
+  is `false` (empty to disable). Default Cmd/Ctrl+Shift+B.
 - `default_search` — what Skim shows the first time you open it, in Anki's
   search syntax (default `deck:current`). After that it reopens on your last
   search.

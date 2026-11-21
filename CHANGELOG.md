@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `b` opens Skim, in place of Anki's browser, and `e` in a review opens
+  the card in Skim's editor, in place of Anki's; `q` takes you back to the
+  review. Anki's browser moves to Cmd+Shift+B (Ctrl+Shift+B on Windows and
+  Linux), and is still on its Browse button, and its editor moves to
+  Cmd+Shift+E. To give Anki its keys back, turn off **b and e open Skim**
+  in Settings.
+
 ## [1.2.0] - 2026-11-20
 
 ### Added

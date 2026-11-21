@@ -35,6 +35,9 @@ export interface View {
   /** The collection schedules with FSRS (the table offers Retrievability,
    *  Difficulty and Stability; without it, Ease). */
   fsrs?: boolean;
+  /** e in a review: this card opens in the editor, and q goes back to the
+   *  review. */
+  edit?: number;
 }
 
 export type Lens = [key: string, label: string, count: number | null];
@@ -189,7 +192,11 @@ export interface CardHtml {
 }
 
 export interface Settings {
+  /** Skim's shortcut, while it hasn't b. */
   shortcut: string;
+  /** b opens Skim and e in a review edits in it; Anki's browser and editor
+   *  move to Cmd/Ctrl+Shift+B and E. */
+  bAndE: boolean;
   defaultSearch: string;
   startSide: Side;
   autoplay: boolean;

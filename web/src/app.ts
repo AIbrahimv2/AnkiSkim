@@ -167,6 +167,8 @@ export class App {
   private edit: EditSession;
   /** A note was saved while editing: the rows are read again after. */
   private editStale = false;
+  /** The editor was opened by e in a review: q goes back to it. */
+  private editBack = false;
   private listPanel: HTMLElement;
 
   private list: CardList;
@@ -234,7 +236,12 @@ export class App {
         this.go(i, true);
         return this.shown[i];
       },
-      exit: () => this.exitEdit(),
+      exit: () => {
+        // Opened by e in a review: done, it goes back to the review.
+        const back = this.editBack && !!this.view.back;
+        this.exitEdit();
+        if (back) void call("back");
+      },
       flip: () => this.setSide(other(this.side)),
       help: () => this.chrome?.toggleHelp(),
       browse: (cid) => void call("browse", { cid }),
@@ -367,8 +374,11 @@ export class App {
     if (document.activeElement !== this.input) this.input.value = view.search;
     // From a review: the side the reviewer is on (front until you answer).
     if (view.side) this.side = view.side;
+    // e in a review: the card mustn't be filtered out.
+    if (view.edit) this.filter = "all";
     this.renderChrome();
     this.relist(view.select ?? null);
+    if (view.edit && this.shown[this.cursor] === view.edit) this.startEdit(true);
     clearTimeout(this.facetsTimer);
     if (this.facets && (this.sortValues || !extraOf(this.sort))) {
       this.facetsSeq = view.seq;
@@ -948,9 +958,10 @@ export class App {
 
   /** e: edit the card you're on. Its fields take the table's place, and
    *  the card beside them shows what you've changed. */
-  startEdit(): void {
+  startEdit(fromReview = false): void {
     const cid = this.shown[this.cursor];
     if (!cid || this.edit.active || this.wantLens !== null) return;
+    this.editBack = fromReview;
     this.endSelection();
     this.keys.reset();
     this.holdCast();
@@ -963,6 +974,7 @@ export class App {
 
   /** Back to the table, on the card you ended on. */
   private exitEdit(): void {
+    this.editBack = false;
     if (!this.edit.active) return;
     this.edit.close();
     (document.activeElement as HTMLElement | null)?.blur?.();
