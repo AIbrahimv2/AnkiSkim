@@ -5,9 +5,11 @@
 // Normal and visual mode work on the field as text (flat.ts reads it,
 // text.ts has the motions); every change goes through execCommand, so the
 // browser's undo stack holds all of it and u / Ctrl-r are its undo and redo.
-// Insert mode is the browser's own typing.
+// Insert mode is the browser's own typing, with symbols as you type
+// (symbols.ts) swapped in after it.
 
 import { Flat } from "./flat.ts";
+import { type Swap, Symbols } from "./symbols.ts";
 import { type Command, type Mode, type Op, Vim } from "./vim.ts";
 import {
   type Motion, type Range as Span, clampNormal, clozeAt, clozes, firstNonBlank, lineEnd, lineStart,
@@ -160,6 +162,10 @@ export class Editor {
   private loads = 0;
   /** The height in pixels a pasted picture is given; 0 for its own size. */
   pasteHeight = 150;
+  /** Symbols as you type (-> to →); null while they're off (Settings). */
+  symbols: Symbols | null = null;
+  /** The last thing typed turned into a symbol. */
+  private swapped = false;
   private repeatTimer = 0;
   /** The system sends repeats for held keys itself. */
   private systemRepeats = false;
@@ -203,7 +209,7 @@ export class Editor {
       body.dataset.i = String(i);
       body.innerHTML = d.html;
       body.addEventListener("beforeinput", (e) => this.beforeInput(e));
-      body.addEventListener("input", () => this.touched());
+      body.addEventListener("input", (e) => this.onInput(e as InputEvent));
       body.addEventListener("paste", (e) => this.onPaste(e));
       wrap.append(head, body);
       this.el.insertBefore(wrap, this.cursor);
@@ -313,6 +319,8 @@ export class Editor {
       if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         e.stopPropagation();
+        // A new line finishes a word, as a space does (-- to ‒).
+        this.swapSymbol(true);
         this.exec("insertLineBreak");
         if (this.capture && this.capture.typed !== null) this.capture.typed += "\n";
         return;
@@ -933,6 +941,61 @@ export class Editor {
     if (e.inputType === "insertText" && e.data) c.typed += e.data;
     else if (e.inputType === "deleteContentBackward" && c.typed) c.typed = c.typed.slice(0, -1);
     else c.typed = null;
+  }
+
+  private onInput(e: InputEvent): void {
+    const swapped = this.swapped;
+    if (!this.applying) this.swapped = false;
+    if (!this.applying && swapped && this.mode === "insert" && e.inputType === "historyUndo") {
+      // Cmd+Z took a symbol back: the browser leaves its key selected, for
+      // the next letter to type over. Carry on after it instead.
+      getSelection()?.collapseToEnd();
+    } else if (!this.applying && this.symbols && this.mode === "insert" && e.inputType === "insertText" && !e.isComposing) {
+      // Most letters can't finish a symbol's key: read the field only
+      // after one that can. Swapped once this input is over: typed by
+      // execCommand (as the tests type), it comes while that command is
+      // still running, and the browser won't run ours inside it.
+      const sel = getSelection();
+      const node = sel?.focusNode;
+      const at = sel?.focusOffset ?? 0;
+      const ch = node?.nodeType === 3 && at > 0 ? (node as Text).data[at - 1] : null;
+      if (ch === null || this.symbols.mayFinish(ch)) queueMicrotask(() => this.swapSymbol(false));
+    }
+    this.touched();
+  }
+
+  /** What was just typed (or the new line about to be) finishes a key: its
+   *  symbol takes the key's place, as one step of the browser's undo, so
+   *  Cmd+Z straight after gives back what you typed. */
+  private swapSymbol(lineBreak: boolean): void {
+    if (!this.symbols || this.mode !== "insert") return;
+    const sel = getSelection();
+    const f = this.flat();
+    if (!sel?.isCollapsed || !sel.focusNode || !f.root.contains(sel.focusNode)) return;
+    const caret = f.offsetOf(sel.focusNode, sel.focusOffset);
+    const swap = lineBreak ? this.symbols.beforeBreak(f.text, caret) : this.symbols.typed(f.text, caret);
+    if (swap) this.putSymbol(f, swap, caret);
+  }
+
+  private putSymbol(f: Flat, s: Swap, caret: number): void {
+    const key = f.text.slice(s.from, s.to);
+    // The space typed after a word key stays, after its symbol.
+    const after = caret - s.to;
+    this.select(f, s.from, s.to);
+    this.exec(s.html ? "insertHTML" : "insertText", s.value);
+    this.swapped = true;
+    if (after) {
+      const sel = getSelection();
+      const g = this.flat();
+      if (sel?.focusNode && g.root.contains(sel.focusNode)) this.caret(g, g.offsetOf(sel.focusNode, sel.focusOffset) + after);
+    }
+    // . types what you typed again: the symbol, now, where its key was.
+    const c = this.capture;
+    if (!c || c.typed === null) return;
+    const tail = c.typed.slice(c.typed.length - (caret - s.from));
+    if (!s.html && tail.length === caret - s.from && tail.startsWith(key)) {
+      c.typed = c.typed.slice(0, c.typed.length - tail.length) + s.value + tail.slice(key.length);
+    } else c.typed = null;
   }
 
   private touched(): void {

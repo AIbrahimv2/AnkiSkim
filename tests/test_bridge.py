@@ -57,6 +57,9 @@ class Host:
     def browse(self, cid):
         self.browsed.append(cid)
 
+    def frame_html(self):
+        return ""
+
 
 host = Host()
 b = Bridge(host)
@@ -115,6 +118,21 @@ del host.undo
 call("browse", cid=brain[0])
 check(host.browsed == [brain[0]], "B asks for Anki's browser")
 
+print("symbols as you type")
+boot = call("boot")
+check(boot["config"]["symbols"] is True and boot["symbolList"] is None,
+      "on by default, with the page's own list when there's no Symbols As You Type")
+# As Symbols As You Type keeps your list (its symbol_manager.py).
+col.db.execute("create table ins_symbols (key varchar(255), value varchar(255))")
+for k, v in (("->", "⟶"), (":alpha:", "α"), ("mmHg", "㎜Hg"), ("two words", "x"), ("", "x"), (":none:", ""),
+             (":n:", None)):
+    col.db.execute("insert into ins_symbols values (?, ?)", k, v)
+check(call("boot")["symbolList"] == [["->", "⟶"], [":alpha:", "α"], ["mmHg", "㎜Hg"]],
+      "your own list from it, without keys it couldn't use either")
+col.db.execute("delete from ins_symbols")
+check(call("boot")["symbolList"] is None, "an empty one is no list")
+col.db.execute("drop table ins_symbols")
+
 print("layout")
 call("layout", share=0.3)
 check(host.saved_layout == {"share": 0.3}, "the table's width is saved")
@@ -142,7 +160,8 @@ print("settings")
 got = call("settings")
 s = got["settings"]
 check(s == {"shortcut": "Ctrl+Shift+B", "bAndE": True, "defaultSearch": "deck:current", "startSide": "answer",
-           "autoplay": False, "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150}, "the defaults")
+           "autoplay": False, "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150, "symbols": True},
+      "the defaults")
 check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
 check(call("save_settings", settings={"systemDone": 0}).get("problems", {}).get("systemDone"), "so is a system done at 0%")
@@ -153,12 +172,16 @@ check(r.get("problems", {}).get("shortcut"), "a shortcut Qt can't read is refuse
 check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50, "systemDone": 50,
-                                     "pasteHeight": 150},
+                                     "pasteHeight": 150, "symbols": True},
       "a change is saved and sent back")
 check(r["settings"]["startSide"] == "question", "with Settings as saved")
 check(host.saved == [{"start_side", "autoplay_audio"}], "the window hears what changed")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(not r["saved"] and len(host.saved) == 1, "saving the same again changes nothing")
+r = call("save_settings", settings={"symbols": False})
+check(r["saved"] and r["config"]["symbols"] is False and mw.addonManager.cfg["symbols_as_you_type"] is False,
+      "symbols as you type, turned off")
+call("save_settings", settings={"symbols": True})
 
 print("settings in the kit's window")
 real_window = api._window
@@ -185,7 +208,7 @@ api._window = w
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(w.saved == [{"autoplay_audio"}], "an open window applies what changed")
 check(w.pushed == [{"type": "config", "config": {"startSide": "answer", "autoplay": True, "waitBelow": 50,
-                                                 "systemDone": 50, "pasteHeight": 150}}], w.pushed)
+                                                 "systemDone": 50, "pasteHeight": 150, "symbols": True}}], w.pushed)
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(len(w.pushed) == 1, "and hears nothing when nothing changed")
 check(settings_page.PAGE["bridge"] is settings_page.handle and settings_page.PAGE["script"] == "web/settings.js",

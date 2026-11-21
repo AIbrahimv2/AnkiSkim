@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Symbols as you type while you edit a card, as the Symbols As You Type
+  add-on does in Anki's editor: `->` turns into →, `:alpha:` into α,
+  `:pm:` into ±, `:deg:` into °, `:1/2:` into ½, and `--` on its own into a
+  dash. If you use that add-on, Skim uses your list from it, with any
+  symbols you've added. Cmd+Z straight after puts back what you typed, and
+  a cloze's colons are left alone, so `{{c1::beta::hint}}` comes out as
+  you type it. **Symbols as you type** in Settings turns it off.
+
 ### Changed
 
 - `b` opens Skim, in place of Anki's browser, and `e` in a review opens

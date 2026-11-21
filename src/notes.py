@@ -30,6 +30,10 @@ _MEDIA_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "imag
 _SRC = re.compile(r'src="([^"]*)"')
 _FILE_EXT = {"png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp", "tif", "tiff"}
 _TAGS = re.compile(r"<[^>]*>")
+# Where the Symbols As You Type add-on keeps your symbols, and more of
+# them than anyone types.
+SYMBOL_TABLE = "ins_symbols"
+MAX_SYMBOLS = 5000
 
 
 def clean(col: Collection, html: str) -> str:
@@ -111,6 +115,22 @@ def save(col: Collection, nid: int, fields: dict):
     if not dirty:
         return note, None
     return note, col.update_note(note)
+
+
+def symbol_list(col: Collection) -> list[list[str]] | None:
+    """Your symbols for typing (-> to →), as the Symbols As You Type add-on
+    keeps them: in a table of the collection, the whole list with your
+    changes. None where there's no such list, and the page uses its own
+    (web/src/edit/symbols.ts, the same as that add-on's)."""
+    try:
+        if not col.db.scalar(f"select count() from sqlite_master where type = 'table' and name = '{SYMBOL_TABLE}'"):
+            return None
+        rows = col.db.all(f"select key, value from {SYMBOL_TABLE} limit {MAX_SYMBOLS}")
+    except Exception:
+        return None
+    out = [[k, v] for k, v in rows
+           if isinstance(k, str) and isinstance(v, str) and k and v and not any(c.isspace() for c in k)]
+    return out or None
 
 
 def add_media(col: Collection, mime: str, data: str, name: str = "") -> str | None:

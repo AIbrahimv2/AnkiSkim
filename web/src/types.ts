@@ -49,6 +49,8 @@ export interface PageConfig {
   systemDone: number;
   /** The height in pixels a pasted picture is given; 0 for its own size. */
   pasteHeight: number;
+  /** Symbols as you type while editing (-> to →). */
+  symbols: boolean;
 }
 
 export interface Layout {
@@ -206,6 +208,8 @@ export interface Settings {
   size: number;
   /** The height in pixels a pasted picture is given; 0 for its own size. */
   pasteHeight: number;
+  /** Symbols as you type while editing (-> to →). */
+  symbols: boolean;
 }
 
 export type PushEvent =

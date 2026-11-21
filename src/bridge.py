@@ -52,13 +52,14 @@ def settings_of(cfg: dict) -> dict:
         "systemDone": cfg["system_done_percent"],
         "size": cfg["zoom_percent"],
         "pasteHeight": cfg["paste_image_height"],
+        "symbols": cfg["symbols_as_you_type"],
     }
 
 
 def page_config(cfg: dict) -> dict:
     return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"],
             "waitBelow": cfg["wait_below_percent"], "systemDone": cfg["system_done_percent"],
-            "pasteHeight": cfg["paste_image_height"]}
+            "pasteHeight": cfg["paste_image_height"], "symbols": cfg["symbols_as_you_type"]}
 
 
 class Bridge:
@@ -96,6 +97,7 @@ class Bridge:
             "frame": self.host.frame_html(),
             "config": page_config(get_config()),
             "layout": self.host.layout(),
+            "symbolList": notes.symbol_list(self.host.col),
         }
 
     def cmd_search(self, msg: dict) -> dict:

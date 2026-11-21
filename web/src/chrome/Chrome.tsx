@@ -199,6 +199,7 @@ const EDIT_KEYS: [string[], string][] = [
   [["i", "a", "I", "A"], "Type: before / after the cursor, at the line's start / end"],
   [["o", "O"], "Type on a new line below / above"],
   [["Esc"], "Stop typing (what you changed is saved)"],
+  [["->", ":alpha:", ":pm:"], "While typing: →, α, ±, and the other symbols (Settings: Symbols as you type)"],
   [["h", "j", "k", "l"], "Left, down, up, right (j and k go on into the next field)"],
   [["w", "b", "e"], "Next word, back a word, end of word (W, B, E: by spaces only)"],
   [["0", "^", "$"], "Start of the line, its first letter, its end"],

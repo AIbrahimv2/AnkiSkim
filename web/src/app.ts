@@ -14,6 +14,7 @@ import { call } from "./bridge.ts";
 import { Cache } from "./cache.ts";
 import type { ChromeApi } from "./chrome/Chrome.tsx";
 import { EditSession } from "./edit/session.ts";
+import type { SymbolPair } from "./edit/symbols.ts";
 import { KeyCast } from "./keycast.ts";
 import { type Command, Keys } from "./keys.ts";
 import { CardList, type ColKey, onByDefault, type SortKey } from "./list.ts";
@@ -51,6 +52,8 @@ export interface Boot {
   frame: string;
   config: PageConfig;
   layout: Layout;
+  /** Your symbols from the Symbols As You Type add-on; null: Skim's own. */
+  symbolList: SymbolPair[] | null;
 }
 
 type FilterKey = "all" | "susp" | "now" | "wait" | "call" | "high" | "qbank";
@@ -263,6 +266,7 @@ export class App {
     const tagsPanel = el("section", "panel tags-panel");
     right.append(cardPanel, rowSplitter, tagsPanel);
     this.edit.setPasteHeight(boot.config.pasteHeight);
+    this.edit.setSymbols(boot.config.symbols, boot.symbolList);
     main.append(listPanel, this.edit.el, splitter, right);
     this.hints = el("footer", "hints");
     this.chromeHost = el("div", "chrome");
@@ -526,6 +530,7 @@ export class App {
     const retag = config.waitBelow !== this.config.waitBelow || config.systemDone !== this.config.systemDone;
     this.config = config;
     this.edit.setPasteHeight(config.pasteHeight);
+    this.edit.setSymbols(config.symbols);
     if (startChanged) this.setSide(config.startSide);
     if (retag) this.retag();
   }

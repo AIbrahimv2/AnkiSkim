@@ -8,6 +8,7 @@
 
 import { call } from "../bridge.ts";
 import { type Clip, Editor, type FieldData } from "./editor.ts";
+import { DEFAULT_SYMBOLS, type SymbolPair, Symbols } from "./symbols.ts";
 import type { Command, Mode } from "./vim.ts";
 
 export interface Note {
@@ -59,6 +60,7 @@ export class EditSession {
   private run = 0;
   private steps: Promise<void> = Promise.resolve();
   private noClipboard = false;
+  private symbolList: SymbolPair[] = DEFAULT_SYMBOLS;
   private kind: HTMLElement;
   private state: HTMLElement;
   private mode: HTMLElement;
@@ -100,6 +102,13 @@ export class EditSession {
   /** The height a pasted picture is given (Settings); 0 for its own. */
   setPasteHeight(px: number): void {
     this.editor.pasteHeight = px > 0 ? Math.round(px) : 0;
+  }
+
+  /** Symbols as you type, on or off (Settings). `list` is yours from the
+   *  Symbols As You Type add-on, if Python found one (null: Skim's own). */
+  setSymbols(on: boolean, list?: SymbolPair[] | null): void {
+    if (list !== undefined) this.symbolList = list?.length ? list : DEFAULT_SYMBOLS;
+    this.editor.symbols = on ? new Symbols(this.symbolList) : null;
   }
 
   get active(): boolean {

@@ -35,6 +35,9 @@ DEFAULTS: dict = {
     # and 28px text, so 150px is about four lines: the picture sits with
     # the text rather than pushing it off the screen.
     "paste_image_height": 150,
+    # While editing, -> turns into → and :alpha: into α as you type, with
+    # the list from the Symbols As You Type add-on where you have it.
+    "symbols_as_you_type": True,
 }
 
 SIDES = ("question", "answer")
@@ -124,4 +127,6 @@ def check_settings(values: dict) -> tuple[dict, dict]:
         except (TypeError, ValueError):
             problems["pasteHeight"] = (f"Enter a height from {PASTE_HEIGHT_RANGE[0]} to {PASTE_HEIGHT_RANGE[1]} "
                                        "pixels, or 0 to leave pictures their own size.")
+    if "symbols" in values:
+        changes["symbols_as_you_type"] = bool(values["symbols"])
     return changes, problems

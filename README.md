@@ -207,6 +207,17 @@ where you copied it, so it sits with the text rather than pushing it off
 the screen. **Height of pasted pictures** in Settings changes it (0
 leaves pictures their own size).
 
+Symbols come as you type, as with the
+[Symbols As You Type](https://ankiweb.net/shared/info/2040501954) add-on
+(which only reaches Anki's own editor): `->` turns into →, `=>` into ⇒,
+`:alpha:` into α, `:Delta:` into Δ, `:pm:` into ±, `:deg:` into °,
+`:1/2:` into ½, `:leq:` into ≤, and a `--` or `---` on its own into a dash
+once you type the space after it. If you use that add-on, Skim types your
+list from it, with any symbols you've added. `Cmd-Z` straight after a
+symbol puts back what you typed, and a cloze's colons stay colons:
+`{{c1::beta::hint}}` comes out as you type it. **Symbols as you type** in
+Settings turns it off.
+
 Edits are saved when you stop typing (and a moment after you pause), each
 one through Anki itself: only the fields you changed are written, a new
 cloze gets its card, and Anki's Edit → Undo takes an edit back: `u` back at
@@ -219,7 +230,7 @@ their HTML as Anki's editor does, without drawing MathJax.
 opens the same thing): the side each card opens on (the back, by default,
 which for most note types includes the front), playing audio by itself, when
 a card could wait (less than half its places in the topic's system, by
-default), the height pasted pictures are given, the window's size, the search
+default), the height pasted pictures are given, symbols as you type, the window's size, the search
 Skim opens on the first time, whether `b` and `e` open Skim, and, if they
 don't, Skim's keyboard shortcut.
 

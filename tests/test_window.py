@@ -575,6 +575,56 @@ try:
     check(col.get_note(nid).fields[0] == original, "and u again leaves the note as it started")
     check(js(POS) == "1 of 4", "still on the card it was on")
 
+    print("symbols as you type")
+    TEXTS = "JSON.stringify([...document.querySelectorAll('.field-body')].map(f => f.textContent.replace(/\\u00a0/g, ' ')))"
+    press("e")
+    wait_for("document.querySelector('.app').classList.contains('editing')")
+    press("}", "A")
+    for text in (" ->", " :alpha:", " --", " ", "x<=", "y"):
+        js(TYPE.format(json.dumps(text)))
+    extra = json.loads(js(TEXTS))[1]
+    check(extra == "Extra → α ‒ x⇐y", f"-> and :alpha: turn over as they're typed, -- once a space follows ({extra!r})")
+    for ch in " {{c1::beta::hint}}":
+        js(TYPE.format(json.dumps(ch)))
+    extra = json.loads(js(TEXTS))[1]
+    check(extra.endswith(" {{c1::beta::hint}}"), f"a cloze's colons stay colons ({extra!r})")
+    js(TYPE.format(json.dumps(" ->")))
+    check(json.loads(js(TEXTS))[1].endswith(" →"), "→ again")
+    js("document.execCommand('undo')")
+    extra = json.loads(js(TEXTS))[1]
+    check(extra.endswith(" ->"), f"and Cmd+Z straight after puts back what was typed ({extra!r})")
+    js(TYPE.format(json.dumps("!")))
+    extra = json.loads(js(TEXTS))[1]
+    check(extra.endswith(" ->!"), f"with the cursor after it, so typing carries on there ({extra!r})")
+    # Real keys, as Anki's web view gets them: one at a time, and Cmd+Z
+    # (Ctrl+Z to Qt, which calls Cmd Ctrl on a Mac).
+    from PyQt6.QtTest import QTest
+    from aqt.qt import Qt
+    proxy = api._window.web.focusProxy() or api._window.web
+    QTest.keyClicks(proxy, " :mu:")
+    pump(0.3)
+    extra = json.loads(js(TEXTS))[1]
+    check(extra.endswith(" ->! μ"), f"typed key by key, :mu: turns into μ ({extra!r})")
+    QTest.keyClick(proxy, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    pump(0.3)
+    QTest.keyClicks(proxy, "!")
+    pump(0.3)
+    extra = json.loads(js(TEXTS))[1]
+    check(extra.endswith(" ->! :mu:!"), f"and Cmd+Z puts back :mu:, typing on after it ({extra!r})")
+    settings_page.handle({"cmd": "save_settings", "settings": {"symbols": False}})
+    js(TYPE.format(json.dumps(" :beta:")))
+    check(json.loads(js(TEXTS))[1].endswith(" ->! :mu:! :beta:"), "turned off in Settings, what's typed stays as it is")
+    settings_page.handle({"cmd": "save_settings", "settings": {"symbols": True}})
+    press("Escape")
+    wait_for(f"{STATE} === 'Saved'")
+    check(col.get_note(nid).fields[1].startswith("Extra → α ‒"), f"the symbols are saved ({col.get_note(nid).fields[1]!r})")
+    press("q")
+    wait_for("!document.querySelector('.app').classList.contains('editing')")
+    n = col.get_note(nid)
+    n.fields[1] = "Extra"
+    col.update_note(n)
+    api.on_operation(types.SimpleNamespace(note_text=True, card=False, notetype=False), None)
+
     print("opened from Stepwise")
     stepwise = QDialog()
     stepwise.setWindowTitle("Stepwise")

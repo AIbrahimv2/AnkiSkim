@@ -144,6 +144,12 @@ export function SettingsPanel(props: { onClose: () => void }) {
                 px
               </span>
             </Row>
+            <Row
+              label="Symbols as you type"
+              hint={`While you type, -> turns into →, :alpha: into α, :pm: into ±, :1/2: into ½, and a word of -- into ‒. The same symbols as the Symbols As You Type add-on, and your own if you set some up there. ${MOD}Z straight after puts back what you typed.`}
+            >
+              <Switch checked={v.symbols} label="" onChange={(x) => set("symbols", x)} />
+            </Row>
           </div>
         </section>
         <section className="set-section">
