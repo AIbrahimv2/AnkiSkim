@@ -48,3 +48,12 @@ This repo:
   into `dist/skim.ankiaddon`.
 - **Trying the page:** `tools/devserver.py` serves it against a copy of a
   collection, with Anki's own reviewer files. The README has the commands.
+
+## Screenshots
+
+Make them on the Mac, always: `../anki-addon-kit/screenshots/on-mac.sh`
+(with `tools/screenshots.py`'s arguments). They're shown on AnkiGlass's glass
+and need macOS (Anki.app, Tahoe's wallpaper, Chromium.app, your collection).
+On the Mac it runs `tools/screenshots.py`; from the Linux machine it runs it on
+the Mac over SSH and copies the PNGs back into `docs/`. Don't run
+`tools/screenshots.py` directly on Linux.
