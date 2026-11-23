@@ -23,6 +23,11 @@ All notable changes to this project are documented here. The format is based on
   Linux), and is still on its Browse button, and its editor moves to
   Cmd+Shift+E. To give Anki its keys back, turn off **b and e open Skim**
   in Settings.
+- The first time you open Skim after starting Anki, it's as quick as every
+  other time. Skim now gets its first cards and their tags ready in the
+  background, a little at a time, once Anki has finished starting, so it
+  never slows Anki's own startup. Reading your cards against Stepwise's
+  plan is also about twice as fast.
 
 ## [1.2.0] - 2026-11-20
 

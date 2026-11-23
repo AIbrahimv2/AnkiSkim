@@ -26,8 +26,12 @@ def _install() -> None:
     keys.install(action)
 
 
+# Skim gets ready once Anki's own startup has settled (see api.prewarm).
+PREWARM_MS = 6000
+
+
 def _prewarm() -> None:
-    QTimer.singleShot(3000, api.prewarm)
+    QTimer.singleShot(PREWARM_MS, api.prewarm)
 
 
 gui_hooks.main_window_did_init.append(_install)

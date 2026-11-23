@@ -27,7 +27,7 @@ from aqt.theme import theme_manager
 from aqt.utils import disable_help_button, restoreGeom, saveGeom, setWindowIcon
 from aqt.webview import AnkiWebView
 
-from . import frame, keys, kit, notes
+from . import cards, frame, keys, kit, notes
 from .bridge import Bridge
 from .config import ADDON, get_config, update_config
 from .tags import Analyzer
@@ -90,6 +90,9 @@ class SkimWindow(QDialog):
 
         self._loaded = False
         self._dirty = False
+        # All, read ahead before the window was ever shown (prime): its
+        # search runs again when it opens, in case the cards changed.
+        self._primed = False
         self._view = ViewState()
         # All, the first view in the bar: the last search or Stepwise's
         # cards (show_cards' arguments), and how many cards it found.
@@ -384,6 +387,7 @@ class SkimWindow(QDialog):
         if search is None and card_ids is None and not self._view.seq:
             search = self._saved_search()
         if search is not None or card_ids is not None:
+            self._primed = False
             self._view.set(mw.col, search=search or "", ids=card_ids, title=title, source=source,
                            topics=topics, select=select, ordered=ordered, side=side, hidden=hidden, extra=extra)
             if "lens" not in self._view.extra:
@@ -402,6 +406,14 @@ class SkimWindow(QDialog):
         # An empty search typed here is kept: it shows every card.
         return saved if isinstance(saved, str) else get_config()["default_search"]
 
+    def _search_moved(self) -> bool:
+        """Whether the view's search finds other cards now (some added, or
+        another deck selected since it was read ahead)."""
+        try:
+            return cards.search(mw.col, self._view.search.strip() or "deck:*") != self._view.ids
+        except Exception:
+            return True
+
     def _remember_all(self, **view) -> None:
         self._all = view
         self._all_count = len(self._view.ids)
@@ -409,6 +421,11 @@ class SkimWindow(QDialog):
     def show_all(self, push: bool = True) -> None:
         """All: the last search, or what Stepwise handed over, as it was
         before you picked another view in the bar."""
+        if self._primed:
+            self._primed = False
+            if self._search_moved():
+                self.show_cards(search=self._view.search, push=push)
+                return
         if "lens" not in self._view.extra:
             self.show_cards(push=push)
         else:
@@ -465,6 +482,17 @@ class SkimWindow(QDialog):
             self.web.setFocus()
 
     # --- page ------------------------------------------------------------------
+
+    def prime(self) -> None:
+        """Load the page, hidden, on what it would open on (All), so its
+        first cards are drawn and its rows read before you ask (see
+        api.prewarm). Never for a window that's been shown."""
+        if self._loaded or self.isVisible():
+            return
+        if not self._view.seq:
+            self.show_cards(push=False)
+            self._primed = True
+        self.load()
 
     def load(self) -> None:
         if self._loaded:

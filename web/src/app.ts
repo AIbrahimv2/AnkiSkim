@@ -42,6 +42,11 @@ const TAGS_MIN = 90;
 /** The splitters' thickness (.main's and .side's 12px tracks). */
 const GUTTER = 12;
 const FACET_SLICE = 3000;
+/** While the window is hidden (read ahead after Anki starts: see
+ *  api.prewarm), smaller slices with a pause between them, so Anki never
+ *  waits on Skim for long. Opening the window goes back to full speed. */
+const HIDDEN_SLICE = 800;
+const HIDDEN_PAUSE_MS = 120;
 /** Facets (the filter counts) wait for a new view's first card: reading
  *  them keeps Python busy, which holds up the card's images. At most this
  *  long, for a card that never comes. */
@@ -624,14 +629,18 @@ export class App {
     const live = () => this.facetsRun === run && this.view.seq === seq && this.cache.gen === gen;
     const next = (start: number): void => {
       if (start < missing.length) {
-        const slice = missing.slice(start, start + FACET_SLICE);
+        const away = document.hidden;
+        const slice = missing.slice(start, start + (away ? HIDDEN_SLICE : FACET_SLICE));
         call<{ ids?: number[]; facets?: Facets; decks?: Record<string, string>; reading?: string; stale?: boolean }>(
           "facets", { seq, ids: slice, extra: extra ? [extra] : [] })
           .then((r) => {
             if (r.stale || !r.ids || !r.facets || this.cache.gen !== gen) return;
             this.cache.putFacets(r.reading ?? "", r.ids, r.facets);
             this.cache.putDecks(r.decks);
-            if (live() && r.reading === reading) next(start + FACET_SLICE);
+            if (!live() || r.reading !== reading) return;
+            const then = start + slice.length;
+            if (document.hidden) window.setTimeout(() => live() && next(then), HIDDEN_PAUSE_MS);
+            else next(then);
           })
           .catch(() => {});
         return;

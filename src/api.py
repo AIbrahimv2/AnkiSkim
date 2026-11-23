@@ -417,11 +417,37 @@ def on_review_answer(card) -> None:
         _window.reveal(card.id)
 
 
+# Prewarming waits this long between its steps, and this long again while
+# Anki is busy (a sync, an import: anything with a progress window).
+PREWARM_STEP_MS = 700
+PREWARM_RETRY_MS = 3000
+
+
+def _busy() -> bool:
+    try:
+        return bool(mw.progress.busy())
+    except Exception:
+        return False
+
+
 def prewarm() -> None:
-    """Make the window and load its page while nothing else is happening,
-    so the first open is as quick as the rest."""
-    if mw.col is not None:
-        _get().load()
+    """Get the window ready while nothing else is happening, so the first
+    open is as quick as the rest. In steps, each a moment's work, after
+    Anki's own startup (see __init__): the window, then its page, hidden,
+    on what it opens on (All), which draws its first cards and reads their
+    tags (and the whole collection's, for the systems: see
+    window.analyzer), then reads the rest of its cards a slice at a time
+    with pauses between (see the page's HIDDEN_SLICE)."""
+    if mw.col is None:
+        return
+    if _busy():
+        QTimer.singleShot(PREWARM_RETRY_MS, prewarm)
+        return
+    if _window is None:
+        _get()
+        QTimer.singleShot(PREWARM_STEP_MS, prewarm)
+        return
+    _window.prime()
 
 
 def window() -> SkimWindow | None:

@@ -41,6 +41,7 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import lru_cache
 
 SEP = "::"
 
@@ -110,17 +111,21 @@ def unit_of(path: list[str]) -> str | None:
     discipline chapter, the one under it)."""
     if not path:
         return None
-    first = _clean(path[0])
-    for name, pat in _SYSTEMS:
-        if pat.search(first):
-            return name
-    discipline = next((name for name, pat in _DISCIPLINES if pat.search(first)), None)
-    if discipline and len(path) > 1:
-        second = _clean(path[1])
-        for name, pat in _SYSTEMS:
-            if pat.search(second):
-                return name
-    return discipline
+    system, discipline = _chapter(path[0])
+    if system or not discipline or len(path) < 2:
+        return system or discipline
+    return _chapter(path[1])[0] or discipline
+
+
+@lru_cache(maxsize=16384)
+def _chapter(segment: str) -> tuple[str | None, str | None]:
+    """The system and the discipline a tag segment names, if any. A deck's
+    tags share a few hundred chapters, so each is matched against the
+    patterns once (Skim reads every tag in the collection when it opens)."""
+    first = _clean(segment)
+    system = next((name for name, pat in _SYSTEMS if pat.search(first)), None)
+    discipline = None if system else next((name for name, pat in _DISCIPLINES if pat.search(first)), None)
+    return system, discipline
 
 
 def step_of(root: str) -> int | None:
@@ -217,20 +222,32 @@ class Analyzer:
             t = self._tags[tag] = self._read(tag)
         return t
 
-    def _read(self, tag: str, status: bool = True) -> Tag:
-        low = tag.lower()
-        resource, path, label = self._place(tag)
+    @staticmethod
+    def _kind(low: str, resource: str | None, path: tuple[str, ...]) -> str:
+        """A tag's kind (see Tag), from its lower-case name and place."""
         last = low.rsplit(SEP, 1)[-1]
         name = resource.rsplit(SEP, 1)[-1] if resource else ""
         if last in _YIELD and "yield" in name:
-            t = Tag(tag, "yield", resource, label, path, level=_YIELD[last])
-        elif name in _BANKS:
-            t = Tag(tag, "bank", resource, label, path, bank=_BANKS[name])
-        elif resource is None or not path or low.startswith(_NOISE):
+            return "yield"
+        if name in _BANKS:
+            return "bank"
+        if resource is None or not path or low.startswith(_NOISE):
+            return "other"
+        return "place"
+
+    def _read(self, tag: str, status: bool = True) -> Tag:
+        low = tag.lower()
+        resource, path, label = self._place(tag)
+        kind = self._kind(low, resource, path)
+        if kind == "yield":
+            t = Tag(tag, "yield", resource, label, path, level=_YIELD[low.rsplit(SEP, 1)[-1]])
+        elif kind == "bank":
+            t = Tag(tag, "bank", resource, label, path, bank=_BANKS[resource.rsplit(SEP, 1)[-1]])
+        elif kind == "other":
             t = Tag(tag, "other", resource, label, path)
         else:
             here = any(low == p or low.startswith(p + SEP) for p in self.topics)
-            extra = last == "extra"
+            extra = low.rsplit(SEP, 1)[-1] == "extra"
             unit = unit_of([s for s in path if s.lower() != "extra"])
             t = Tag(tag, "place", resource, label, path, unit, self.pins.get(resource), here, extra,
                     self._status(tag) if status else None)
@@ -255,10 +272,13 @@ class Analyzer:
             resource, path, _ = self._place(tag)
             if not path or (self.pins and resource not in self.pins):
                 continue
-            t = self._read(tag, status=False)
-            if t.kind == "place" and t.unit in SYSTEMS:
-                total[t.unit] += 1
-                done[t.unit] += self._status(tag) == "completed"
+            # What _read would make of it, without the rest of a Tag.
+            if self._kind(tag.lower(), resource, path) != "place":
+                continue
+            unit = unit_of([s for s in path if s.lower() != "extra"])
+            if unit in SYSTEMS:
+                total[unit] += 1
+                done[unit] += self._status(tag) == "completed"
         return {unit: done[unit] / n for unit, n in total.items()}
 
     def _unit(self, t: Tag) -> str | None:

@@ -93,6 +93,16 @@ try:
     check(api._window is not None and not api._window.isVisible(), "the window is made ahead, hidden")
     wait_for("!!document.querySelector('.card-frame')")
     check(js("document.querySelectorAll('.card-frame').length") == 6, "with six card frames loading Anki's reviewer")
+    win = api._window
+    check(win._primed and win._view.seq == 1 and win._view.search == mw.addonManager.cfg["default_search"],
+          "and its page is on what it opens on (All, the default search), read ahead while hidden")
+    check(js("document.hidden") is True, "the page knows it's hidden, so it reads ahead in small slices")
+    win.show_all(push=False)
+    check(not win._primed and win._view.seq == 1, "opening on All runs the search again: the same cards, the same view")
+    win._primed = True
+    win._view.ids = [*win._view.ids, -1]  # as if a card were deleted since
+    win.show_all(push=False)
+    check(win._view.seq == 2 and -1 not in win._view.ids, "and if the cards changed meanwhile, the view is read again")
 
     print("open")
     api.open(search="tag:Cardio")
