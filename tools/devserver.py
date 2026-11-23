@@ -10,8 +10,8 @@ touched, and media is only read.
 Run it with Anki's own Python, after building the page (web/: npm run build):
 
     PY=$(ls -d ~/Library/Application\\ Support/AnkiProgramFiles/python/*/bin/python3 | tail -1)
-    "$PY" tools/devserver.py --collection ~/anki-collection-copy/collection.anki2 \\
-        --media ~/anki-collection-copy/collection.media --search "tag:#AK_Step1_v12::#B&B::01_Biochem*"
+    "$PY" tools/devserver.py --collection ~/Documents/Projects/anki/work/collection-copy/collection.anki2 \\
+        --media ~/Documents/Projects/anki/work/collection-copy/collection.media --search "tag:#AK_Step1_v12::#B&B::01_Biochem*"
 
 Then open http://127.0.0.1:5183 (add ?theme=dark for dark mode, with --dark).
 """
