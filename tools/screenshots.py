@@ -17,9 +17,9 @@ Goldstein's, CC BY 4.0, via Wikimedia Commons. --topic and --card show
 another. Each window is taller than its default 1180x780 and draws at 108%
 (ZOOM), on AnkiGlass's glass as AnkiGlass gives an add-on's window (--plain
 for none), with the card see-through as "Glass behind the card" makes it. The page comes from tools/devserver.py, run with Anki's own Python
-(ANKI_PYTHON, or the launcher's) on a copy of a collection: the Default
-profile's unless --collection names another, with the media folder beside
-it. The collection itself is never touched. Verdicts follow Stepwise's
+(ANKI_PYTHON, or the launcher's) on a copy of a collection: the kept copy
+in ~/anki-collection-copy unless --collection names another, with the media
+folder beside it. The collection itself is never touched. Verdicts follow Stepwise's
 pinned resources and statuses, read from its meta.json (--stepwise, by
 default the Stepwise checkout next to this one), as Stepwise would pass them.
 
