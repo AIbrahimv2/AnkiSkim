@@ -18,11 +18,11 @@ All notable changes to this project are documented here. The format is based on
 ### Changed
 
 - `b` opens Skim, in place of Anki's browser, and `e` in a review opens
-  the card in Skim's editor, in place of Anki's; `q` takes you back to the
-  review. Anki's browser moves to Cmd+Shift+B (Ctrl+Shift+B on Windows and
-  Linux), and is still on its Browse button, and its editor moves to
-  Cmd+Shift+E. To give Anki its keys back, turn off **b and e open Skim**
-  in Settings.
+  the card in Skim's editor, in place of Anki's; `q` saves it and closes
+  Skim, back to the review, rather than leaving Skim open on its table.
+  Anki's browser moves to Cmd+Shift+B (Ctrl+Shift+B on Windows and Linux),
+  and is still on its Browse button, and its editor moves to Cmd+Shift+E.
+  To give Anki its keys back, turn off **b and e open Skim** in Settings.
 - The first time you open Skim after starting Anki, it's as quick as every
   other time. Skim now gets its first cards and their tags ready in the
   background, a little at a time, once Anki has finished starting, so it

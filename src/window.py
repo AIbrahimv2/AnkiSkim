@@ -344,7 +344,11 @@ class SkimWindow(QDialog):
         except Exception:  # an Anki whose browser has no such editor
             select()
 
-    def back(self) -> None:
+    def back(self, close: bool = False) -> None:
+        """To the window that opened Skim; with `close` (q after e in a
+        review), Skim closes first rather than staying open behind it."""
+        if close:
+            self.close()
         if _alive(self._opener):
             self._opener.raise_()
             self._opener.activateWindow()

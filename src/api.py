@@ -152,8 +152,8 @@ def open_from_menu() -> None:
 def edit_from_review() -> None:
     """e in a review (keys.py): the card on screen, in Skim's editor, on
     the review's view as Cmd/Ctrl+Shift+B opens it (or on This review, if
-    the view you picked hasn't the card); q goes back to the review. Off a
-    review, Anki's editor."""
+    the view you picked hasn't the card); q saves and closes Skim, back to
+    the review. Off a review, Anki's editor."""
     global _lens
     if mw.col is None:
         return

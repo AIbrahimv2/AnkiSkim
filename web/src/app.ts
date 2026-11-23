@@ -175,7 +175,8 @@ export class App {
   private edit: EditSession;
   /** A note was saved while editing: the rows are read again after. */
   private editStale = false;
-  /** The editor was opened by e in a review: q goes back to it. */
+  /** The editor was opened by e in a review: q saves, closes Skim and
+   *  goes back to the review, rather than leaving the table up. */
   private editBack = false;
   private listPanel: HTMLElement;
 
@@ -245,10 +246,11 @@ export class App {
         return this.shown[i];
       },
       exit: () => {
-        // Opened by e in a review: done, it goes back to the review.
+        // Opened by e in a review: done, Skim closes and the review is
+        // back (the save goes on: the page stays loaded while it's hidden).
         const back = this.editBack && !!this.view.back;
         this.exitEdit();
-        if (back) void call("back");
+        if (back) void call("back", { close: true });
       },
       flip: () => this.setSide(other(this.side)),
       help: () => this.chrome?.toggleHelp(),

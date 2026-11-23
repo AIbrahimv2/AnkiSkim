@@ -735,7 +735,7 @@ try:
     api._window._opener = reviewer
     backs = []
     window_back = api._window.back
-    api._window.back = lambda: backs.append(1)
+    api._window.back = lambda close=False: backs.append(close)
     api.edit_from_review()
     check(wait_for("document.querySelector('.app').classList.contains('editing')"),
           "e mid-review opens Skim with the note's fields")
@@ -745,14 +745,20 @@ try:
     press("q")
     check(wait_for("!document.querySelector('.app').classList.contains('editing')"), "q leaves the editor")
     pump(0.2)
-    check(backs == [1], "and goes back to the review")
+    check(backs == [True], "and closes Skim, back to the review, not to the table")
     press("e")
     wait_for("document.querySelector('.app').classList.contains('editing')")
     press("q")
     wait_for("!document.querySelector('.app').classList.contains('editing')")
     pump(0.2)
-    check(backs == [1], "e in Skim, as before: q goes back to the table")
+    check(backs == [True], "e in Skim, as before: q goes back to the table")
     api._window.back = window_back
+    api._window.back(close=True)
+    pump(0.2)
+    check(not api._window.isVisible(),
+          "closing it hides Skim's window")
+    api.open()
+    wait_for("!!document.querySelector('.search input')")
     api._window._opener = None
     reviewer.close()
 

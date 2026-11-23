@@ -175,7 +175,7 @@ class Bridge:
         return {"src": src} if src else {"error": "That image couldn't be added."}
 
     def cmd_back(self, msg: dict) -> dict:
-        self.host.back()
+        self.host.back(close=bool(msg.get("close")))
         return {}
 
     def cmd_close(self, msg: dict) -> dict:

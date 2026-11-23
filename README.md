@@ -104,8 +104,8 @@ through topics.
   list doesn't give away answers you haven't seen: a card still to come shows
   its front, with its cloze as `[...]` (or its hint). Leave Skim open and it
   follows the review, flipping when you do; `p` goes back to the review.
-  Press `e` instead and the card opens in Skim's editor; `q` takes you
-  back to the review.
+  Press `e` instead and the card opens in Skim's editor; `q` saves it and
+  closes Skim, back to the review.
 - **Views.** A bar over the table switches between All (your search, or
   Stepwise's topic), This review and Anki's browser's "Today" searches: Due,
   Added, Edited, Studied, First review, Rescheduled, Again and Overdue, each
