@@ -84,12 +84,12 @@ A card browser for Anki that keeps up with your keys, and helps you decide what 
 - **Columns to decide by:** state, AnKing yield, UWorld, AMBOSS and NBME questions, the other systems a card comes up in, and Retrievability, the chance you'd recall it now as FSRS works it out. Choose your columns (Due, Interval, Stability and more) and drag them into any order. Filter to Suspended, Now, Wait, High Yield or Q-bank.
 - **Step 1 or Step 2:** each card says which exam it's for, from its resources and question-bank questions under each step.
 - **Select and suspend:** `v` selects cards as you move, and Cmd/Ctrl+J suspends them, as in Anki's browser. `u` undoes.
-- **Edit in place:** press `e` and the note's fields take the table's place, with the card beside them showing what you change. Vim keys, keys for clozes, and pasted pictures sized to one height. Changes save as you type.
-- **From a review:** Cmd/Ctrl+Shift+B opens Skim on today's review at the card you're on, without giving away answers you haven't seen.
+- **Edit in place:** press `e` and the note's fields take the table's place, with the card beside them showing what you change. Vim keys, keys for clozes, symbols as you type (`->` becomes →), and pasted pictures sized to one height. Changes save as you type.
+- **From a review:** `b` opens Skim on today's review at the card you're on, without giving away answers you haven't seen, and `e` opens the card in Skim's editor.
 - **Views** for Anki's "Today" searches: Due, Added, Studied, Again and more.
 - **Pairs with [🪜 Stepwise](https://ankiweb.net/shared/info/1949793886):** press `b` on a topic there to see its cards here, and Skim follows as you move through topics.
 
-Open it from **Tools → Skim** (Cmd/Ctrl+Shift+B). Press `?` in the window for every key.
+Open it from **Tools → Skim**, or press `b` anywhere in Anki's main window. `b` and `e` open Skim in place of Anki's browser and editor, which move to Cmd/Ctrl+Shift+B and Cmd/Ctrl+Shift+E; **b and e open Skim** in Settings gives Anki its keys back. Press `?` in the window for every key.
 
 Source, changelog and issues: [github.com/AIbrahimv2/AnkiSkim](https://github.com/AIbrahimv2/AnkiSkim)
 
