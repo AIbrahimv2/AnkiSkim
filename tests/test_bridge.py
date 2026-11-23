@@ -160,7 +160,7 @@ print("settings")
 got = call("settings")
 s = got["settings"]
 check(s == {"shortcut": "Ctrl+Shift+B", "bAndE": True, "defaultSearch": "deck:current", "startSide": "answer",
-           "autoplay": False, "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 150, "symbols": True},
+           "autoplay": False, "waitBelow": 50, "systemDone": 50, "size": 100, "pasteHeight": 500, "symbols": True},
       "the defaults")
 check(got["defaults"] == s, "and Restore defaults knows them")
 check(call("save_settings", settings={"waitBelow": 120}).get("problems", {}).get("waitBelow"), "a threshold over 95% is refused")
@@ -172,7 +172,7 @@ check(r.get("problems", {}).get("shortcut"), "a shortcut Qt can't read is refuse
 check(mw.addonManager.cfg["shortcut"] == "Ctrl+Shift+B", "and nothing is saved")
 r = call("save_settings", settings={**s, "startSide": "question", "autoplay": True})
 check(r["saved"] and r["config"] == {"startSide": "question", "autoplay": True, "waitBelow": 50, "systemDone": 50,
-                                     "pasteHeight": 150, "symbols": True},
+                                     "pasteHeight": 500, "symbols": True},
       "a change is saved and sent back")
 check(r["settings"]["startSide"] == "question", "with Settings as saved")
 check(host.saved == [{"start_side", "autoplay_audio"}], "the window hears what changed")
@@ -182,6 +182,14 @@ r = call("save_settings", settings={"symbols": False})
 check(r["saved"] and r["config"]["symbols"] is False and mw.addonManager.cfg["symbols_as_you_type"] is False,
       "symbols as you type, turned off")
 call("save_settings", settings={"symbols": True})
+
+from skim import config
+saved = dict(mw.addonManager.cfg)
+mw.addonManager.cfg = {k: v for k, v in saved.items() if k != "pasted_image_height"} | {"paste_image_height": 150}
+check(config.get_config()["pasted_image_height"] == 500, "the old default height, 150, becomes the new one")
+mw.addonManager.cfg["paste_image_height"] = 240
+check(config.get_config()["pasted_image_height"] == 240, "a height someone picked is kept")
+mw.addonManager.cfg = saved
 
 print("settings in the kit's window")
 real_window = api._window
@@ -208,7 +216,7 @@ api._window = w
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(w.saved == [{"autoplay_audio"}], "an open window applies what changed")
 check(w.pushed == [{"type": "config", "config": {"startSide": "answer", "autoplay": True, "waitBelow": 50,
-                                                 "systemDone": 50, "pasteHeight": 150, "symbols": True}}], w.pushed)
+                                                 "systemDone": 50, "pasteHeight": 500, "symbols": True}}], w.pushed)
 settings_page.handle({"cmd": "save_settings", "settings": {**s, "shortcut": "Ctrl+Shift+K", "autoplay": True}})
 check(len(w.pushed) == 1, "and hears nothing when nothing changed")
 check(settings_page.PAGE["bridge"] is settings_page.handle and settings_page.PAGE["script"] == "web/settings.js",

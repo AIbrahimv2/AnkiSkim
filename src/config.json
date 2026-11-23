@@ -6,6 +6,6 @@
   "autoplay_audio": false,
   "wait_below_percent": 50,
   "system_done_percent": 50,
-  "paste_image_height": 150,
+  "pasted_image_height": 500,
   "symbols_as_you_type": true
 }

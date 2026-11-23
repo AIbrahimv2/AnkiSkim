@@ -51,7 +51,7 @@ def settings_of(cfg: dict) -> dict:
         "waitBelow": cfg["wait_below_percent"],
         "systemDone": cfg["system_done_percent"],
         "size": cfg["zoom_percent"],
-        "pasteHeight": cfg["paste_image_height"],
+        "pasteHeight": cfg["pasted_image_height"],
         "symbols": cfg["symbols_as_you_type"],
     }
 
@@ -59,7 +59,7 @@ def settings_of(cfg: dict) -> dict:
 def page_config(cfg: dict) -> dict:
     return {"startSide": cfg["start_side"], "autoplay": cfg["autoplay_audio"],
             "waitBelow": cfg["wait_below_percent"], "systemDone": cfg["system_done_percent"],
-            "pasteHeight": cfg["paste_image_height"], "symbols": cfg["symbols_as_you_type"]}
+            "pasteHeight": cfg["pasted_image_height"], "symbols": cfg["symbols_as_you_type"]}
 
 
 class Bridge:

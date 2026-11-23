@@ -32,9 +32,9 @@ DEFAULTS: dict = {
     # card; 0 leaves it its own size. There's no resizing a picture in the
     # fields, so every pasted one gets the same height. AnKing's note types
     # set none (only widths: 85% of the card, 60% in the resources' fields)
-    # and 28px text, so 150px is about four lines: the picture sits with
-    # the text rather than pushing it off the screen.
-    "paste_image_height": 150,
+    # and 28px text, so 500px is about eighteen lines: big enough to read a
+    # screenshot's labels, and still on the screen with the text.
+    "pasted_image_height": 500,
     # While editing, -> turns into → and :alpha: into α as you type, with
     # the list from the Symbols As You Type add-on where you have it.
     "symbols_as_you_type": True,
@@ -47,8 +47,18 @@ ZOOM_RANGE = (50, 200)
 PASTE_HEIGHT_RANGE = (20, 2000)
 
 
+# Before 1.3 the height was `paste_image_height`, 150 by default. Settings
+# writes every key, so most people have that 150 saved without picking it:
+# they get the new default, and a height someone did pick is kept.
+OLD_PASTE_HEIGHT = ("paste_image_height", 150)
+
+
 def get_config() -> dict:
     cfg = dict(mw.addonManager.getConfig(ADDON) or {})
+    old_key, old_default = OLD_PASTE_HEIGHT
+    old = cfg.pop(old_key, None)
+    if "pasted_image_height" not in cfg and isinstance(old, int) and old != old_default:
+        cfg["pasted_image_height"] = old
     for key, value in DEFAULTS.items():
         if not isinstance(cfg.get(key), type(value)):
             cfg[key] = value
@@ -57,8 +67,8 @@ def get_config() -> dict:
     cfg["wait_below_percent"] = max(5, min(95, cfg["wait_below_percent"]))
     cfg["system_done_percent"] = max(5, min(100, cfg["system_done_percent"]))
     cfg["zoom_percent"] = max(ZOOM_RANGE[0], min(ZOOM_RANGE[1], cfg["zoom_percent"]))
-    h = cfg["paste_image_height"]
-    cfg["paste_image_height"] = 0 if h <= 0 else max(PASTE_HEIGHT_RANGE[0], min(PASTE_HEIGHT_RANGE[1], h))
+    h = cfg["pasted_image_height"]
+    cfg["pasted_image_height"] = 0 if h <= 0 else max(PASTE_HEIGHT_RANGE[0], min(PASTE_HEIGHT_RANGE[1], h))
     return cfg
 
 
@@ -123,7 +133,7 @@ def check_settings(values: dict) -> tuple[dict, dict]:
             px = int(values["pasteHeight"] or 0)
             if px != 0 and not PASTE_HEIGHT_RANGE[0] <= px <= PASTE_HEIGHT_RANGE[1]:
                 raise ValueError
-            changes["paste_image_height"] = px
+            changes["pasted_image_height"] = px
         except (TypeError, ValueError):
             problems["pasteHeight"] = (f"Enter a height from {PASTE_HEIGHT_RANGE[0]} to {PASTE_HEIGHT_RANGE[1]} "
                                        "pixels, or 0 to leave pictures their own size.")

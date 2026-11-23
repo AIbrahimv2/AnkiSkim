@@ -161,7 +161,7 @@ export class Editor {
   /** Bumped by each load, so a paste on its way to another note stops. */
   private loads = 0;
   /** The height in pixels a pasted picture is given; 0 for its own size. */
-  pasteHeight = 150;
+  pasteHeight = 500;
   /** Symbols as you type (-> to →); null while they're off (Settings). */
   symbols: Symbols | null = null;
   /** The last thing typed turned into a symbol. */

@@ -202,7 +202,7 @@ computer's clipboard: a picture copied in a browser ("Copy image"), a
 screenshot or an image file copied in Finder goes into your media folder
 and onto the card; text from a web page keeps its bold, lists and tables and
 drops the rest of the page's styling. Every picture you paste is given one
-height on the card, 150 pixels, with its width to match, however big it was
+height on the card, 500 pixels, with its width to match, however big it was
 where you copied it, so it sits with the text rather than pushing it off
 the screen. **Height of pasted pictures** in Settings changes it (0
 leaves pictures their own size).

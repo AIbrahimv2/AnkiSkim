@@ -23,6 +23,9 @@ All notable changes to this project are documented here. The format is based on
   Anki's browser moves to Cmd+Shift+B (Ctrl+Shift+B on Windows and Linux),
   and is still on its Browse button, and its editor moves to Cmd+Shift+E.
   To give Anki its keys back, turn off **b and e open Skim** in Settings.
+- Pictures you paste while editing are bigger on the card: 500 pixels high
+  in place of 150, so a screenshot's labels are easy to read. If you'd set
+  your own height in Settings, it's kept.
 - The first time you open Skim after starting Anki, it's as quick as every
   other time. Skim now gets its first cards and their tags ready in the
   background, a little at a time, once Anki has finished starting, so it

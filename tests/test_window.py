@@ -483,8 +483,8 @@ try:
     api._window.web.triggerPageAction(QWebEnginePage.WebAction.Paste)
     wait_for(f"{FIELDS}.includes('<img')")
     check(name in json.loads(js(FIELDS))[1], "Cmd+V pastes it too")
-    check('style="height: 150px; width: auto; object-fit: contain;"' in json.loads(js(FIELDS))[1],
-          "at the standard height, 150 pixels, keeping its shape")
+    check('style="height: 500px; width: auto; object-fit: contain;"' in json.loads(js(FIELDS))[1],
+          "at the standard height, 500 pixels, keeping its shape")
     press("u")
     from skim import settings_page
     r = settings_page.handle({"cmd": "save_settings", "settings": {"pasteHeight": 240}})
@@ -492,7 +492,7 @@ try:
     press("p")
     wait_for(f"{FIELDS}.includes('<img')")
     extra = json.loads(js(FIELDS))[1]
-    check("height: 240px" in extra and "150px" not in extra, f"is on the next picture pasted ({extra!r})")
+    check("height: 240px" in extra and "500px" not in extra, f"is on the next picture pasted ({extra!r})")
     wait_for(f"{STATE} === 'Saved'")
     check("height: 240px" in col.get_note(nid).fields[1], "and saved with the note, so the card shows it that tall")
     press("u")
@@ -501,7 +501,7 @@ try:
     wait_for(f"{FIELDS}.includes('<img')")
     check("style" not in json.loads(js(FIELDS))[1], "and 0 leaves a picture its own size")
     press("u")
-    settings_page.handle({"cmd": "save_settings", "settings": {"pasteHeight": 150}})
+    settings_page.handle({"cmd": "save_settings", "settings": {"pasteHeight": 500}})
     clip.setText("copied in Safari")
     press("p")
     wait_for(f"{FIELDS}.includes('copied in Safari')")
